@@ -8,12 +8,18 @@ import {
 } from './types.js';
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
+import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
 
 export class UserSessionService {
+  private broadcaster: IEventBroadcaster;
+
   constructor(
     private readonly userSessionRepository: UserSessionRepository,
-    private readonly boardRepository: BoardRepository
-  ) {}
+    private readonly boardRepository: BoardRepository,
+    broadcaster?: IEventBroadcaster
+  ) {
+    this.broadcaster = broadcaster ?? eventBroadcaster;
+  }
 
   /**
    * Join a board - creates or updates user session
@@ -30,6 +36,12 @@ export class UserSessionService {
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
+    // Check if this is a new join (user not already in board)
+    const existingSession = await this.userSessionRepository.findByBoardAndUser(
+      boardId,
+      cookieHash
+    );
+
     // Upsert user session
     const sessionDoc = await this.userSessionRepository.upsert(
       boardId,
@@ -39,6 +51,15 @@ export class UserSessionService {
 
     // Check if user is admin
     const isAdmin = board.admins.includes(cookieHash);
+
+    // Emit real-time event only for new joins
+    if (!existingSession) {
+      this.broadcaster.userJoined({
+        boardId,
+        userAlias: alias,
+        isAdmin,
+      });
+    }
 
     return userSessionDocumentToUserSession(sessionDoc, isAdmin);
   }
@@ -125,6 +146,13 @@ export class UserSessionService {
       );
     }
 
+    // Get old alias before update
+    const oldSession = await this.userSessionRepository.findByBoardAndUser(
+      boardId,
+      cookieHash
+    );
+    const oldAlias = oldSession?.alias;
+
     // Update alias
     const session = await this.userSessionRepository.updateAlias(
       boardId,
@@ -138,6 +166,15 @@ export class UserSessionService {
         'User session not found. Please join the board first.',
         404
       );
+    }
+
+    // Emit real-time event if alias changed
+    if (oldAlias && oldAlias !== newAlias) {
+      this.broadcaster.userAliasChanged({
+        boardId,
+        oldAlias,
+        newAlias,
+      });
     }
 
     return {

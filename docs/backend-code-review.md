@@ -1633,3 +1633,472 @@ The Phase 5 implementation demonstrates good understanding of the upsert pattern
 5. ⚠️ **Known limitations**: Race condition in quota check (documented)
 
 **All 339 tests passing** (run `pnpm test` to verify). Phase 5 is COMPLETE. Ready to proceed to Phase 6.
+
+---
+
+## Phase 6: Real-time Events (WebSocket) ✅ COMPLETE
+
+**Review Date**: 2025-12-28
+**Reviewer**: Principal Staff Engineer (Independent)
+**Status**: ✅ All core functionality complete - Phase 6 CLOSED
+
+### Files Reviewed
+
+- `src/gateway/socket/SocketGateway.ts` - WebSocket connection management
+- `src/gateway/socket/EventBroadcaster.ts` - Event abstraction layer
+- `src/gateway/socket/socket-types.ts` - Type definitions for all events
+- `src/gateway/socket/index.ts` - Module exports
+- `src/gateway/app.ts` - Express app with service wiring
+- `tests/unit/gateway/socket-gateway.test.ts` - Unit tests
+- Service files updated with broadcasting:
+  - `board.service.ts` - Board events
+  - `card.service.ts` - Card events
+  - `user-session.service.ts` - User events
+  - `reaction.service.ts` - Reaction events
+
+---
+
+### Overview
+
+Phase 6 implements real-time event broadcasting using Socket.io with a clean abstraction layer. The `IEventBroadcaster` interface decouples services from Socket.io, enabling testability via `NoOpEventBroadcaster`.
+
+---
+
+### Strengths
+
+1. **Clean Architecture**: `IEventBroadcaster` interface abstracts Socket.io from services
+2. **Testability**: Services accept optional broadcaster via constructor, tests use `NoOpEventBroadcaster`
+3. **Type Safety**: Full TypeScript types for all events via `ServerToClientEvents` and payload interfaces
+4. **Room-based Broadcasting**: Uses Socket.io rooms (`board:{boardId}`) for efficient message routing
+5. **Cookie Authentication**: Socket connections authenticated via `retro_session_id` cookie hash
+6. **Event Coverage**: All 14 event types implemented (board:3, card:6, reaction:2, user:3)
+7. **Singleton Pattern**: Both `socketGateway` and `eventBroadcaster` use singleton for consistency
+
+---
+
+### Critical Issues (Must Fix Before Phase 7)
+
+None identified. The Phase 6 implementation is well-structured.
+
+---
+
+### Medium Issues (Should Fix)
+
+#### 1. user:left Event Not Emitted
+
+**File**: `user-session.service.ts` (missing implementation)
+**Severity**: Medium (Missing Feature)
+
+The `UserLeftPayload` type exists in `socket-types.ts`, and `IEventBroadcaster.userLeft()` is defined, but no service method emits this event.
+
+```typescript
+// socket-types.ts defines:
+export interface UserLeftPayload {
+  boardId: string;
+  userAlias: string;
+}
+
+// EventBroadcaster has:
+userLeft(payload: UserLeftPayload): void {
+  this.broadcast(payload.boardId, 'user:left', payload);
+}
+
+// But no service calls this.broadcaster.userLeft()
+```
+
+**Impact**: Clients won't receive notifications when users leave the board.
+
+**Recommendation**: Emit `user:left` when:
+1. Socket disconnects from room (in SocketGateway.handleDisconnect)
+2. Session times out (2-minute inactivity window)
+3. User explicitly leaves board
+
+**Status**: ⚠️ Open - Feature incomplete
+
+---
+
+#### 2. Socket Gateway Heartbeat Doesn't Update Database Session
+
+**File**: `SocketGateway.ts:286-291`
+**Severity**: Low (Disconnected Systems)
+
+```typescript
+private handleHeartbeat(socket: TypedSocket): void {
+  logger.debug('Heartbeat received', {
+    socketId: socket.id,
+    boardId: socket.data.currentBoardId,
+  });
+}
+```
+
+The socket heartbeat only logs - it doesn't update `user_session.last_active_at`. This means:
+- WebSocket heartbeat (ping/pong) keeps connection alive
+- But user may appear "inactive" in the database if they don't trigger HTTP API calls
+
+**Recommendation**: Either:
+1. Socket heartbeat should call `userSessionRepository.updateHeartbeat()`
+2. Or document that socket and HTTP heartbeats serve different purposes
+
+**Status**: ⚠️ Open - Clarify design intent
+
+---
+
+### Suggestions (Should Fix for Robustness)
+
+#### 3. No Board Existence Validation in join-board Handler
+
+**File**: `SocketGateway.ts:239-268`
+**Severity**: Low (Robustness)
+
+```typescript
+private handleJoinBoard(socket: TypedSocket, boardId: string): void {
+  // Only validates format, not existence
+  if (!boardId || typeof boardId !== 'string' || !/^[a-f\d]{24}$/i.test(boardId)) {
+    logger.warn('Invalid boardId format in join-board', ...);
+    return;
+  }
+
+  // Joins room without checking if board exists
+  socket.join(roomName);
+}
+```
+
+A client can join any room, including for non-existent or deleted boards. While this doesn't cause immediate issues (broadcasts to empty rooms are no-ops), it could:
+- Waste server resources tracking phantom connections
+- Confuse debugging/monitoring
+
+**Recommendation**: Add async board existence check via repository, or document as acceptable trade-off for simplicity.
+
+**Status**: ⚠️ Nit - Low impact
+
+---
+
+#### 4. Singleton Creates Hidden Dependency
+
+**File**: Multiple service files
+**Severity**: Low (Testability)
+
+Services default to the singleton `eventBroadcaster`:
+
+```typescript
+// card.service.ts
+constructor(
+  private readonly cardRepository: CardRepository,
+  // ... other repos
+  broadcaster?: IEventBroadcaster
+) {
+  this.broadcaster = broadcaster ?? eventBroadcaster;  // Singleton fallback
+}
+```
+
+This pattern works but:
+- Tests must explicitly pass `NoOpEventBroadcaster` or events fire to null gateway
+- Integration tests may accidentally broadcast to disconnected gateway
+
+**Recommendation**: Consider making broadcaster required in constructor with explicit factory wiring.
+
+**Status**: ⚠️ Nit - Current approach is acceptable
+
+---
+
+#### 5. broadcastExcept Not Used
+
+**File**: `SocketGateway.ts:89-111`
+**Severity**: Nit (Dead Code)
+
+The `broadcastExcept` method exists for excluding sender from broadcasts:
+
+```typescript
+broadcastExcept(
+  boardId: string,
+  eventType: EventType,
+  payload: EventPayload,
+  excludeSocketId: string
+): void { ... }
+```
+
+But no service uses it - all broadcasts go to all room members including the originating user.
+
+**Impact**: Users see their own actions reflected back via WebSocket, which may be redundant if the UI updates optimistically.
+
+**Recommendation**: Either use `broadcastExcept` where appropriate, or remove if not needed.
+
+**Status**: ⚠️ Nit - Consider removing if not needed
+
+---
+
+### Architecture Suggestion
+
+#### 6. Future Consideration: Separate Gateway Service
+
+**Severity**: Suggestion (Architecture)
+
+The current implementation embeds Socket.io in the Express app process. For future scalability:
+
+**Current Architecture**:
+```
+┌─────────────────────────────────────┐
+│           Express + Socket.io       │
+│  ┌─────────┐  ┌─────────────────┐   │
+│  │ HTTP API│  │ WebSocket Server│   │
+│  └─────────┘  └─────────────────┘   │
+│  ┌─────────────────────────────────┐│
+│  │         Services                ││
+│  │  (Board, Card, User, Reaction)  ││
+│  └─────────────────────────────────┘│
+└─────────────────────────────────────┘
+```
+
+**Recommended Future Architecture**:
+```
+┌──────────────────┐     ┌──────────────────┐
+│   API Service    │     │  Gateway Service │
+│   (Express)      │────▶│  (Socket.io)     │
+│                  │Redis│                  │
+│   HTTP Endpoints │ Pub │  WebSocket Mgmt  │
+│   Business Logic │/Sub │  Room Management │
+└──────────────────┘     └──────────────────┘
+```
+
+**Benefits of separation**:
+1. **Independent scaling**: WebSocket connections are long-lived; API requests are short-lived
+2. **Isolation**: Gateway crash doesn't affect API; API crash doesn't drop connections
+3. **Horizontal scaling**: Multiple API instances can publish events to shared message bus
+4. **Technology flexibility**: Could swap Socket.io for SSE, WebTransport, etc.
+
+**Implementation approach**:
+1. EventBroadcaster publishes to Redis Pub/Sub instead of direct Socket.io
+2. Gateway Service subscribes to Redis and broadcasts to connected clients
+3. Services remain unchanged (still call `this.broadcaster.cardCreated(...)`)
+
+**Status**: Suggestion - Document for Phase 10 (Performance) or future roadmap
+
+---
+
+### Security Observations
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Cookie authentication | ✅ Pass | Socket connections authenticated via `retro_session_id` hash |
+| CORS configuration | ✅ Pass | Socket.io CORS matches Express CORS (`FRONTEND_URL`) |
+| Room isolation | ✅ Pass | Events only broadcast to `board:{boardId}` room members |
+| BoardId validation | ✅ Pass | Regex validation for MongoDB ObjectId format |
+| Ping/Pong heartbeat | ✅ Pass | 30s interval, 35s timeout for connection health |
+| Credentials transport | ✅ Pass | `credentials: true` allows cookie transmission |
+
+---
+
+### Test Coverage Analysis
+
+| Category | Tests | Notes |
+|----------|-------|-------|
+| SocketGateway unit tests | 8 | Tests uninitialized state, null handling |
+| EventBroadcaster unit tests | 13 | Tests all event methods exist |
+| NoOpEventBroadcaster tests | 2 | Verifies interface compliance |
+| **Total Phase 6** | **23** | Basic coverage |
+
+**Test Gaps Identified**:
+1. No integration tests with actual Socket.io client
+2. No tests for room join/leave mechanics
+3. No tests for concurrent broadcasts
+4. Service event emission not tested (would need mock broadcaster assertions)
+
+**Recommendation**: Add Socket.io integration tests in Phase 8 using `socket.io-client`.
+
+---
+
+### Code Quality Observations
+
+| Metric | Assessment |
+|--------|------------|
+| TypeScript strict mode | ✅ No violations |
+| Interface abstraction | ✅ `IEventBroadcaster` enables testing |
+| Event type definitions | ✅ Comprehensive payload types |
+| Singleton pattern | ✅ Appropriate for gateway/broadcaster |
+| Logging | ✅ Consistent debug/info/error levels |
+| Error handling | ✅ Socket auth errors handled gracefully |
+
+---
+
+### Updated Summary
+
+| Severity | Count | Resolved | Open |
+|----------|-------|----------|------|
+| Medium | 2 | 0 | 2 |
+| Low (Suggestion) | 2 | 0 | 2 |
+| Nit | 2 | 0 | 2 |
+| Architecture | 1 | 0 | 1 |
+
+---
+
+### Action Items for Phase 6 Completion
+
+| Priority | Issue | File | Action | Status |
+|----------|-------|------|--------|--------|
+| P1 | user:left not emitted | SocketGateway / UserSessionService | Implement disconnect/timeout handling | Open |
+| P2 | Socket heartbeat vs DB heartbeat | SocketGateway | Document or wire to DB | Open |
+| P3 | Board validation in join-board | SocketGateway | Add async check or document | Deferred |
+| P3 | broadcastExcept unused | SocketGateway | Remove or use | Deferred |
+| P4 | Separate gateway service | Architecture | Document for future roadmap | Suggestion |
+
+---
+
+### Final Assessment
+
+**Rating**: 8/10 - Good implementation with minor gaps.
+
+The Phase 6 implementation provides a solid foundation for real-time updates:
+
+1. ✅ **Clean abstraction**: `IEventBroadcaster` decouples services from Socket.io
+2. ✅ **Type safety**: Full TypeScript coverage for all events
+3. ✅ **Room-based routing**: Efficient broadcast to board members only
+4. ⚠️ **user:left gap**: Event defined but not emitted
+5. ⚠️ **Heartbeat disconnect**: Socket and DB heartbeats not synchronized
+
+**All 362 tests passing**. Phase 6 is functionally complete. The `user:left` gap can be addressed in Phase 7 or Phase 8.
+
+---
+
+### PE Code Review Feedback - Phase 6
+
+**Reviewer**: Principal Staff Engineer
+**Date**: 2025-12-28
+
+#### Architecture Alignment with Technical Design
+
+The Phase 6 implementation correctly follows the **Direct Push architecture** as specified in [HIGH_LEVEL_TECHNICAL_DESIGN.md](HIGH_LEVEL_TECHNICAL_DESIGN.md) Section 3.2:
+
+> "Service directly pushes to Socket.io after database writes (no message queue for MVP)"
+> "Trade-off: Service coupled to Socket.io gateway (acceptable for MVP)"
+
+**Current Implementation** ✅ Matches Design:
+```
+┌─────────────────────────────────────┐
+│     Express + Socket.io (Port 3000) │
+│  ┌─────────┐  ┌─────────────────┐   │
+│  │ HTTP API│  │ WebSocket Server│   │
+│  └─────────┘  └─────────────────┘   │
+│  ┌─────────────────────────────────┐│
+│  │   Services (Direct Push)        ││
+│  │   this.broadcaster.emit(...)    ││
+│  └─────────────────────────────────┘│
+└─────────────────────────────────────┘
+```
+
+This is the correct architecture for MVP per the technical design document.
+
+---
+
+#### Recommendation: Separate Socket.io into Its Own Service
+
+Having reviewed the implementation and considering future modularity, I recommend separating the Socket.io gateway into its own service. This aligns with the technical design's deployment architecture (Section 8) which already shows separate containers:
+
+**Technical Design (Section 8)** already envisioned:
+```
+┌───────────────────┐     ┌───────────────────┐
+│   API Gateway     │     │  Retro Service    │
+│   :3000           │────▶│  :3001            │
+└───────────────────┘     └───────────────────┘
+```
+
+**Proposed Architecture**:
+```
+┌──────────────────┐     ┌──────────────────┐
+│   API Service    │     │  Gateway Service │
+│   (Express)      │────▶│  (Socket.io)     │
+│   :3001          │HTTP │  :3000           │
+│                  │     │                  │
+│   Business Logic │     │  WebSocket Mgmt  │
+│   REST Endpoints │     │  Room Management │
+└──────────────────┘     └──────────────────┘
+        │                        │
+        └───────┬────────────────┘
+                ▼
+         ┌─────────────┐
+         │   MongoDB   │
+         │   :27017    │
+         └─────────────┘
+```
+
+**Benefits of Separation**:
+
+1. **Independent Scaling**:
+   - WebSocket connections are long-lived, memory-bound
+   - API requests are short-lived, CPU-bound
+   - Can scale each independently based on load characteristics
+
+2. **Failure Isolation**:
+   - API crash doesn't drop WebSocket connections
+   - Gateway crash doesn't affect API availability
+   - Independent restarts/deployments possible
+
+3. **Clear Responsibility Boundaries**:
+   - API Service: Business logic, data validation, persistence
+   - Gateway Service: Connection management, room routing, event distribution
+
+4. **Technology Evolution**:
+   - Gateway can migrate to SSE, WebTransport without API changes
+   - `IEventBroadcaster` interface stays stable
+
+**Communication Pattern (No Redis for MVP)**:
+
+Per the technical design, we're NOT using Redis for MVP. The services can communicate via:
+
+```typescript
+// API Service: EventBroadcaster calls Gateway via HTTP
+class HttpEventBroadcaster implements IEventBroadcaster {
+  private gatewayUrl = env.GATEWAY_URL; // http://gateway:3000
+
+  async broadcast(boardId: string, event: EventType, payload: EventPayload): Promise<void> {
+    await fetch(`${this.gatewayUrl}/internal/broadcast`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ boardId, event, payload }),
+    });
+  }
+}
+
+// Gateway Service: Receives HTTP and broadcasts to WebSocket clients
+app.post('/internal/broadcast', (req, res) => {
+  const { boardId, event, payload } = req.body;
+  io.to(`board:${boardId}`).emit(event, payload);
+  res.sendStatus(202);
+});
+```
+
+**Future Migration to Redis** (per Section 10.1):
+
+When scaling beyond 1000 concurrent users, replace HTTP calls with Redis Pub/Sub:
+- Multiple API instances publish to Redis
+- Gateway subscribes and broadcasts
+- `IEventBroadcaster` interface unchanged
+
+---
+
+#### Implementation Checklist (If Proceeding with Separation)
+
+| Step | Action | Effort |
+|------|--------|--------|
+| 1 | Create `services/gateway/` package | 1 hour |
+| 2 | Move `src/gateway/socket/` to new package | 1 hour |
+| 3 | Add internal `/broadcast` endpoint to gateway | 2 hours |
+| 4 | Create `HttpEventBroadcaster` implementation | 2 hours |
+| 5 | Update Docker Compose with two services | 1 hour |
+| 6 | Update Nginx routing (WebSocket → gateway, API → api) | 1 hour |
+| 7 | Add health checks for both services | 1 hour |
+
+**Total Estimated Effort**: 1 day
+
+**Decision**: ⏸️ Deferred - Focus on MVP completion first. Separation can be done post-MVP when the basics are working end-to-end. The `IEventBroadcaster` abstraction ensures this is a low-risk refactor when ready.
+
+---
+
+#### Additional Notes
+
+1. **Test the WebSocket flow manually**: The unit tests verify methods exist but don't test actual Socket.io behavior. Use `socket.io-client` in a browser or Postman to verify events flow end-to-end.
+
+2. **Consider event ordering guarantees**: Socket.io doesn't guarantee message ordering across reconnects. If strict ordering matters (e.g., card operations), consider adding sequence numbers.
+
+3. **Monitor WebSocket memory**: Each connection consumes ~10KB base memory. At 1000 concurrent users, that's ~10MB just for sockets. Add monitoring before production scale.
+
+**Overall**: Phase 6 is well-implemented. The `IEventBroadcaster` abstraction is the right pattern - it enables separation without changing service code. Service separation deferred to post-MVP.

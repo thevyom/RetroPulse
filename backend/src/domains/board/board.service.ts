@@ -9,9 +9,17 @@ import {
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 import { env } from '@/shared/config/index.js';
+import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
 
 export class BoardService {
-  constructor(private readonly boardRepository: BoardRepository) {}
+  private broadcaster: IEventBroadcaster;
+
+  constructor(
+    private readonly boardRepository: BoardRepository,
+    broadcaster?: IEventBroadcaster
+  ) {
+    this.broadcaster = broadcaster ?? eventBroadcaster;
+  }
 
   /**
    * Format shareable link as full URL
@@ -112,6 +120,9 @@ export class BoardService {
 
     const board = boardDocumentToBoard(doc);
 
+    // Emit real-time event
+    this.broadcaster.boardRenamed(id, name);
+
     return {
       ...board,
       shareable_link: this.formatShareableLink(doc.shareable_link),
@@ -139,6 +150,9 @@ export class BoardService {
     }
 
     const board = boardDocumentToBoard(doc);
+
+    // Emit real-time event
+    this.broadcaster.boardClosed(id, board.closed_at!);
 
     return {
       ...board,
@@ -238,6 +252,9 @@ export class BoardService {
     if (!deleted) {
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
+
+    // Emit real-time event
+    this.broadcaster.boardDeleted(id);
   }
 
   /**

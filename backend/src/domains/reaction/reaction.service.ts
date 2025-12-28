@@ -5,14 +5,20 @@ import { UserSessionRepository } from '../user/user-session.repository.js';
 import { Reaction, ReactionQuota, AddReactionInput, reactionDocumentToReaction } from './types.js';
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
+import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
 
 export class ReactionService {
+  private broadcaster: IEventBroadcaster;
+
   constructor(
     private readonly reactionRepository: ReactionRepository,
     private readonly cardRepository: CardRepository,
     private readonly boardRepository: BoardRepository,
-    private readonly userSessionRepository: UserSessionRepository
-  ) {}
+    private readonly userSessionRepository: UserSessionRepository,
+    broadcaster?: IEventBroadcaster
+  ) {
+    this.broadcaster = broadcaster ?? eventBroadcaster;
+  }
 
   /**
    * Add a reaction to a card
@@ -68,7 +74,25 @@ export class ReactionService {
       await this.updateReactionCounts(cardId, 1);
     }
 
-    return reactionDocumentToReaction(document);
+    const reaction = reactionDocumentToReaction(document);
+
+    // Emit real-time event (only for new reactions)
+    if (isNew) {
+      // Get updated card counts
+      const updatedCard = await this.cardRepository.findById(cardId);
+      if (updatedCard) {
+        this.broadcaster.reactionAdded({
+          cardId,
+          boardId,
+          userAlias,
+          reactionType: input.reaction_type,
+          directCount: updatedCard.direct_reaction_count,
+          aggregatedCount: updatedCard.aggregated_reaction_count,
+        });
+      }
+    }
+
+    return reaction;
   }
 
   /**
@@ -99,6 +123,10 @@ export class ReactionService {
       throw new ApiError(ErrorCodes.REACTION_NOT_FOUND, 'Reaction not found', 404);
     }
 
+    // Get user's alias for the event before deletion
+    const session = await this.userSessionRepository.findByBoardAndUser(boardId, userHash);
+    const userAlias = session?.alias ?? null;
+
     // Delete the reaction
     const deleted = await this.reactionRepository.delete(cardId, userHash);
     if (!deleted) {
@@ -107,6 +135,18 @@ export class ReactionService {
 
     // Update card reaction counts
     await this.updateReactionCounts(cardId, -1);
+
+    // Emit real-time event
+    const updatedCard = await this.cardRepository.findById(cardId);
+    if (updatedCard) {
+      this.broadcaster.reactionRemoved({
+        cardId,
+        boardId,
+        userAlias,
+        directCount: updatedCard.direct_reaction_count,
+        aggregatedCount: updatedCard.aggregated_reaction_count,
+      });
+    }
   }
 
   /**

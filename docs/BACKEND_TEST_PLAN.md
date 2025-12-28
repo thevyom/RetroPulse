@@ -1,9 +1,9 @@
 # Test Plan - Collaborative Retro Board
 
-**Document Version**: 1.3
+**Document Version**: 1.4
 **Date**: 2025-12-28
 **Architecture**: Single Service + MongoDB + Direct Push
-**Status**: Phase 5 Complete
+**Status**: Phase 6 Complete
 
 ---
 
@@ -18,16 +18,16 @@
 | 3 | User Session | 41 | 20 | ✅ Complete |
 | 4 | Card Domain | 69 | 36 | ✅ Complete |
 | 5 | Reaction Domain | 46 | 21 | ✅ Complete |
-| 6 | Real-time Events | Pending | Pending | ⏳ Planned |
+| 6 | Real-time Events | 23 | N/A | ✅ Complete |
 
-**Total Tests Passing**: 339
+**Total Tests Passing**: 362
 
-### Test Results (Phase 1-5)
+### Test Results (Phase 1-6)
 
 ```
-Test Files: 14 passed (14)
-Tests:      339 passed (339)
-Duration:   ~13s
+Test Files: 15 passed (15)
+Tests:      362 passed (362)
+Duration:   ~15s
 ```
 
 ### Files Tested
@@ -55,6 +55,11 @@ Duration:   ~13s
 - `src/domains/reaction/reaction.repository.ts` - 24 unit tests
 - `src/domains/reaction/reaction.service.ts` - 22 unit tests
 - Reaction API Integration - 21 tests (including edge cases)
+
+**Phase 6 (Real-time Events)**:
+- `src/gateway/socket/SocketGateway.ts` - 8 unit tests
+- `src/gateway/socket/EventBroadcaster.ts` - 15 unit tests
+- Socket Gateway Unit Tests - 23 tests total
 
 ---
 

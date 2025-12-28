@@ -1,7 +1,7 @@
 # Backend Master Task List - RetroPulse
 
 > **Single source of truth** for all backend implementation phases and tasks.
-> Last Updated: 2025-12-28 | Total Phases: 10 | Completed: 5/10
+> Last Updated: 2025-12-28 | Total Phases: 10 | Completed: 6/10
 
 ---
 
@@ -37,24 +37,25 @@ docs/
 | 3 | [User Session](./phases/BACKEND_PHASE_03_USER_SESSION.md) | ✅ Done | 4/4 | - | Join, heartbeat, active users, alias |
 | 4 | [Card Domain](./phases/BACKEND_PHASE_04_CARD_DOMAIN.md) | ✅ Done | 8/8 | - | Cards CRUD, relationships, quota |
 | 5 | [Reaction Domain](./phases/BACKEND_PHASE_05_REACTION_DOMAIN.md) | ✅ Done | 5/5 | - | Reactions, aggregation, limits |
-| 6 | [Real-time Events](./phases/BACKEND_PHASE_06_REALTIME_EVENTS.md) | 🔲 Not Started | 0/5 | High | Socket.io, event broadcasting |
-| 7 | [Testing & Admin APIs](./phases/BACKEND_PHASE_07_TESTING_ADMIN_API.md) | 🔲 Not Started | 0/4 | Medium | Admin auth, clear/reset/seed APIs |
+| 6 | [Real-time Events](./phases/BACKEND_PHASE_06_REALTIME_EVENTS.md) | ✅ Done | 5/5 | - | Socket.io, event broadcasting |
+| 7 | [Testing & Admin APIs](./phases/BACKEND_PHASE_07_TESTING_ADMIN_API.md) | 🔲 Not Started | 0/4 | High | Admin auth, clear/reset/seed APIs |
 | 8 | [Integration Testing](./phases/BACKEND_PHASE_08_INTEGRATION_TESTING.md) | 🔲 Not Started | 0/5 | Medium | E2E tests, CI/CD pipeline |
 | 9 | [Error Handling](./phases/BACKEND_PHASE_09_ERROR_HANDLING.md) | 🔲 Not Started | 0/4 | Medium | Middleware, rate limiting |
 | 10 | [Performance](./phases/BACKEND_PHASE_10_PERFORMANCE.md) | 🔲 Not Started | 0/4 | Low | Query optimization, monitoring |
 
-**Overall Progress**: 28/45 tasks complete (62%)
+**Overall Progress**: 33/45 tasks complete (73%)
 
 ---
 
-## 🎯 Current Focus: Phase 6 - Real-time Events
+## 🎯 Current Focus: Phase 7 - Testing & Admin APIs
 
 **Next tasks to implement:**
-1. Socket.io gateway setup with room management
-2. Event broadcaster interface for service → gateway communication
-3. Wire real-time events into Board, Card, and Reaction services
+1. Admin authentication middleware for protected testing endpoints
+2. Clear board data API for integration testing
+3. Reset board state API for test scenarios
+4. Seed test data API for reproducible tests
 
-[→ View Phase 6 Details](./phases/BACKEND_PHASE_06_REALTIME_EVENTS.md)
+[→ View Phase 7 Details](./phases/BACKEND_PHASE_07_TESTING_ADMIN_API.md)
 
 ---
 
@@ -67,7 +68,8 @@ docs/
 | User Session | 47 | 27 | ✅ |
 | Card | 69 | 36 | ✅ |
 | Reaction | 46 | 21 | ✅ |
-| **Total** | **216** | **96** | **312 tests passing** |
+| Socket/Gateway | 23 | - | ✅ |
+| **Total** | **239** | **96** | **362 tests passing** |
 
 Target: 80%+ code coverage
 

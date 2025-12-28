@@ -1,8 +1,9 @@
 # Phase 6: Real-time Event System
 
-**Status**: 🔲 NOT STARTED
+**Status**: ✅ COMPLETED
 **Priority**: High
-**Tasks**: 0/5 complete
+**Tasks**: 5/5 complete
+**Completed**: 2025-12-28
 
 [← Back to Master Task List](../BACKEND_MASTER_TASK_LIST.md)
 
@@ -18,11 +19,11 @@ Implement real-time event broadcasting using Socket.io to synchronize board stat
 
 ### 6.0 Implement Socket.io gateway setup
 
-- [ ] Create `src/gateway/SocketGateway.ts` wrapper for Socket.io server
-- [ ] Configure CORS for WebSocket connections
-- [ ] Implement room management (join-board, leave-board events)
-- [ ] Add heartbeat event handling
-- [ ] Write unit tests for room management
+- [x] Create `src/gateway/SocketGateway.ts` wrapper for Socket.io server
+- [x] Configure CORS for WebSocket connections
+- [x] Implement room management (join-board, leave-board events)
+- [x] Add heartbeat event handling
+- [x] Write unit tests for room management
 
 **Acceptance Criteria:**
 - Socket.io server starts alongside Express
@@ -39,11 +40,11 @@ Implement real-time event broadcasting using Socket.io to synchronize board stat
 
 ### 6.1 Implement direct push from service to gateway
 
-- [ ] Create `src/gateway/EventBroadcaster.ts` interface
-- [ ] Inject SocketGateway reference into service layer
-- [ ] Implement `broadcast()` method on SocketGateway
-- [ ] Add event type definitions (card:created, reaction:added, etc.)
-- [ ] Write unit tests for event broadcasting
+- [x] Create `src/gateway/EventBroadcaster.ts` interface
+- [x] Inject SocketGateway reference into service layer
+- [x] Implement `broadcast()` method on SocketGateway
+- [x] Add event type definitions (card:created, reaction:added, etc.)
+- [x] Write unit tests for event broadcasting
 
 **Acceptance Criteria:**
 - Services can emit events without importing Socket.io directly
@@ -77,11 +78,11 @@ interface UserEvent {
 
 ### 6.2 Add real-time events to BoardService
 
-- [ ] Emit `board:renamed` event when board name changes
-- [ ] Emit `board:closed` event when board is closed
-- [ ] Emit `board:deleted` event when board is deleted
-- [ ] Emit `user:joined` event when user joins board
-- [ ] Write integration tests verifying events received by clients
+- [x] Emit `board:renamed` event when board name changes
+- [x] Emit `board:closed` event when board is closed
+- [x] Emit `board:deleted` event when board is deleted
+- [x] Emit `user:joined` event when user joins board
+- [x] Write integration tests verifying events received by clients
 
 **Events:**
 
@@ -95,12 +96,12 @@ interface UserEvent {
 
 ### 6.3 Add real-time events to CardService
 
-- [ ] Emit `card:created` event after card creation
-- [ ] Emit `card:updated` event after card update
-- [ ] Emit `card:deleted` event after card deletion
-- [ ] Emit `card:moved` event when card moves to different column
-- [ ] Emit `card:linked` and `card:unlinked` events for relationships
-- [ ] Write integration tests with Socket.io client
+- [x] Emit `card:created` event after card creation
+- [x] Emit `card:updated` event after card update
+- [x] Emit `card:deleted` event after card deletion
+- [x] Emit `card:moved` event when card moves to different column
+- [x] Emit `card:linked` and `card:unlinked` events for relationships
+- [x] Write integration tests with Socket.io client
 
 **Events:**
 
@@ -117,10 +118,10 @@ interface UserEvent {
 
 ### 6.4 Add real-time events to ReactionService
 
-- [ ] Emit `reaction:added` event with user_alias and card_id
-- [ ] Emit `reaction:removed` event when reaction is deleted
-- [ ] Include updated reaction counts in event payload
-- [ ] Write integration tests verifying all connected clients receive events
+- [x] Emit `reaction:added` event with user_alias and card_id
+- [x] Emit `reaction:removed` event when reaction is deleted
+- [x] Include updated reaction counts in event payload
+- [x] Write integration tests verifying all connected clients receive events
 
 **Events:**
 

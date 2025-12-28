@@ -14,13 +14,19 @@ import {
 } from './types.js';
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
+import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
 
 export class CardService {
+  private broadcaster: IEventBroadcaster;
+
   constructor(
     private readonly cardRepository: CardRepository,
     private readonly boardRepository: BoardRepository,
-    private readonly userSessionRepository: UserSessionRepository
-  ) {}
+    private readonly userSessionRepository: UserSessionRepository,
+    broadcaster?: IEventBroadcaster
+  ) {
+    this.broadcaster = broadcaster ?? eventBroadcaster;
+  }
 
   /**
    * Create a new card
@@ -66,7 +72,25 @@ export class CardService {
     }
 
     const doc = await this.cardRepository.create(boardId, input, userHash, creatorAlias);
-    return cardDocumentToCard(doc);
+    const card = cardDocumentToCard(doc);
+
+    // Emit real-time event
+    this.broadcaster.cardCreated({
+      cardId: card.id,
+      boardId,
+      columnId: card.column_id,
+      content: card.content,
+      cardType: card.card_type,
+      isAnonymous: card.is_anonymous,
+      createdByAlias: card.created_by_alias,
+      createdAt: card.created_at,
+      directReactionCount: card.direct_reaction_count,
+      aggregatedReactionCount: card.aggregated_reaction_count,
+      parentCardId: card.parent_card_id,
+      linkedFeedbackIds: card.linked_feedback_ids,
+    });
+
+    return card;
   }
 
   /**
@@ -137,7 +161,17 @@ export class CardService {
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can update this card', 403);
     }
 
-    return cardDocumentToCard(doc);
+    const card = cardDocumentToCard(doc);
+
+    // Emit real-time event
+    this.broadcaster.cardUpdated({
+      cardId: card.id,
+      boardId: existingCard.board_id.toHexString(),
+      content: card.content,
+      updatedAt: card.updated_at!,
+    });
+
+    return card;
   }
 
   /**
@@ -175,7 +209,16 @@ export class CardService {
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can move this card', 403);
     }
 
-    return cardDocumentToCard(doc);
+    const card = cardDocumentToCard(doc);
+
+    // Emit real-time event
+    this.broadcaster.cardMoved({
+      cardId: card.id,
+      boardId: existingCard.board_id.toHexString(),
+      columnId: input.column_id,
+    });
+
+    return card;
   }
 
   /**
@@ -212,6 +255,9 @@ export class CardService {
 
     // Delete the card (reactions will be deleted by ReactionService/Repository)
     await this.cardRepository.delete(id);
+
+    // Emit real-time event
+    this.broadcaster.cardDeleted(existingCard.board_id.toHexString(), id);
   }
 
   /**
@@ -292,6 +338,14 @@ export class CardService {
         sourceCardId,
         targetCard.direct_reaction_count
       );
+
+      // Emit real-time event
+      this.broadcaster.cardLinked({
+        sourceId: sourceCardId,
+        targetId: input.target_card_id,
+        boardId: sourceCard.board_id.toHexString(),
+        linkType: 'parent_of',
+      });
     } else if (input.link_type === 'linked_to') {
       // Action-feedback linking: source must be action, target must be feedback
       if (sourceCard.card_type !== 'action') {
@@ -311,6 +365,14 @@ export class CardService {
 
       // Add linked feedback
       await this.cardRepository.addLinkedFeedback(sourceCardId, input.target_card_id);
+
+      // Emit real-time event
+      this.broadcaster.cardLinked({
+        sourceId: sourceCardId,
+        targetId: input.target_card_id,
+        boardId: sourceCard.board_id.toHexString(),
+        linkType: 'linked_to',
+      });
     }
   }
 
@@ -368,9 +430,25 @@ export class CardService {
         sourceCardId,
         -targetCard.direct_reaction_count
       );
+
+      // Emit real-time event
+      this.broadcaster.cardUnlinked({
+        sourceId: sourceCardId,
+        targetId: input.target_card_id,
+        boardId: sourceCard.board_id.toHexString(),
+        linkType: 'parent_of',
+      });
     } else if (input.link_type === 'linked_to') {
       // Remove linked feedback
       await this.cardRepository.removeLinkedFeedback(sourceCardId, input.target_card_id);
+
+      // Emit real-time event
+      this.broadcaster.cardUnlinked({
+        sourceId: sourceCardId,
+        targetId: input.target_card_id,
+        boardId: sourceCard.board_id.toHexString(),
+        linkType: 'linked_to',
+      });
     }
   }
 
