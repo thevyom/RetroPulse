@@ -13,6 +13,7 @@ import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { healthRoutes } from './routes/health.js';
 import { BoardRepository, BoardService, BoardController, createBoardRoutes } from '@/domains/board/index.js';
 import { UserSessionRepository, UserSessionService, UserSessionController, createUserSessionRoutes } from '@/domains/user/index.js';
+import { CardRepository, CardService, CardController, createBoardCardRoutes, createCardRoutes } from '@/domains/card/index.js';
 
 export function createApp(db?: Db): Express {
   const app = express();
@@ -65,6 +66,15 @@ export function createApp(db?: Db): Express {
     const userSessionService = new UserSessionService(userSessionRepository, boardRepository);
     const userSessionController = new UserSessionController(userSessionService);
     app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));
+
+    // Card domain
+    const cardRepository = new CardRepository(db);
+    const cardService = new CardService(cardRepository, boardRepository, userSessionRepository);
+    const cardController = new CardController(cardService);
+    // Board-scoped card routes (/v1/boards/:boardId/cards)
+    app.use('/v1/boards/:boardId', createBoardCardRoutes(cardController));
+    // Card-scoped routes (/v1/cards/:id)
+    app.use('/v1/cards', createCardRoutes(cardController));
   }
 
   // 404 handler

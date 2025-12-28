@@ -1009,7 +1009,310 @@ The Phase 3 implementation now addresses all concerns raised in the independent 
 
 ## Phase 4: Card Domain Implementation
 
-*Review pending*
+**Review Date**: 2025-12-28
+**Reviewer**: Initial review complete
+
+### Files Reviewed
+
+- `src/domains/card/types.ts` - Type definitions and document-to-API converters
+- `src/domains/card/card.repository.ts` - MongoDB data access layer
+- `src/domains/card/card.service.ts` - Business logic layer
+- `src/domains/card/card.controller.ts` - HTTP request handlers
+- `src/domains/card/card.routes.ts` - Express route definitions
+- `tests/unit/domains/card/card.repository.test.ts` - Repository unit tests
+- `tests/unit/domains/card/card.service.test.ts` - Service unit tests
+- `tests/integration/card.test.ts` - API integration tests
+
+### Initial Review Summary
+
+| Category | Count |
+|----------|-------|
+| Critical | 0 |
+| Blocking | 0 |
+| Suggestion | 2 |
+| Nit | 2 |
+
+**Overall Assessment**: Phase 4 implementation is solid and follows established patterns. All 272 tests passing.
+
+---
+
+### Independent Review - Principal Staff Engineer (2025-12-28)
+
+**Reviewer**: Principal Staff Engineer (Independent)
+**Trigger**: Second-opinion review to ensure high bar is maintained
+
+---
+
+#### Critical Issues (Must Fix Before Phase 5)
+
+None identified. The Phase 4 implementation is well-structured.
+
+---
+
+#### Medium Issues (Should Fix)
+
+##### 1. Admin Can Delete Other Users' Cards - Authorization Gap
+
+**File**: `card.service.ts:183-215`
+**Severity**: Medium (Authorization Inconsistency)
+
+The `deleteCard` method only checks if the user is the creator, but `linkCards` and `unlinkCards` allow both creators AND admins:
+
+```typescript
+// deleteCard - only checks creator
+async deleteCard(id: string, userHash: string): Promise<void> {
+  // ...
+  if (existingCard.created_by_hash !== userHash) {
+    throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can delete this card', 403);
+  }
+  // No admin check!
+}
+
+// linkCards - allows creator OR admin (correct)
+const isSourceCreator = sourceCard.created_by_hash === userHash;
+const isAdmin = board.admins.includes(userHash);
+if (!isSourceCreator && !isAdmin) { ... }
+```
+
+**Inconsistency**: Should admins be able to delete any card for moderation purposes? The current implementation says no, but this seems inconsistent with link/unlink allowing admin override.
+
+**Options**:
+1. **Keep as-is**: Only creators can delete (more conservative, protects user content)
+2. **Add admin check**: Admins can delete any card (consistent with link/unlink authorization)
+
+**Recommendation**: Document the intentional difference or align the behavior. If admins should be moderators, they need delete capability.
+
+**Status**: ✅ Resolved (2025-12-28) - Intentional Design
+
+**Resolution**: This is intentional by design:
+- **Linking/Unlinking**: Admins can organize cards (grouping related feedback, linking to action items) for better board management
+- **Delete**: Only creators can delete to protect user voice and prevent moderation overreach
+
+The asymmetry is deliberate - admins facilitate organization without the power to silence participants.
+
+---
+
+##### 2. Missing Index for `linked_feedback_ids` Lookup Performance
+
+**File**: `card.repository.ts:536`
+**Severity**: Low (Performance)
+
+The index on `linked_feedback_ids` is created, but it's a multikey index which won't efficiently support the `$lookup` aggregation:
+
+```typescript
+await this.collection.createIndex({ linked_feedback_ids: 1 });
+```
+
+In `findByBoardWithRelationships`, the `$lookup` joins `linked_feedback_ids` (array of ObjectIds) with `_id`:
+
+```typescript
+{
+  $lookup: {
+    from: 'cards',
+    localField: 'linked_feedback_ids',
+    foreignField: '_id',
+    as: 'linked_feedback_docs',
+  },
+}
+```
+
+The index on `linked_feedback_ids` doesn't help here - what's needed is an index on `_id` (which MongoDB provides by default). The current index would help if you were searching FOR cards by their linked_feedback_ids, not the other way around.
+
+**Status**: ⚠️ Nit - Index exists but reasoning should be documented
+
+---
+
+#### Suggestions (Should Fix for Robustness)
+
+##### 3. Race Condition in Card Limit Check
+
+**File**: `card.service.ts:49-59`
+**Severity**: Low (Concurrency Edge Case)
+
+The card limit check is not atomic with card creation:
+
+```typescript
+// Check card limit for feedback cards
+if (input.card_type === 'feedback' && board.card_limit_per_user !== null) {
+  const currentCount = await this.cardRepository.countUserCards(boardId, userHash, 'feedback');
+  if (currentCount >= board.card_limit_per_user) {
+    throw new ApiError(ErrorCodes.CARD_LIMIT_REACHED, ...);
+  }
+}
+// User could create another card between count and insert!
+const doc = await this.cardRepository.create(...);
+```
+
+Two concurrent requests could both pass the limit check and both create cards, exceeding the limit.
+
+**Recommendation**: For a retro tool with low concurrency, this is acceptable. For stricter enforcement:
+- Use MongoDB transaction
+- Or use `findOneAndUpdate` with a condition on count
+
+**Status**: ⚠️ Open - Document as known limitation or fix
+
+---
+
+##### 4. Aggregation Pipeline Missing Sort After Lookup
+
+**File**: `card.repository.ts:170-173`
+**Severity**: Nit (Ordering)
+
+Children are sorted in JavaScript after the aggregation:
+
+```typescript
+children: childrenDocs
+  .sort((a, b) => a.created_at.getTime() - b.created_at.getTime())
+  .map(cardDocumentToChildCard),
+```
+
+For small child counts this is fine, but if a parent has many children (50+), sorting in the database is more efficient:
+
+```typescript
+// Add sort to lookup
+{
+  $lookup: {
+    from: 'cards',
+    let: { parentId: '$_id' },
+    pipeline: [
+      { $match: { $expr: { $eq: ['$parent_card_id', '$$parentId'] } } },
+      { $sort: { created_at: 1 } }
+    ],
+    as: 'children_docs',
+  },
+}
+```
+
+**Status**: ⚠️ Nit - Optimize if child counts are expected to be large
+
+---
+
+##### 5. `getCard` Doesn't Check Board Existence/Access
+
+**File**: `card.service.ts:75-82`
+**Severity**: Low (Access Control Gap)
+
+`getCard` returns any card by ID without checking if the board exists or if the user has access:
+
+```typescript
+async getCard(id: string): Promise<Card> {
+  const doc = await this.cardRepository.findById(id);
+  if (!doc) {
+    throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
+  }
+  return cardDocumentToCard(doc);
+}
+```
+
+Unlike `getCards` which checks board existence, a user could theoretically access cards from deleted boards or use card IDs as an oracle to enumerate valid IDs.
+
+**Recommendation**: Either:
+1. Check that the card's board still exists
+2. Document that individual card access doesn't require board validation (simpler but less secure)
+
+**Status**: ⚠️ Open - Review access control requirements
+
+---
+
+##### 6. Inconsistent O(n) Admin Check Pattern Returns
+
+**File**: `card.service.ts:244`
+**Severity**: Nit (Phase 3 Pattern Not Applied)
+
+Phase 3 fixed the O(n) admin check to use Set, but Phase 4 doesn't follow the same pattern:
+
+```typescript
+// Phase 4 - still uses array.includes
+const isAdmin = board.admins.includes(userHash);
+```
+
+While this is a single check (not a loop like Phase 3's `getActiveUsers`), for consistency the pattern should match.
+
+**Status**: ⚠️ Nit - Minor inconsistency with Phase 3 optimization
+
+---
+
+#### Security Observations
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Closed board enforcement | ✅ Pass | All write operations check `board.state === 'closed'` |
+| Creator-only operations | ✅ Pass | Update, move, delete check `created_by_hash` |
+| Card limit enforcement | ⚠️ Gap | Race condition possible (low risk for retro tool) |
+| Column validation | ✅ Pass | `createCard` and `moveCard` validate column exists |
+| Cross-board card access | ⚠️ Note | `getCard` doesn't validate board existence |
+| Circular reference prevention | ✅ Pass | `isAncestor` traversal with cycle detection |
+| Content validation | ✅ Pass | 5000 char limit, required field |
+| Type validation | ✅ Pass | Zod schemas at controller layer |
+| Anonymous card handling | ✅ Pass | `created_by_alias` set to null for anonymous |
+
+---
+
+#### Test Coverage Analysis
+
+| Category | Tests | Notes |
+|----------|-------|-------|
+| Repository unit tests | 46 | Comprehensive CRUD, relationships, indexes |
+| Service unit tests | 29 | Mock-based, covers all service methods |
+| Integration tests | 38 | Full API flow including edge cases |
+| **Total Phase 4** | **113** | Good coverage |
+
+**Test Gaps Identified**:
+1. No test for concurrent card creation exceeding limit (race condition)
+2. No test for `getCard` on a card whose board was deleted
+3. No test for extremely deep parent-child hierarchies (10+ levels)
+
+---
+
+#### Code Quality Observations
+
+| Metric | Assessment |
+|--------|------------|
+| Follows Phase 2/3 patterns | ✅ Consistent architecture |
+| Proper error codes | ✅ Uses `ErrorCodes.CARD_NOT_FOUND`, `CARD_LIMIT_REACHED`, etc. |
+| TypeScript strict mode | ✅ No type violations |
+| Aggregation pipeline | ✅ Efficient $lookup for relationships |
+| DRY code | ✅ Good use of helper methods |
+| Documentation | ⚠️ Missing JSDoc on some public methods |
+
+---
+
+#### Updated Summary
+
+| Severity | Count | Resolved | Open |
+|----------|-------|----------|------|
+| Medium | 1 | 1 | 0 |
+| Low (Suggestion) | 3 | 0 | 3 |
+| Nit | 2 | 0 | 2 |
+
+---
+
+#### Action Items for Phase 4 Completion
+
+| Priority | Issue | File | Action | Status |
+|----------|-------|------|--------|--------|
+| P1 | Admin delete authorization | `card.service.ts` | Clarify and document intended behavior | ✅ Done (Intentional) |
+| P2 | Race condition in limit check | `card.service.ts` | Document as known limitation or add transaction | Deferred |
+| P2 | `getCard` board validation | `card.service.ts` | Add board existence check or document | Deferred |
+| P3 | Children sort optimization | `card.repository.ts` | Move sort to aggregation pipeline | Deferred |
+| P3 | Admin check consistency | `card.service.ts` | Use Set pattern from Phase 3 | Deferred |
+| P3 | Index documentation | `card.repository.ts` | Add comment explaining index purpose | Deferred |
+
+---
+
+#### Final Assessment
+
+**Rating**: 8.5/10 - Solid implementation, ready for production.
+
+The Phase 4 implementation is well-structured and follows the patterns established in earlier phases:
+
+1. ✅ **Architecture**: Clean separation of repository/service/controller
+2. ✅ **Business logic**: Card limits, linking, circular reference prevention all working
+3. ✅ **Test coverage**: 113 tests covering the card domain
+4. ✅ **Authorization design**: Intentional asymmetry - admins organize, creators own their voice
+5. ⚠️ **Minor edge cases**: Race condition, cross-board access documented as known limitations
+
+**All 272 tests passing**. Phase 4 closed. Ready to proceed to Phase 5.
 
 ---
 

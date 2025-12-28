@@ -1,9 +1,30 @@
 # Backend Implementation Task List - Collaborative Retro Board
 
-**Document Version**: 1.1
-**Date**: 2025-12-27
+**Document Version**: 1.2
+**Date**: 2025-12-28
 **Based on**: Backend API Specification V2.0, Test Plan V1.0
 **Architecture**: Single Service + MongoDB + Direct Push
+
+---
+
+## 📚 Quick Context Files (Read First!)
+
+> **For AI Assistants & New Developers**: Before diving into the full documentation, start with these compact summary files. They provide high-signal context without the overhead of loading multiple large documents.
+
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| **[BACKEND_PROJECT_OVERVIEW.md](./BACKEND_PROJECT_OVERVIEW.md)** | High-level project summary (~400 lines) | Starting a new phase, understanding overall architecture, checking current progress |
+| **[BACKEND_CORE_CONTEXT.md](./BACKEND_CORE_CONTEXT.md)** | Deep technical context (~500 lines) | Implementing features, understanding patterns, testing setup, code conventions |
+
+**Workflow for AI Assistants**:
+1. **First**: Read `BACKEND_CORE_CONTEXT.md` for code patterns, types, and testing setup
+2. **Then**: Reference `BACKEND_PROJECT_OVERVIEW.md` for API endpoints and business rules
+3. **Only if needed**: Open the full documents below for in-depth specifications
+
+**Full Documentation** (reference when summary files lack detail):
+- [BACKEND_API_SPECIFICATION_V2.md](./BACKEND_API_SPECIFICATION_V2.md) - Complete API endpoints, schemas, behaviors
+- [HIGH_LEVEL_TECHNICAL_DESIGN.md](./HIGH_LEVEL_TECHNICAL_DESIGN.md) - Architecture decisions, DB design
+- [BACKEND_TEST_PLAN.md](./BACKEND_TEST_PLAN.md) - Detailed test cases, coverage requirements
 
 ---
 
@@ -12,7 +33,7 @@
 This task list breaks down the backend implementation into discrete, testable steps following TDD principles. Each task builds incrementally on previous work, with no orphaned code.
 
 **Total Tasks**: 44 tasks across 10 major sections
-**Progress**: Phase 1, 2, 3 Complete ✅
+**Progress**: Phase 1, 2, 3, 4 Complete ✅
 
 ---
 
@@ -277,71 +298,100 @@ tests/
 
 ---
 
-## Phase 4: Card Domain Implementation
+## Phase 4: Card Domain Implementation ✅ COMPLETED
 
-- [ ] 4. Implement Card domain models and DTOs
-  - Create `src/domains/card/types.ts` with Card, CreateCardDTO types
-  - Define card types: "feedback" | "action"
-  - Create parent-child relationship types
-  - Write unit tests for type definitions
-  - _Requirements: FR-2.1, card management_
+- [x] 4. Implement Card domain models and DTOs
+  - ✅ Created `src/domains/card/types.ts` with Card, CreateCardDTO, CardWithRelationships types
+  - ✅ Defined card types: "feedback" | "action"
+  - ✅ Created parent-child and linked_feedback relationship types
+  - ✅ Created converter utilities: cardDocumentToCard, cardDocumentToChildCard, cardDocumentToLinkedFeedbackCard
+  - _Completed: 2025-12-28_
 
-- [ ] 4.1 Implement CardRepository with MongoDB
-  - Create `src/domains/card/CardRepository.ts`
-  - Implement `create()` method with initial reaction counts = 0
-  - Implement `findById()`, `findByBoard()`, `update()`, `delete()` methods
-  - Implement `moveToColumn()` method
-  - Add MongoDB indexes: `{ board_id: 1, created_at: -1 }`, `{ parent_card_id: 1 }`
-  - Write unit tests with mocked MongoDB
-  - _Requirements: FR-2.1.1, card CRUD operations_
+- [x] 4.1 Implement CardRepository with MongoDB
+  - ✅ Created `src/domains/card/card.repository.ts`
+  - ✅ Implemented `create()` method with initial reaction counts = 0
+  - ✅ Implemented `findById()`, `findByBoard()`, `updateContent()`, `delete()` methods
+  - ✅ Implemented `moveToColumn()` method
+  - ✅ Added MongoDB indexes: `{ board_id: 1, created_at: -1 }`, `{ parent_card_id: 1 }`, `{ linked_feedback_ids: 1 }`
+  - ✅ Written unit tests (40 test cases)
+  - _Completed: 2025-12-28_
 
-- [ ] 4.2 Implement card creation with limit enforcement
-  - Add `countUserCards()` method to CardRepository
-  - Extend CardService with card limit check logic
-  - Implement feedback card vs action card differentiation
-  - Add authorization check (only creator can delete/update)
-  - Write unit tests verifying limit enforcement
-  - _Requirements: FR-2.1.8, FR-2.1.10, card limits_
+- [x] 4.2 Implement card creation with limit enforcement
+  - ✅ Added `countUserCards()` method to CardRepository
+  - ✅ Implemented card limit check logic in CardService
+  - ✅ Implemented feedback card vs action card differentiation (action exempt from limits)
+  - ✅ Added authorization check (only creator can delete/update)
+  - ✅ Written unit tests verifying limit enforcement
+  - _Completed: 2025-12-28_
 
-- [ ] 4.3 Implement Card API endpoints (CRUD)
-  - Create `src/domains/card/CardController.ts`
-  - Implement `POST /boards/:id/cards` with validation and limit check
-  - Implement `GET /boards/:id/cards` with filtering (column_id, created_by)
-  - Implement `PUT /cards/:id` with owner authorization
-  - Implement `DELETE /cards/:id` with owner authorization and orphaning children
-  - Write integration tests with real MongoDB
-  - _Requirements: API specification section 2.2, card operations_
+- [x] 4.3 Implement Card API endpoints (CRUD)
+  - ✅ Created `src/domains/card/card.controller.ts`
+  - ✅ Implemented `POST /boards/:id/cards` with validation and limit check
+  - ✅ Implemented `GET /boards/:id/cards` with filtering (column_id, created_by, include_relationships)
+  - ✅ Implemented `PUT /cards/:id` with owner authorization
+  - ✅ Implemented `DELETE /cards/:id` with owner authorization and orphaning children
+  - ✅ Written integration tests (36 test cases)
+  - _Completed: 2025-12-28_
 
-- [ ] 4.4 Implement card quota check API
-  - Add `GET /boards/:id/cards/quota` endpoint to CardController
-  - Return current_count, limit, can_create, limit_enabled
-  - Support checking quota for other users (admin use case)
-  - Write integration tests verifying quota accuracy
-  - _Requirements: API specification 2.2.8, user feedback on limits_
+- [x] 4.4 Implement card quota check API
+  - ✅ Added `GET /boards/:id/cards/quota` endpoint to CardController
+  - ✅ Return current_count, limit, can_create, limit_enabled
+  - ✅ Support checking quota for other users (admin use case)
+  - ✅ Written integration tests verifying quota accuracy
+  - _Completed: 2025-12-28_
 
-- [ ] 4.5 Implement parent-child card relationships
-  - Add `linkCards()` method to CardService with circular relationship check
-  - Add `unlinkCards()` method to CardService
-  - Implement `POST /cards/:id/link` endpoint for parent_of and linked_to types
-  - Implement `DELETE /cards/:id/link` endpoint
-  - Add validation: both cards must be feedback type for parent-child
-  - Write integration tests including circular relationship prevention
-  - _Requirements: FR-2.3, parent-child linking, FR-4.1 (action-feedback links)_
+- [x] 4.5 Implement parent-child card relationships
+  - ✅ Added `linkCards()` method to CardService with circular relationship check
+  - ✅ Added `unlinkCards()` method to CardService
+  - ✅ Implemented `POST /cards/:id/link` endpoint for parent_of and linked_to types
+  - ✅ Implemented `DELETE /cards/:id/link` endpoint
+  - ✅ Added validation: both cards must be feedback type for parent-child
+  - ✅ Added authorization: only card creator or board admin can link/unlink
+  - ✅ Written integration tests including circular relationship prevention
+  - _Completed: 2025-12-28_
 
-- [ ] 4.6 Implement card relationship embedding in GET /cards API
-  - Create MongoDB aggregation pipeline with $lookup for children
-  - Create MongoDB aggregation pipeline with $lookup for linked_feedback_cards
-  - Add `include_relationships` query parameter (default: true)
-  - Add summary statistics: total_count, cards_by_column
-  - Write integration tests verifying embedded data structure
-  - _Requirements: API specification 2.3.1, performance optimization_
+- [x] 4.6 Implement card relationship embedding in GET /cards API
+  - ✅ Created MongoDB aggregation pipeline with $lookup for children
+  - ✅ Created MongoDB aggregation pipeline with $lookup for linked_feedback_cards
+  - ✅ Added `include_relationships` query parameter (default: true)
+  - ✅ Added summary statistics: total_count, cards_by_column
+  - ✅ Optimized with Promise.all for parallel database calls
+  - ✅ Written integration tests verifying embedded data structure
+  - _Completed: 2025-12-28_
 
-- [ ] 4.7 Implement card move to column operation
-  - Add `PATCH /cards/:id/column` endpoint
-  - Validate new column_id exists in board.columns
-  - Preserve parent-child relationships during move
-  - Write integration tests verifying relationship preservation
-  - _Requirements: FR-2.3.13, FR-2.3.14, cross-column cards_
+- [x] 4.7 Implement card move to column operation
+  - ✅ Added `PATCH /cards/:id/column` endpoint
+  - ✅ Validate new column_id exists in board.columns
+  - ✅ Preserve parent-child relationships during move
+  - ✅ Written integration tests verifying relationship preservation
+  - _Completed: 2025-12-28_
+
+### Phase 4 Files Created
+
+```
+src/domains/card/
+├── types.ts              # Card, CardDocument, CardWithRelationships interfaces
+├── card.repository.ts    # MongoDB operations with aggregation pipelines
+├── card.service.ts       # Business logic with authorization
+├── card.controller.ts    # Express request handlers
+├── card.routes.ts        # Route definitions with Zod validation
+└── index.ts              # Module exports
+
+tests/
+├── unit/domains/card/
+│   ├── card.repository.test.ts  # 40 test cases
+│   └── card.service.test.ts     # 29 test cases
+└── integration/
+    └── card.test.ts             # 36 test cases
+```
+
+### Phase 4 Code Review
+
+All blocking issues fixed:
+- ✅ Authorization for linkCards (creator or board admin)
+- ✅ Authorization for unlinkCards (creator or board admin)
+- ✅ Performance optimization with Promise.all
+- ✅ Added linked_feedback_ids index
 
 ---
 
