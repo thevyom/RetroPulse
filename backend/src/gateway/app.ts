@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import type { Db } from 'mongodb';
 import { env } from '@/shared/config/index.js';
 import {
   authMiddleware,
@@ -10,8 +11,9 @@ import {
 } from '@/shared/middleware/index.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { healthRoutes } from './routes/health.js';
+import { BoardRepository, BoardService, BoardController, createBoardRoutes } from '@/domains/board/index.js';
 
-export function createApp(): Express {
+export function createApp(db?: Db): Express {
   const app = express();
 
   // Trust proxy (for secure cookies behind reverse proxy)
@@ -45,9 +47,14 @@ export function createApp(): Express {
     authMiddleware(req as AuthenticatedRequest, res, next);
   });
 
-  // API routes will be added here
-  // app.use('/v1/boards', boardRoutes);
-  // app.use('/v1/cards', cardRoutes);
+  // Wire up domain routes (manual dependency injection)
+  if (db) {
+    // Board domain
+    const boardRepository = new BoardRepository(db);
+    const boardService = new BoardService(boardRepository);
+    const boardController = new BoardController(boardService);
+    app.use('/v1/boards', createBoardRoutes(boardController));
+  }
 
   // 404 handler
   app.use(notFoundHandler);

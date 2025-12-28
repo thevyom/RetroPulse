@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@/shared/logger/index.js';
-import { sendError, ErrorCodes } from '@/shared/types/index.js';
+import { sendError } from '@/shared/utils/index.js';
+import { ErrorCodes } from '@/shared/types/index.js';
 
 /**
  * Custom error class for API errors

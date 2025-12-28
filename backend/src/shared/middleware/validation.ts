@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
-import { sendError, ErrorCodes } from '@/shared/types/index.js';
+import { sendError } from '@/shared/utils/index.js';
+import { ErrorCodes } from '@/shared/types/index.js';
 
 /**
  * Creates a validation middleware for request body using Zod schema

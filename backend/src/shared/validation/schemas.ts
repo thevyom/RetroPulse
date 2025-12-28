@@ -21,9 +21,18 @@ export const aliasSchema = z
     message: 'Alias can only contain letters, numbers, spaces, hyphens, and underscores',
   });
 
+// Column ID validator (alphanumeric, hyphens, underscores only)
+export const columnIdSchema = z
+  .string()
+  .min(1, 'Column ID is required')
+  .max(50, 'Column ID must be 50 characters or less')
+  .regex(/^[a-zA-Z0-9_-]+$/, {
+    message: 'Column ID can only contain letters, numbers, hyphens, and underscores',
+  });
+
 // Column schema
 export const columnSchema = z.object({
-  id: z.string().min(1, 'Column ID is required'),
+  id: columnIdSchema,
   name: z.string().min(1, 'Column name is required').max(100, 'Column name must be 100 characters or less'),
   color: hexColorSchema.optional(),
 });
@@ -64,7 +73,7 @@ export const cardTypeSchema = z.enum(['feedback', 'action']);
 
 // Create card schema
 export const createCardSchema = z.object({
-  column_id: z.string().min(1, 'Column ID is required'),
+  column_id: columnIdSchema,
   content: z.string().min(1, 'Content is required').max(5000, 'Content must be 5000 characters or less'),
   card_type: cardTypeSchema,
   is_anonymous: z.boolean().optional().default(false),
@@ -77,7 +86,7 @@ export const updateCardSchema = z.object({
 
 // Move card schema
 export const moveCardSchema = z.object({
-  column_id: z.string().min(1, 'Column ID is required'),
+  column_id: columnIdSchema,
 });
 
 // Link type enum

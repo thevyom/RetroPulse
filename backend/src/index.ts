@@ -7,10 +7,10 @@ import { env } from '@/shared/config/index.js';
 async function main(): Promise<void> {
   try {
     // Connect to database
-    await connectToDatabase();
+    const db = await connectToDatabase();
 
-    // Create Express app
-    const app = createApp();
+    // Create Express app with database
+    const app = createApp(db);
 
     // Create HTTP server (for future Socket.io integration)
     const server = createServer(app);
