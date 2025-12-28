@@ -1,7 +1,8 @@
 # Backend Core Context - RetroPulse
 
 > Single-file reference for understanding the backend structure, patterns, and testing setup.
-> Focus: Board & User domains, shared utilities, testing infrastructure.
+> Focus: All domains (Board, User, Card, Reaction), shared utilities, testing infrastructure.
+> **Last Updated**: 2025-12-28 | **Phases Complete**: 1-5 ✅
 
 ---
 
@@ -62,13 +63,14 @@ interface ApiError {
 }
 ```
 
-### Error Codes (`src/shared/types/api.ts:38-52`)
+### Error Codes (`src/shared/types/api.ts:38-53`)
 
 ```typescript
 const ErrorCodes = {
   VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN,
   CARD_LIMIT_REACHED, REACTION_LIMIT_REACHED,
   BOARD_NOT_FOUND, CARD_NOT_FOUND, COLUMN_NOT_FOUND, USER_NOT_FOUND,
+  REACTION_NOT_FOUND,  // Added in Phase 5
   BOARD_CLOSED, CIRCULAR_RELATIONSHIP,
   DATABASE_ERROR, INTERNAL_ERROR,
 } as const;
@@ -257,6 +259,185 @@ interface ActiveUser {
 **Indexes**: `(board_id, cookie_hash)` unique, `(board_id, last_active_at)` desc
 
 **Activity Window**: `const ACTIVITY_WINDOW_MS = 2 * 60 * 1000;`
+
+---
+
+## 🃏 Card Domain – Core Model & Flow
+
+### Entity Structure (`src/domains/card/types.ts`)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ CardDocument (MongoDB)                                  │
+├─────────────────────────────────────────────────────────┤
+│ _id: ObjectId                                           │
+│ board_id: ObjectId                                      │
+│ column_id: string                                       │
+│ content: string (max 5000 chars)                        │
+│ card_type: 'feedback' | 'action'                        │
+│ is_anonymous: boolean                                   │
+│ created_by_hash: string                                 │
+│ created_by_alias: string | null (null if anonymous)     │
+│ created_at: Date                                        │
+│ updated_at: Date | null                                 │
+│ direct_reaction_count: number                           │
+│ aggregated_reaction_count: number (includes children)   │
+│ parent_card_id: ObjectId | null                         │
+│ linked_feedback_ids: ObjectId[] (for action cards)      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Card Types & Relationships
+
+| Type | Limit Applies | Can Have Parent | Can Link Feedback |
+|------|---------------|-----------------|-------------------|
+| `feedback` | Yes (`card_limit_per_user`) | Yes (another feedback) | No |
+| `action` | No | No | Yes (via `linked_feedback_ids`) |
+
+**Relationship Types** (`link_type`):
+- `parent_of`: Feedback → Feedback (parent-child, updates `aggregated_reaction_count`)
+- `linked_to`: Action → Feedback (reference link via `linked_feedback_ids`)
+
+### Repository Methods (`card.repository.ts`)
+
+| Method | Purpose |
+|--------|---------|
+| `create(boardId, input, creatorHash, alias)` | Create new card |
+| `findById(id)` | Get single card |
+| `findByBoard(boardId, opts)` | Get cards with optional filters |
+| `findByBoardWithRelationships(boardId, opts)` | Get cards with `$lookup` for children/linked |
+| `countByColumn(boardId)` | Summary stats by column |
+| `countUserCards(boardId, userHash, type)` | For limit enforcement |
+| `updateContent(id, content, opts)` | Update with `requireCreator` option |
+| `moveToColumn(id, columnId, opts)` | Move with `requireCreator` option |
+| `setParentCard(childId, parentId)` | Set/clear parent relationship |
+| `addLinkedFeedback(actionId, feedbackId)` | Link action → feedback |
+| `removeLinkedFeedback(actionId, feedbackId)` | Unlink |
+| `incrementDirectReactionCount(id, delta)` | +/- on reaction add/remove |
+| `incrementAggregatedReactionCount(id, delta)` | Update parent on child reaction |
+| `orphanChildren(parentId)` | Set `parent_card_id = null` for all children |
+| `findChildren(parentId)` | Get child cards |
+| `isAncestor(ancestorId, cardId)` | Circular reference check |
+| `deleteByBoard(boardId)` | Cascade delete |
+| `getCardIdsByBoard(boardId)` | Get IDs for reaction cascade |
+
+**Indexes**: `(board_id, created_at)`, `(board_id, created_by_hash, card_type)`, `parent_card_id`, `linked_feedback_ids`
+
+### Service Methods (`card.service.ts`)
+
+| Method | Auth Check | Key Logic |
+|--------|------------|-----------|
+| `createCard(boardId, input, userHash)` | None | Limit check for feedback cards |
+| `getCard(id)` | None | - |
+| `getCards(boardId, opts)` | None | Parallel queries for cards + stats |
+| `updateCard(id, input, userHash)` | Creator | Board active check |
+| `moveCard(id, input, userHash)` | Creator | Column existence check |
+| `deleteCard(id, userHash)` | Creator | Orphans children, updates parent aggregated count |
+| `linkCards(sourceId, input, userHash)` | Creator or Admin | Circular check for `parent_of` |
+| `unlinkCards(sourceId, input, userHash)` | Creator or Admin | Validates relationship exists |
+| `getCardQuota(boardId, userHash)` | None | Returns `CardQuota` |
+
+**Key Patterns**:
+```typescript
+// Aggregation with $lookup for embedded relationships
+const pipeline = [
+  { $match: { board_id, parent_card_id: null } },  // Top-level only
+  { $lookup: { from: 'cards', localField: '_id', foreignField: 'parent_card_id', as: 'children_docs' } },
+  { $lookup: { from: 'cards', localField: 'linked_feedback_ids', foreignField: '_id', as: 'linked_feedback_docs' } },
+];
+
+// Circular relationship detection (traverses parent chain)
+async isAncestor(potentialAncestorId, cardId): Promise<boolean>
+```
+
+---
+
+## 👍 Reaction Domain – Core Model & Flow
+
+### Entity Structure (`src/domains/reaction/types.ts`)
+
+```typescript
+interface ReactionDocument {
+  _id: ObjectId;
+  card_id: ObjectId;
+  user_cookie_hash: string;
+  user_alias: string | null;
+  reaction_type: 'thumbs_up';  // Extensible for future types
+  created_at: Date;
+}
+
+interface ReactionQuota {
+  current_count: number;
+  limit: number | null;
+  can_react: boolean;
+  limit_enabled: boolean;
+}
+```
+
+**Constraint**: One reaction per user per card (upsert pattern)
+
+### Repository Methods (`reaction.repository.ts`)
+
+| Method | Purpose |
+|--------|---------|
+| `upsert(cardId, userHash, alias, type)` | Add/update reaction, returns `{ document, isNew }` |
+| `findByCardAndUser(cardId, userHash)` | Get user's reaction on a card |
+| `findByCard(cardId)` | All reactions for a card |
+| `delete(cardId, userHash)` | Remove reaction |
+| `deleteByCard(cardId)` | Cascade delete for card |
+| `deleteByCards(cardIds)` | Bulk cascade for board delete |
+| `countUserReactionsOnBoard(boardId, userHash)` | Uses `$lookup` to cards |
+| `countByCard(cardId)` | Count for a specific card |
+| `hasUserReacted(cardId, userHash)` | Boolean check |
+
+**Indexes**: `(card_id, user_cookie_hash)` unique, `user_cookie_hash`, `card_id`
+
+### Service Methods (`reaction.service.ts`)
+
+| Method | Auth Check | Key Logic |
+|--------|------------|-----------|
+| `addReaction(cardId, input, userHash)` | None | Limit check, updates card counts |
+| `removeReaction(cardId, userHash)` | Own reaction | Updates card counts |
+| `getReactionQuota(boardId, userHash)` | None | Returns `ReactionQuota` |
+| `hasUserReacted(cardId, userHash)` | None | - |
+| `getUserReaction(cardId, userHash)` | None | - |
+| `deleteReactionsForCard(cardId)` | Internal | Cascade |
+| `deleteReactionsForCards(cardIds)` | Internal | Bulk cascade |
+
+**Reaction Count Flow**:
+```
+addReaction() → isNew? → incrementDirectReactionCount(+1)
+                      → if card has parent → incrementAggregatedReactionCount(parent, +1)
+
+removeReaction() → incrementDirectReactionCount(-1)
+               → if card has parent → incrementAggregatedReactionCount(parent, -1)
+```
+
+### Service Dependencies
+
+```typescript
+// ReactionService constructor (4 dependencies)
+constructor(
+  reactionRepository: ReactionRepository,
+  cardRepository: CardRepository,      // For card lookup + count updates
+  boardRepository: BoardRepository,    // For board state + limit check
+  userSessionRepository: UserSessionRepository  // For user alias
+)
+```
+
+---
+
+## 🔗 Route Wiring (`src/gateway/app.ts`)
+
+```typescript
+// Domain route registration order (matters for Express matching)
+app.use('/v1/boards', createBoardRoutes(boardController));
+app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));  // mergeParams
+app.use('/v1/boards/:boardId', createBoardCardRoutes(cardController));
+app.use('/v1/cards', createCardRoutes(cardController));
+app.use('/v1/cards/:id/reactions', createCardReactionRoutes(reactionController));
+app.use('/v1/boards/:id/reactions', createBoardReactionRoutes(reactionController));
+```
 
 ---
 
@@ -480,16 +661,43 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 | `src/gateway/app.ts` | Express app factory, middleware stack, route wiring |
 | `src/gateway/routes/health.ts` | `/health` endpoints |
 
-### Domain Files (Board example)
+### Domain Files
 
+**Board** (`src/domains/board/`):
 | File | Contains |
 |------|----------|
-| `src/domains/board/types.ts` | `Board`, `BoardDocument`, `Column`, `BoardState`, mapper |
-| `src/domains/board/board.repository.ts` | `BoardRepository` class |
-| `src/domains/board/board.service.ts` | `BoardService` class |
-| `src/domains/board/board.controller.ts` | `BoardController` class |
-| `src/domains/board/board.routes.ts` | Express router factory |
-| `src/domains/board/index.ts` | Public exports |
+| `types.ts` | `Board`, `BoardDocument`, `Column`, `BoardState`, mapper |
+| `board.repository.ts` | `BoardRepository` class |
+| `board.service.ts` | `BoardService` class |
+| `board.controller.ts` | `BoardController` class |
+| `board.routes.ts` | Express router factory |
+
+**User Session** (`src/domains/user/`):
+| File | Contains |
+|------|----------|
+| `types.ts` | `UserSession`, `UserSessionDocument`, `ActiveUser`, mapper |
+| `user-session.repository.ts` | `UserSessionRepository` class |
+| `user-session.service.ts` | `UserSessionService` class |
+| `user-session.controller.ts` | `UserSessionController` class |
+| `user-session.routes.ts` | Express router factory |
+
+**Card** (`src/domains/card/`):
+| File | Contains |
+|------|----------|
+| `types.ts` | `Card`, `CardDocument`, `CardWithRelationships`, `CardQuota`, mappers |
+| `card.repository.ts` | `CardRepository` class (~540 lines) |
+| `card.service.ts` | `CardService` class (~427 lines) |
+| `card.controller.ts` | `CardController` class |
+| `card.routes.ts` | `createBoardCardRoutes`, `createCardRoutes` |
+
+**Reaction** (`src/domains/reaction/`):
+| File | Contains |
+|------|----------|
+| `types.ts` | `Reaction`, `ReactionDocument`, `ReactionQuota`, mapper |
+| `reaction.repository.ts` | `ReactionRepository` class (~240 lines) |
+| `reaction.service.ts` | `ReactionService` class (~189 lines) |
+| `reaction.controller.ts` | `ReactionController` class |
+| `reaction.routes.ts` | `createCardReactionRoutes`, `createBoardReactionRoutes` |
 
 ### Test Files
 
@@ -502,12 +710,12 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 
 ---
 
-## 🚩 Open Questions / Inconsistencies / Smells
+## 🚩 Open Questions / Inconsistencies / Notes
 
-### 1. Cascade Delete Not Implemented
-- `BoardService.deleteBoard()` has TODO comment about cascade delete
-- Cards, reactions, user_sessions deletion not wired yet
-- Current: only deletes board document
+### 1. Cascade Delete Implementation Status
+- `CardService.deleteCardsForBoard()` and `ReactionService.deleteReactionsForCards()` exist
+- `BoardService.deleteBoard()` still has TODO comment - needs wiring to call these
+- User sessions cascade via `UserSessionRepository.deleteByBoard()`
 
 ### 2. `is_admin` Computed in Multiple Places
 - `UserSessionService` computes from `board.admins`
@@ -523,20 +731,21 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 - `test-app.ts`: `cookieParser('test-secret')`
 - May not match production secret handling
 
-### 5. Real-time Events Not Wired
+### 5. Real-time Events Not Wired (Phase 6)
 - Socket.io in dependencies but not implemented
 - Service methods don't emit events yet
-- Comments reference future WebSocket integration
+- Next phase will add WebSocket integration
 
-### 6. Column Existence Check Location
-- Column existence checked in service (`renameColumn`)
-- Other checks (admin, state) delegated to repository atomics
-- Inconsistent pattern
+### 6. Reaction Count Aggregation
+- `direct_reaction_count`: reactions directly on the card
+- `aggregated_reaction_count`: includes all descendant reactions
+- Updated on: link/unlink parent, add/remove reaction
+- Potential race condition if many concurrent reactions
 
-### 7. `getBoardWithUsers` Returns Empty Array
-- Method exists but `active_users` always `[]`
-- Comment says "will be populated by UserSessionService"
-- Integration happens at controller level (not shown in service)
+### 7. ReactionService Has 4 Dependencies
+- Highest dependency count in the codebase
+- Needs: `reactionRepository`, `cardRepository`, `boardRepository`, `userSessionRepository`
+- Consider: facade pattern or event-driven updates
 
 ---
 

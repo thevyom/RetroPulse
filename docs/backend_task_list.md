@@ -33,7 +33,8 @@
 This task list breaks down the backend implementation into discrete, testable steps following TDD principles. Each task builds incrementally on previous work, with no orphaned code.
 
 **Total Tasks**: 44 tasks across 10 major sections
-**Progress**: Phase 1, 2, 3, 4 Complete ✅
+**Progress**: Phase 1, 2, 3, 4, 5 Complete ✅
+**Tests Passing**: 339 (14 test files)
 
 ---
 
@@ -395,45 +396,54 @@ All blocking issues fixed:
 
 ---
 
-## Phase 5: Reaction Domain Implementation
+## Phase 5: Reaction Domain Implementation ✅ COMPLETE
 
-- [ ] 5. Implement Reaction domain models
-  - Create `src/domains/reaction/types.ts` with Reaction, AddReactionDTO types
-  - Define reaction types: "thumbs_up" (extensible for future types)
-  - Write unit tests for type definitions
+- [x] 5. Implement Reaction domain models ✅
+  - Created `src/domains/reaction/types.ts` with ReactionDocument, Reaction, AddReactionInput, ReactionQuota
+  - Defined reaction types: "thumbs_up" (extensible for future types)
+  - Added reactionDocumentToReaction converter
   - _Requirements: FR-3.1, reaction system_
 
-- [ ] 5.1 Implement ReactionRepository with MongoDB
-  - Create `src/domains/reaction/ReactionRepository.ts`
-  - Implement `upsert()` method (one reaction per user per card)
-  - Implement `findByCard()`, `delete()`, `countUserReactions()` methods
-  - Add unique index: `{ card_id: 1, user_cookie_hash: 1 }`
-  - Write unit tests with mocked MongoDB
+- [x] 5.1 Implement ReactionRepository with MongoDB ✅
+  - Created `src/domains/reaction/reaction.repository.ts`
+  - Implemented `upsert()` method with isNew detection via timestamp comparison
+  - Implemented `findByCardAndUser()`, `findByCard()`, `delete()`, `deleteByCard()`, `deleteByCards()`
+  - Added `countUserReactionsOnBoard()` with aggregation pipeline
+  - Added unique index: `{ card_id: 1, user_cookie_hash: 1 }`
+  - 24 unit tests passing
   - _Requirements: FR-3.1.4, reaction uniqueness_
 
-- [ ] 5.2 Implement reaction aggregation logic in CardService
-  - Add `updateReactionCounts()` method to CardService
-  - Implement direct_reaction_count increment/decrement (atomic operation)
-  - Implement aggregated_reaction_count update for parent cards
+- [x] 5.2 Implement reaction aggregation logic in CardService ✅
+  - Added `updateReactionCounts()` method to ReactionService
+  - Implemented direct_reaction_count increment/decrement (atomic operation)
+  - Implemented aggregated_reaction_count update for parent cards
   - Handle child card reactions updating parent aggregated count
-  - Write unit tests for aggregation logic
+  - 22 unit tests passing
   - _Requirements: FR-3.1.8, FR-3.1.9, FR-3.1.10, reaction aggregation_
 
-- [ ] 5.3 Implement Reaction API endpoints
-  - Create `src/domains/reaction/ReactionController.ts`
-  - Implement `POST /cards/:id/reactions` with upsert logic
-  - Implement `DELETE /cards/:id/reactions` with count updates
-  - Add reaction limit enforcement (check user's total reactions on board)
-  - Write integration tests with real MongoDB verifying count updates
-  - _Requirements: API specification section 2.3, reaction operations_
+- [x] 5.3 Implement Reaction API endpoints ✅
+  - Created `src/domains/reaction/reaction.controller.ts`
+  - Created `src/domains/reaction/reaction.routes.ts` with card-scoped and board-scoped routes
+  - Implemented `POST /cards/:id/reactions` with upsert logic
+  - Implemented `DELETE /cards/:id/reactions` with count updates
+  - Added reaction limit enforcement (check user's total reactions on board)
+  - 21 integration tests passing
+  - _Requirements: API specification section 2.4, reaction operations_
 
-- [ ] 5.4 Implement reaction quota check API
-  - Add `GET /boards/:id/reactions/quota` endpoint
+- [x] 5.4 Implement reaction quota check API ✅
+  - Added `GET /boards/:id/reactions/quota` endpoint
   - Return current_count, limit, can_react, limit_enabled
   - Support checking quota for other users (admin use case)
   - Ensure board isolation (reactions on board A don't affect board B quota)
-  - Write integration tests verifying quota accuracy and isolation
-  - _Requirements: API specification 2.3.3, user feedback on limits_
+  - Added edge case tests for limit boundary, anonymous cards, self-reaction
+  - _Requirements: API specification 2.4.3, user feedback on limits_
+
+**Phase 5 Statistics:**
+- Total files created: 6 source files, 3 test files
+- Unit tests: 46 (24 repository + 22 service)
+- Integration tests: 21
+- Code review: 1 blocking issue fixed (REACTION_NOT_FOUND error code added)
+- All 339 total tests passing
 
 ---
 

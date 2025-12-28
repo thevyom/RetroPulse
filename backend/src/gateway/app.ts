@@ -14,6 +14,7 @@ import { healthRoutes } from './routes/health.js';
 import { BoardRepository, BoardService, BoardController, createBoardRoutes } from '@/domains/board/index.js';
 import { UserSessionRepository, UserSessionService, UserSessionController, createUserSessionRoutes } from '@/domains/user/index.js';
 import { CardRepository, CardService, CardController, createBoardCardRoutes, createCardRoutes } from '@/domains/card/index.js';
+import { ReactionRepository, ReactionService, ReactionController, createCardReactionRoutes, createBoardReactionRoutes } from '@/domains/reaction/index.js';
 
 export function createApp(db?: Db): Express {
   const app = express();
@@ -75,6 +76,20 @@ export function createApp(db?: Db): Express {
     app.use('/v1/boards/:boardId', createBoardCardRoutes(cardController));
     // Card-scoped routes (/v1/cards/:id)
     app.use('/v1/cards', createCardRoutes(cardController));
+
+    // Reaction domain
+    const reactionRepository = new ReactionRepository(db);
+    const reactionService = new ReactionService(
+      reactionRepository,
+      cardRepository,
+      boardRepository,
+      userSessionRepository
+    );
+    const reactionController = new ReactionController(reactionService);
+    // Card-scoped reaction routes (/v1/cards/:id/reactions)
+    app.use('/v1/cards/:id/reactions', createCardReactionRoutes(reactionController));
+    // Board-scoped reaction routes (/v1/boards/:id/reactions)
+    app.use('/v1/boards/:id/reactions', createBoardReactionRoutes(reactionController));
   }
 
   // 404 handler
