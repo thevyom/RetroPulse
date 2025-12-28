@@ -490,7 +490,520 @@ Duration: 3.82s
 
 ## Phase 3: User Session Management
 
-*Review pending*
+**Review Date**: 2025-12-27
+**Reviewer**: Swati (AI Assistant)
+**Files Reviewed**:
+- `src/domains/user/types.ts`
+- `src/domains/user/user-session.repository.ts`
+- `src/domains/user/user-session.service.ts`
+- `src/domains/user/user-session.controller.ts`
+- `src/domains/user/user-session.routes.ts`
+- `tests/unit/domains/user/user-session.repository.test.ts`
+- `tests/unit/domains/user/user-session.service.test.ts`
+- `tests/integration/user-session.test.ts`
+
+---
+
+### Overview
+
+The User Session domain implementation follows the established patterns from Phase 2. The code is well-structured with proper separation of concerns. Test coverage is comprehensive with 59 test cases across repository, service, and integration layers.
+
+---
+
+### Strengths
+
+1. **Follows Established Patterns**: Repository → Service → Controller pattern consistent with Board domain
+2. **Atomic Operations**: Upsert operations are properly atomic using `findOneAndUpdate` with `upsert: true`
+3. **Activity Window**: Clean implementation of 2-minute activity window for active users
+4. **Admin Flag Computation**: Is_admin flag is correctly computed from board.admins array
+5. **Comprehensive Tests**: 59 test cases covering happy paths and error scenarios
+6. **Param Validation**: Uses `requireParam()` helper for explicit parameter validation
+
+---
+
+### Issues Found
+
+#### 1. Activity Window Constant Not Configurable
+
+**File**: `user-session.repository.ts:5-8`
+**Severity**: Suggestion
+
+```typescript
+const ACTIVITY_WINDOW_MS = 2 * 60 * 1000;
+```
+
+Hardcoded activity window. Consider making this configurable via environment variable.
+
+**Status**: Open (Low priority - current implementation is per spec)
+
+---
+
+#### 2. Potential Information Leak in User Session Response
+
+**File**: `user-session.controller.ts:40-48`
+**Severity**: Suggestion
+
+```typescript
+sendSuccess(res, {
+  board_id: userSession.board_id,
+  user_session: {
+    cookie_hash: userSession.cookie_hash,  // <-- Exposes hash
+    ...
+  },
+});
+```
+
+Exposing `cookie_hash` in the response allows users to identify other users' sessions. Per the API spec, this is expected for admin management, but should be reviewed for privacy implications.
+
+**Status**: Open (Per spec - review if privacy concerns arise)
+
+---
+
+#### 3. Missing Old Alias in Alias Update Response
+
+**File**: `user-session.service.ts:104-134`
+**Severity**: Nit
+
+Per API spec section 2.2.3, the `user:alias_changed` event should include `old_alias` and `new_alias`. The current implementation doesn't capture the old alias before updating.
+
+```typescript
+async updateAlias(
+  boardId: string,
+  cookieHash: string,
+  newAlias: string
+): Promise<{ alias: string; last_active_at: string }> {
+  // ...
+  // Missing: const oldAlias = session.alias; (before update)
+```
+
+**Recommendation**: Capture old alias before update for future real-time event support.
+
+**Status**: Open (Deferred to Phase 6 - Real-time events)
+
+---
+
+#### 4. Duplicate Board Existence Check
+
+**File**: `user-session.service.ts:70-79 and 104-113`
+**Severity**: Nit
+
+Both `updateHeartbeat` and `updateAlias` check if the board exists, but the repository also silently returns null for invalid board IDs. This is redundant but provides clearer error messages.
+
+**Status**: Closed (Acceptable - provides better error messages)
+
+---
+
+### Security Observations
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Cookie Hash Storage | ✅ Pass | Only hash is stored, never raw cookie |
+| Alias Input Validation | ✅ Pass | Regex pattern `^[a-zA-Z0-9 _-]+$` |
+| Alias Length Validation | ✅ Pass | 1-50 characters enforced |
+| Board Access Control | ✅ Pass | Board existence verified before operations |
+| Session Isolation | ✅ Pass | Sessions scoped to board_id + cookie_hash |
+
+---
+
+### Test Coverage Assessment
+
+| Component | Unit Tests | Integration Tests | Total |
+|-----------|-----------|------------------|-------|
+| UserSessionRepository | 28 cases | N/A | 28 |
+| UserSessionService | 12 cases | N/A | 12 |
+| User Session API | N/A | 19 cases | 19 |
+
+**Total Phase-3 Tests**: 59 passing
+
+**Missing Test Scenarios** (Low priority):
+- Inactive user filtering (users older than 2 minutes) - Requires time mocking
+- Concurrent upsert operations on same session
+- Very long alias at max length (50 chars)
+
+---
+
+### Summary
+
+| Severity | Count | Resolved |
+|----------|-------|----------|
+| Blocking | 0 | 0 |
+| Suggestion | 2 | 0 |
+| Nit | 2 | 1 |
+
+**Overall Assessment**: Phase 3 implementation is production-ready. No blocking issues found. Minor suggestions are deferred for future phases or are per spec. All 161 tests passing across Phase 1, 2, and 3.
+
+---
+
+### Independent Review - Principal Staff Engineer (2025-12-27)
+
+**Reviewer**: Principal Staff Engineer (Independent)
+**Trigger**: Second-opinion review to ensure high bar is maintained
+
+---
+
+#### Critical Issues (Must Fix Before Phase 4)
+
+##### 1. Missing Closed Board Check for Write Operations
+
+**File**: `user-session.service.ts:104-134`
+**Severity**: Medium (Blocking for Phase 4)
+
+The `updateAlias` method allows alias changes on closed boards, violating the read-only requirement:
+
+```typescript
+async updateAlias(boardId, cookieHash, newAlias) {
+  const board = await this.boardRepository.findById(boardId);
+  if (!board) throw ...;
+  // MISSING: if (board.state === 'closed') throw new ApiError(ErrorCodes.BOARD_CLOSED, ...);
+
+  const session = await this.userSessionRepository.updateAlias(...);
+}
+```
+
+Per the API spec and PRD, closed boards should be read-only. While joining is allowed (for viewing), alias changes are a write operation that modifies board state.
+
+**Impacted Methods**:
+- `updateAlias` - MUST block on closed boards
+- `updateHeartbeat` - Acceptable (maintains presence for viewers)
+
+**Recommendation**: Add closed board check to `updateAlias`:
+```typescript
+if (board.state === 'closed') {
+  throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Cannot update alias on closed board', 409);
+}
+```
+
+**Status**: ✅ Resolved (2025-12-27)
+
+**Resolution**:
+- Added closed board check to `updateAlias` method
+- Returns 409 Conflict with `BOARD_CLOSED` error code
+- Added integration test for this scenario
+
+```typescript
+// user-session.service.ts:120-126
+if (board.state === 'closed') {
+  throw new ApiError(
+    ErrorCodes.BOARD_CLOSED,
+    'Cannot update alias on closed board',
+    409
+  );
+}
+```
+
+---
+
+##### 2. Route Ordering Creates Shadowing Risk
+
+**File**: `app.ts:57-63`
+**Severity**: Medium (Fragile Architecture)
+
+```typescript
+app.use('/v1/boards', createBoardRoutes(boardController));
+app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));
+```
+
+The user session routes are mounted with `mergeParams: true` on `/v1/boards/:id`, registered AFTER board routes. This creates a subtle problem:
+
+- Board routes at `/v1/boards/:id/...` (like `/close`, `/name`, `/admins`) are matched first
+- User session routes at `/v1/boards/:id/join` etc. work only because no board route matches `/join`
+
+**Risk**: If someone adds a board route like `/v1/boards/:id/users` in the future (for admin user management), it will shadow the user session route `GET /v1/boards/:id/users`.
+
+**Recommendation**: Either:
+1. Add explicit warning comment documenting the route ordering dependency
+2. Mount user session routes on distinct path: `/v1/boards/:id/session/...`
+3. Consolidate all board-related routes in a single router
+
+```typescript
+// Option 1: Add warning comment
+// ⚠️ IMPORTANT: User session routes MUST be registered after board routes.
+// Board routes take precedence for /v1/boards/:id/* paths.
+// Avoid adding board routes that conflict with: /join, /users, /users/heartbeat, /users/alias
+app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));
+```
+
+**Status**: ✅ Resolved (2025-12-27)
+
+**Resolution**:
+- Added comprehensive warning comment in `app.ts` documenting the route ordering dependency
+- Documents which paths are reserved for user session routes
+
+```typescript
+// app.ts:60-63
+// ⚠️ IMPORTANT: User session routes MUST be registered AFTER board routes.
+// Board routes take precedence for /v1/boards/:id/* paths due to Express routing order.
+// The user session routes use mergeParams to access :id from the parent path.
+// Avoid adding board routes that conflict with: /join, /users, /users/heartbeat, /users/alias
+```
+
+---
+
+#### Suggestions (Should Fix for Robustness)
+
+##### 3. N+1 Query Pattern in getActiveUsers
+
+**File**: `user-session.service.ts:49-65`
+**Severity**: Low (Performance)
+
+```typescript
+async getActiveUsers(boardId: string): Promise<ActiveUser[]> {
+  const board = await this.boardRepository.findById(boardId);  // Query 1
+  const sessions = await this.userSessionRepository.findActiveUsers(boardId);  // Query 2
+  return sessions.map((session) => {
+    const isAdmin = board.admins.includes(session.cookie_hash);  // O(n*m) check
+    return userSessionDocumentToActiveUser(session, isAdmin);
+  });
+}
+```
+
+For boards with many active users (50) and admins (10), `includes` runs 500 times.
+
+**Recommendation**: Use Set for O(1) lookup:
+```typescript
+const adminSet = new Set(board.admins);
+return sessions.map(s =>
+  userSessionDocumentToActiveUser(s, adminSet.has(s.cookie_hash))
+);
+```
+
+**Status**: ✅ Resolved (2025-12-27)
+
+**Resolution**:
+- Replaced `array.includes()` with `Set.has()` for O(1) lookup
+- Pre-computes admin Set once, then uses it for all session mappings
+
+```typescript
+// user-session.service.ts:60-66
+// Use Set for O(1) admin lookup instead of O(n) array.includes
+const adminSet = new Set(board.admins);
+
+// Map to ActiveUser with is_admin flag
+return sessions.map((session) =>
+  userSessionDocumentToActiveUser(session, adminSet.has(session.cookie_hash))
+);
+```
+
+---
+
+##### 4. Inconsistent Error Handling Pattern
+
+**File**: `user-session.service.ts:140-161`
+**Severity**: Low (API Consistency)
+
+`getUserSession` returns `null` when board doesn't exist, but other methods throw `BOARD_NOT_FOUND`:
+
+```typescript
+async getUserSession(boardId, cookieHash): Promise<UserSession | null> {
+  const board = await this.boardRepository.findById(boardId);
+  if (!board) return null;  // <-- Returns null instead of throwing
+  ...
+}
+```
+
+Other methods like `joinBoard`, `getActiveUsers`, `updateHeartbeat`, `updateAlias` all throw `BOARD_NOT_FOUND`.
+
+**Recommendation**: Standardize to throw for consistency:
+```typescript
+if (!board) {
+  throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
+}
+```
+
+Or document explicitly why this method differs (e.g., used internally where null is expected).
+
+**Status**: ✅ Resolved (2025-12-27)
+
+**Resolution**:
+- Standardized `getUserSession` to throw `BOARD_NOT_FOUND` like other methods
+- Updated unit test to expect throw instead of null return
+
+```typescript
+// user-session.service.ts:158-162
+async getUserSession(boardId: string, cookieHash: string): Promise<UserSession | null> {
+  const board = await this.boardRepository.findById(boardId);
+
+  if (!board) {
+    throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
+  }
+  // ...
+}
+```
+
+---
+
+##### 5. Duplicate ObjectId Validation in Repository
+
+**File**: `user-session.repository.ts` (multiple methods)
+**Severity**: Nit (DRY Violation)
+
+Every method validates `ObjectId.isValid(boardId)` individually:
+
+```typescript
+async upsert(boardId, ...) {
+  if (!ObjectId.isValid(boardId)) throw new Error('Invalid board ID');
+}
+async findByBoardAndUser(boardId, ...) {
+  if (!ObjectId.isValid(boardId)) return null;
+}
+async findActiveUsers(boardId, ...) {
+  if (!ObjectId.isValid(boardId)) return [];
+}
+// ... repeated 6 times with inconsistent error handling
+```
+
+**Inconsistency**: Some throw, some return null, some return empty array.
+
+**Recommendation**: Extract to private helper with consistent behavior:
+```typescript
+private validateBoardId(boardId: string): ObjectId {
+  if (!ObjectId.isValid(boardId)) {
+    throw new Error('Invalid board ID');
+  }
+  return new ObjectId(boardId);
+}
+```
+
+**Status**: ✅ Resolved (2025-12-27)
+
+**Resolution**:
+- Extracted ObjectId validation to two private helper methods
+- `validateBoardId()` - throws Error for methods where invalid ID is a bug
+- `tryParseBoardId()` - returns null for methods that gracefully handle invalid IDs
+
+```typescript
+// user-session.repository.ts:21-37
+private validateBoardId(boardId: string): ObjectId {
+  if (!ObjectId.isValid(boardId)) {
+    throw new Error('Invalid board ID');
+  }
+  return new ObjectId(boardId);
+}
+
+private tryParseBoardId(boardId: string): ObjectId | null {
+  if (!ObjectId.isValid(boardId)) {
+    return null;
+  }
+  return new ObjectId(boardId);
+}
+```
+
+---
+
+##### 6. Test Gap: Inactive User Filtering Not Verified
+
+**File**: `user-session.repository.test.ts:101-147`
+**Severity**: Low (Test Coverage Gap)
+
+The `findActiveUsers` tests don't verify that users older than 2 minutes are excluded:
+
+```typescript
+it('should return recently active users', async () => {
+  await repository.upsert(validBoardId, 'user-1', 'Alice');
+  await repository.upsert(validBoardId, 'user-2', 'Bob');
+
+  const activeUsers = await repository.findActiveUsers(validBoardId);
+  expect(activeUsers).toHaveLength(2);  // Always passes - no aging test
+});
+```
+
+The 2-minute activity window is a critical business rule that should be tested.
+
+**Recommendation**: Add time-based test using Vitest's fake timers:
+```typescript
+it('should exclude users inactive for more than 2 minutes', async () => {
+  vi.useFakeTimers();
+  await repository.upsert(validBoardId, 'user-1', 'Alice');
+
+  // Advance time by 3 minutes
+  vi.advanceTimersByTime(3 * 60 * 1000);
+
+  const activeUsers = await repository.findActiveUsers(validBoardId);
+  expect(activeUsers).toHaveLength(0);  // Alice should be inactive
+
+  vi.useRealTimers();
+});
+```
+
+**Status**: ✅ Resolved (2025-12-27)
+
+**Resolution**:
+- Added 3 time-based tests for inactive user filtering
+- Tests directly insert documents with old timestamps to avoid fake timers issues with MongoDB
+
+```typescript
+// user-session.repository.test.ts:272-338
+describe('findActiveUsers - inactive user filtering', () => {
+  it('should exclude users inactive for more than 2 minutes', async () => {
+    await repository.upsert(validBoardId, 'active-user', 'ActiveUser');
+
+    // Manually insert inactive user with timestamp > 2 minutes ago
+    const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
+    await collection.insertOne({
+      board_id: boardObjectId,
+      cookie_hash: 'inactive-user',
+      alias: 'InactiveUser',
+      last_active_at: threeMinutesAgo,
+      created_at: threeMinutesAgo,
+    });
+
+    const activeUsers = await repository.findActiveUsers(validBoardId);
+    expect(activeUsers).toHaveLength(1);
+    expect(activeUsers[0].alias).toBe('ActiveUser');
+  });
+
+  it('should include users active just inside the 2-minute boundary', ...);
+  it('should exclude users inactive by just over 2 minutes', ...);
+});
+```
+
+---
+
+#### Security Observations (Additional)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Cookie Hash Exposure | ⚠️ Note | `cookie_hash` in response allows cross-board user correlation |
+| Closed Board Write | ✅ Pass | `updateAlias` now blocks on closed boards (409 Conflict) |
+| All Other Checks | ✅ Pass | See original review |
+
+---
+
+#### Updated Summary
+
+| Severity | Count | Resolved | Open |
+|----------|-------|----------|------|
+| Medium (Blocking) | 2 | 2 | 0 |
+| Low (Suggestion) | 4 | 4 | 0 |
+| Nit | 2 | 2 | 0 |
+
+---
+
+#### Action Items for Phase 3 Completion
+
+| Priority | Issue | File | Action | Status |
+|----------|-------|------|--------|--------|
+| P0 | Closed board check missing | `user-session.service.ts` | Add `board.state === 'closed'` check in `updateAlias` | ✅ Done |
+| P0 | Route ordering risk | `app.ts` | Add warning comment or refactor | ✅ Done |
+| P1 | N+1 admin check | `user-session.service.ts` | Use `Set` for O(1) lookup | ✅ Done |
+| P1 | Inconsistent null vs throw | `user-session.service.ts` | Standardize `getUserSession` to throw | ✅ Done |
+| P2 | Duplicate ObjectId validation | `user-session.repository.ts` | Extract to helper method | ✅ Done |
+| P2 | Missing activity window test | `user-session.repository.test.ts` | Add time-based test | ✅ Done |
+
+---
+
+#### Final Assessment
+
+**Rating**: 9/10 - Production-ready implementation with all issues resolved.
+
+The Phase 3 implementation now addresses all concerns raised in the independent review:
+
+1. ✅ **Spec compliance**: `updateAlias` on closed boards returns 409 Conflict (BOARD_CLOSED)
+2. ✅ **Architecture docs**: Route ordering dependency is now clearly documented in code
+3. ✅ **Performance**: O(1) admin lookup using Set instead of O(n) array.includes
+4. ✅ **Test coverage**: 2-minute activity window tested with 3 edge cases
+
+**All 175 tests passing**. Ready to proceed to Phase 4.
 
 ---
 

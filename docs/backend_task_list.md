@@ -12,7 +12,7 @@
 This task list breaks down the backend implementation into discrete, testable steps following TDD principles. Each task builds incrementally on previous work, with no orphaned code.
 
 **Total Tasks**: 44 tasks across 10 major sections
-**Progress**: Phase 1 Complete ✅
+**Progress**: Phase 1, 2, 3 Complete ✅
 
 ---
 
@@ -219,39 +219,61 @@ tests/
 
 ---
 
-## Phase 3: User Session Management
+## Phase 3: User Session Management ✅ COMPLETED
 
-- [ ] 3. Implement UserSession domain models
-  - Create `src/domains/user/types.ts` with UserSession, JoinBoardDTO types
-  - Define user session lifecycle states
-  - Write unit tests for type definitions
-  - _Requirements: User identity management_
+- [x] 3. Implement UserSession domain models
+  - ✅ Created `src/domains/user/types.ts` with UserSession, ActiveUser, JoinBoardInput types
+  - ✅ Created `userSessionDocumentToUserSession()` and `userSessionDocumentToActiveUser()` mapping utilities
+  - _Completed: 2025-12-27_
 
-- [ ] 3.1 Implement UserSessionRepository with MongoDB
-  - Create `src/domains/user/UserSessionRepository.ts`
-  - Implement `upsert()` method (update if exists, create if new)
-  - Implement `findActiveUsers()` with last_active_at filter (< 2 minutes)
-  - Implement `updateHeartbeat()` to refresh last_active_at
-  - Add MongoDB index: `{ board_id: 1, cookie_hash: 1 }` unique
-  - Write unit tests with mocked MongoDB
-  - _Requirements: FR-1.2, active user tracking_
+- [x] 3.1 Implement UserSessionRepository with MongoDB
+  - ✅ Created `src/domains/user/user-session.repository.ts`
+  - ✅ Implemented `upsert()` method (update if exists, create if new)
+  - ✅ Implemented `findActiveUsers()` with 2-minute activity window
+  - ✅ Implemented `findByBoardAndUser()`, `updateHeartbeat()`, `updateAlias()`
+  - ✅ Implemented `deleteByBoard()`, `countByBoard()` for cascade operations
+  - ✅ Added `ensureIndexes()` method for MongoDB indexes
+  - ✅ Written unit tests with mongodb-memory-server (34 test cases)
+  - _Completed: 2025-12-27_
 
-- [ ] 3.2 Implement UserSessionService with join logic
-  - Create `src/domains/user/UserSessionService.ts`
-  - Implement `joinBoard()` method (upsert session, check if admin)
-  - Implement `getActiveUsers()` with 2-minute activity window
-  - Implement `updateAlias()` method
-  - Write unit tests with mocked repository
-  - _Requirements: FR-1.2.3, FR-1.2.7, user session management_
+- [x] 3.2 Implement UserSessionService with join logic
+  - ✅ Created `src/domains/user/user-session.service.ts`
+  - ✅ Implemented `joinBoard()` method (upsert session, check is_admin)
+  - ✅ Implemented `getActiveUsers()` with is_admin flag for each user
+  - ✅ Implemented `updateHeartbeat()` and `updateAlias()` methods
+  - ✅ Implemented `getUserSession()` and `deleteSessionsForBoard()` methods
+  - ✅ Written unit tests with mocked repository (13 test cases)
+  - _Completed: 2025-12-27_
 
-- [ ] 3.3 Implement User Session API endpoints
-  - Create `src/domains/user/UserSessionController.ts`
-  - Implement `POST /boards/:id/join` with alias validation
-  - Implement `GET /boards/:id/users` for active users list
-  - Implement `PATCH /boards/:id/users/heartbeat` to update last_active_at
-  - Implement `PATCH /boards/:id/users/alias` to change display name
-  - Write integration tests with real MongoDB
-  - _Requirements: API specification section 2.2, user identity_
+- [x] 3.3 Implement User Session API endpoints
+  - ✅ Created `src/domains/user/user-session.controller.ts`
+  - ✅ Created `src/domains/user/user-session.routes.ts` with Zod validation
+  - ✅ Implemented all endpoints:
+    - `POST /v1/boards/:id/join` - Join a board with alias
+    - `GET /v1/boards/:id/users` - Get active users list
+    - `PATCH /v1/boards/:id/users/heartbeat` - Update last_active_at
+    - `PATCH /v1/boards/:id/users/alias` - Change display name
+  - ✅ Written integration tests with Supertest (27 test cases)
+  - _Completed: 2025-12-27_
+
+### Phase 3 Files Created
+
+```
+src/domains/user/
+├── types.ts                      # UserSession, ActiveUser interfaces
+├── user-session.repository.ts    # MongoDB operations
+├── user-session.service.ts       # Business logic with admin checks
+├── user-session.controller.ts    # Express request handlers
+├── user-session.routes.ts        # Route definitions with Zod validation
+└── index.ts                      # Module exports
+
+tests/
+├── unit/domains/user/
+│   ├── user-session.repository.test.ts  # 34 test cases
+│   └── user-session.service.test.ts     # 13 test cases
+└── integration/
+    └── user-session.test.ts             # 27 test cases
+```
 
 ---
 

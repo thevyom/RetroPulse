@@ -12,6 +12,7 @@ import {
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { healthRoutes } from './routes/health.js';
 import { BoardRepository, BoardService, BoardController, createBoardRoutes } from '@/domains/board/index.js';
+import { UserSessionRepository, UserSessionService, UserSessionController, createUserSessionRoutes } from '@/domains/user/index.js';
 
 export function createApp(db?: Db): Express {
   const app = express();
@@ -54,6 +55,16 @@ export function createApp(db?: Db): Express {
     const boardService = new BoardService(boardRepository);
     const boardController = new BoardController(boardService);
     app.use('/v1/boards', createBoardRoutes(boardController));
+
+    // User session domain
+    // ⚠️ IMPORTANT: User session routes MUST be registered AFTER board routes.
+    // Board routes take precedence for /v1/boards/:id/* paths due to Express routing order.
+    // The user session routes use mergeParams to access :id from the parent path.
+    // Avoid adding board routes that conflict with: /join, /users, /users/heartbeat, /users/alias
+    const userSessionRepository = new UserSessionRepository(db);
+    const userSessionService = new UserSessionService(userSessionRepository, boardRepository);
+    const userSessionController = new UserSessionController(userSessionService);
+    app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));
   }
 
   // 404 handler
