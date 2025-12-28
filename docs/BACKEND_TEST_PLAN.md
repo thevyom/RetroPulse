@@ -717,19 +717,19 @@ await request(app)
 
 ```bash
 # Unit tests (fast, mocked)
-npm run test:unit
+pnpm test:unit
 
 # Integration tests (real MongoDB)
-npm run test:integration
+pnpm test:integration
 
 # E2E tests (full stack)
-npm run test:e2e
+pnpm test:e2e
 
 # All tests
-npm run test
+pnpm test
 
 # Coverage report
-npm run test:coverage
+pnpm test:coverage
 ```
 
 ### 6.2 CI/CD Pipeline
@@ -791,9 +791,11 @@ async function clearBoard(boardId: string) {
 - Code coverage: > 80% (services + repositories)
 - Real-time events: 100% coverage
 
+**Testing Framework**: Vitest (fast, native ESM, TypeScript-first)
+
 **Next Steps**:
-1. Implement unit tests using Jest
-2. Set up test MongoDB instance
+1. Implement unit tests using Vitest
+2. Set up test MongoDB instance via Docker Compose
 3. Implement integration tests with Supertest
 4. Configure CI/CD pipeline
 5. Add performance testing with Artillery

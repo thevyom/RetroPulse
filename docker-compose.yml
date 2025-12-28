@@ -1,0 +1,79 @@
+version: '3.9'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: retropulse-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-retropassword}
+      MONGO_INITDB_DATABASE: retroboard
+    volumes:
+      - mongo-data:/data/db
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - retropulse-network
+
+  # MongoDB Express (Admin UI) - Development only
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: retropulse-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:-retropassword}
+      ME_CONFIG_MONGODB_URL: mongodb://admin:${MONGO_PASSWORD:-retropassword}@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - retropulse-network
+    profiles:
+      - dev
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: retropulse-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      MONGODB_URL: mongodb://admin:${MONGO_PASSWORD:-retropassword}@mongodb:27017
+      MONGODB_DATABASE: retroboard
+      COOKIE_SECRET: ${COOKIE_SECRET:-dev-cookie-secret}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:-dev-admin-secret}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - retropulse-network
+    volumes:
+      - ./backend/src:/app/src:ro
+    profiles:
+      - production
+
+volumes:
+  mongo-data:
+    name: retropulse-mongo-data
+
+networks:
+  retropulse-network:
+    name: retropulse-network
+    driver: bridge

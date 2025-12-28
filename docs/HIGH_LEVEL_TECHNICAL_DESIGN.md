@@ -1276,12 +1276,16 @@ changeStream.on('change', (change) => {
 | | Express | 4+ | Battle-tested, middleware ecosystem |
 | | Socket.io | 4+ | WebSocket abstraction, fallbacks |
 | | Winston | 3+ | Structured JSON logging |
+| | Zod | 3+ | Runtime validation, TypeScript-first |
+| **Package Manager** | pnpm | 8+ | Fast, disk-efficient, strict |
+| **Testing** | Vitest | 1+ | Fast, native ESM, Vite-powered |
 | **Datastore** | MongoDB | 7.0+ | Document model, rich queries, proven |
 | **Deployment** | Docker | 24+ | Containerization |
 | | Docker Compose | 2+ | Orchestration (local + production) |
 | | Nginx | 1.25+ | Reverse proxy, SSL, static files |
 | | Ubuntu Server | 22.04 LTS | Single physical server OS |
 | **Monitoring** | Logs only (MVP) | - | Structured JSON, future OTEL-ready |
+| **Architecture** | Single Service | - | Unified API Gateway + Business Logic (MVP) |
 
 ---
 
@@ -1291,6 +1295,7 @@ changeStream.on('change', (change) => {
 |---------|------|--------|---------|
 | 1.0 | 2025-12-24 | VK AI | Initial high-level technical design with SurrealDB + microservices |
 | 2.0 | 2025-12-25 | VK AI | Complete redesign: MongoDB + single service + direct push + Mermaid diagrams |
+| 2.1 | 2025-12-27 | Swati | Updated tech stack: pnpm, Vitest, Zod, unified single service architecture |
 
 ---
 
