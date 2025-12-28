@@ -1,0 +1,244 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="Sprint Retro Board" id="sprint-retro">
+    <mxGraphModel dx="1678" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="header-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="40" y="40" width="1520" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="board-title" value="Board: &quot;Sprint 5 Retro&quot;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="60" y="55" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="edit-tooltip" value="(Edit - Admin only)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#999999;fontStyle=2" parent="1" vertex="1">
+          <mxGeometry x="310" y="55" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="close-btn" value="Close (Admin)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="295" y="55" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lock-indicator" value="🔒 Locked if Closed" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="417.5" y="58" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="participants-label" value="Participants:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="60" y="95" width="90" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="avatar1" value="🎩&#xa;U1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=9;" parent="1" vertex="1">
+          <mxGeometry x="155" y="88" width="38" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-label" value="Admin" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;fontColor=#d79b00;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="145" y="127" width="58" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="avatar2" value="U2" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="210" y="92" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="click-hint2" value="(click to filter)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=7;fontColor=#999999;fontStyle=2" parent="1" vertex="1">
+          <mxGeometry x="200" y="123" width="50" height="10" as="geometry" />
+        </mxCell>
+        <mxCell id="avatar3" value="U3" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="255" y="92" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="click-hint3" value="(click to filter)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=7;fontColor=#999999;fontStyle=2" parent="1" vertex="1">
+          <mxGeometry x="245" y="123" width="50" height="10" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-dropzone" value="👥 Admin Area&#xa;(Drag participant here to make admin)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4e6;strokeColor=#d79b00;fontSize=9;strokeWidth=2;dashed=1;align=center;" parent="1" vertex="1">
+          <mxGeometry x="1380" y="58" width="160" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="filters-label" value="Filters:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="60" y="128" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="filter-all" value="All Users" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="115" y="128" width="70" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="filter-anon" value="Anonymous" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="195" y="128" width="80" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="filter-user1" value="User1..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="285" y="128" width="70" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="sort-label" value="Sort:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="1340" y="133" width="40" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="sort-dropdown" value="Recency Desc ▼" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=10;align=left;" parent="1" vertex="1">
+          <mxGeometry x="1385" y="133" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="sort-toggle" value="⇅" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="1515" y="133" width="30" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-container" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(#ecf9ec, #1f2f1e);strokeColor=#82b366;align=left;verticalAlign=top;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="40" y="200" width="480" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-title" value="What Went Well" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="55" y="210" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-edit" value="✏️" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="240" y="210" width="25" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-add" value="+" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=24;strokeWidth=2;fontStyle=1;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="470" y="210" width="35" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-container" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF7E8;strokeColor=#d79b00;align=left;verticalAlign=top;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="560" y="200" width="480" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-title" value="Improvements" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="575" y="210" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-edit" value="✏️" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="730" y="210" width="25" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-add" value="+" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=24;strokeWidth=2;fontStyle=1;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="990" y="210" width="35" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-container" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="1080" y="200" width="480" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-title" value="Actions" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="1095" y="210" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-edit" value="✏️" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="1200" y="210" width="25" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-add" value="+" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=24;strokeWidth=2;fontStyle=1;cursor=pointer;" parent="1" vertex="1">
+          <mxGeometry x="1510" y="210" width="35" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="footer-note" value="Note: Cards sorted by user preference (Recency/Reactions/User Filter)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2;fontColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="40" y="820" width="1520" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-1" value="✏️" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;cursor=pointer;" vertex="1" parent="1">
+          <mxGeometry x="240" y="40" width="25" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-9" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#B9E0A5;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="55" y="245" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-10" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-9">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="card1-reactions" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="qip8pImJ78JYszCvXdhF-9" vertex="1">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-14" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-9">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-15" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#B9E0A5;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="55" y="370" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-16" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-15">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-17" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-15">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-18" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-15">
+          <mxGeometry x="235" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="cardA-reactions" value="👍 12 (Aggregated)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="qip8pImJ78JYszCvXdhF-15" vertex="1">
+          <mxGeometry x="265" y="2.5" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-19" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#B9E0A5;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="55" y="480" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-20" value="" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-19">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-21" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-19">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-22" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-19">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-24" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.link;" vertex="1" parent="qip8pImJ78JYszCvXdhF-19">
+          <mxGeometry x="15" y="5" width="24" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-26" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#B9E0A5;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="55" y="610" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-27" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-26">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-28" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-26">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-29" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-26">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-35" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#FFD966;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="575" y="255" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-36" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-35">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-37" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-35">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-38" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-35">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-39" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#FFD966;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="575" y="380" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-40" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-39">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-41" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-39">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-42" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-39">
+          <mxGeometry x="235" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-43" value="👍 12 (Aggregated)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-39">
+          <mxGeometry x="265" y="2.5" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-44" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#FFD966;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="575" y="490" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-45" value="" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-44">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-46" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-44">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-47" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-44">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-48" value="&lt;span style=&quot;color: rgba(0, 0, 0, 0); font-family: monospace; font-size: 0px; text-align: start; background-color: rgb(236, 236, 236);&quot;&gt;%3CmxGraphModel%3E%3Croot%3E%3CmxCell%20id%3D%220%22%2F%3E%3CmxCell%20id%3D%221%22%20parent%3D%220%22%2F%3E%3CmxCell%20id%3D%222%22%20value%3D%22%26lt%3Bspan%20style%3D%26quot%3Bcolor%3A%20rgb(0%2C%200%2C%200)%3B%20font-size%3A%2012px%3B%20text-align%3A%20left%3B%26quot%3B%26gt%3BCard1%3A%20Great%20team%20collaboration!%26amp%3Bnbsp%3B%26amp%3Bnbsp%3B%26lt%3B%2Fspan%26gt%3B%22%20style%3D%22strokeWidth%3D1%3Bshadow%3D0%3Bdashed%3D0%3Balign%3Dcenter%3Bhtml%3D1%3Bshape%3Dmxgraph.mockup.containers.rrect%3BrSize%3D0%3BstrokeColor%3D%23666666%3BfontColor%3D%23666666%3BfontSize%3D17%3BverticalAlign%3Dtop%3BwhiteSpace%3Dwrap%3BfillColor%3D%23FFD966%3BspacingTop%3D32%3B%22%20vertex%3D%221%22%20parent%3D%221%22%3E%3CmxGeometry%20x%3D%22575%22%20y%3D%22490%22%20width%3D%22440%22%20height%3D%22110%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%223%22%20value%3D%22%22%20style%3D%22strokeWidth%3D1%3Bshadow%3D0%3Bdashed%3D0%3Balign%3Dcenter%3Bhtml%3D1%3Bshape%3Dmxgraph.mockup.containers.rrect%3BrSize%3D0%3BfontSize%3D17%3BfontColor%3D%23666666%3BstrokeColor%3D%23666666%3Balign%3Dleft%3BspacingLeft%3D8%3BfillColor%3Dnone%3BresizeWidth%3D1%3BwhiteSpace%3Dwrap%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20width%3D%22440%22%20height%3D%2230%22%20relative%3D%221%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%224%22%20value%3D%22%F0%9F%91%8D%203%22%20style%3D%22rounded%3D1%3BwhiteSpace%3Dwrap%3Bhtml%3D1%3BfillColor%3D%23f5f5f5%3BstrokeColor%3D%23666666%3BfontSize%3D10%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%22390%22%20width%3D%2250%22%20height%3D%2225%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%225%22%20value%3D%22%22%20style%3D%22html%3D1%3BverticalLabelPosition%3Dbottom%3Balign%3Dcenter%3BlabelBackgroundColor%3D%23ffffff%3BverticalAlign%3Dtop%3BstrokeWidth%3D2%3BstrokeColor%3D%230080F0%3Bshadow%3D0%3Bdashed%3D0%3Bshape%3Dmxgraph.ios7.icons.trashcan%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%22360%22%20y%3D%225%22%20width%3D%2220%22%20height%3D%2220%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%226%22%20value%3D%22%22%20style%3D%22html%3D1%3BverticalLabelPosition%3Dbottom%3Balign%3Dcenter%3BlabelBackgroundColor%3D%23ffffff%3BverticalAlign%3Dtop%3BstrokeWidth%3D2%3BstrokeColor%3D%230080F0%3Bshadow%3D0%3Bdashed%3D0%3Bshape%3Dmxgraph.ios7.icons.link%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%2215%22%20y%3D%225%22%20width%3D%2224%22%20height%3D%2225%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3C%2Froot%3E%3C%2FmxGraphModel%3E&lt;/span&gt;" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.link;" vertex="1" parent="qip8pImJ78JYszCvXdhF-44">
+          <mxGeometry x="15" y="5" width="24" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-49" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Card1: Great team collaboration!&amp;nbsp;&amp;nbsp;&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#FFD966;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="575" y="660" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-50" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-49">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-51" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-49">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-52" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-49">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-53" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; text-align: left;&quot;&gt;Action Card&lt;/span&gt;" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;strokeColor=#666666;fontColor=#666666;fontSize=17;verticalAlign=top;whiteSpace=wrap;fillColor=#A9C4EB;spacingTop=32;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="270" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-54" value="[Drag Handle]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.containers.rrect;rSize=0;fontSize=17;fontColor=#666666;strokeColor=#666666;align=left;spacingLeft=8;fillColor=none;resizeWidth=1;whiteSpace=wrap;" vertex="1" parent="qip8pImJ78JYszCvXdhF-53">
+          <mxGeometry width="440" height="30" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-55" value="👍 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="qip8pImJ78JYszCvXdhF-53">
+          <mxGeometry x="390" width="50" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-56" value="" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.trashcan;" vertex="1" parent="qip8pImJ78JYszCvXdhF-53">
+          <mxGeometry x="360" y="5" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-57" value="&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;[Link card]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.text.textBox;fontColor=#666666;align=left;fontSize=17;spacingLeft=4;spacingTop=-3;whiteSpace=wrap;strokeColor=#666666;mainText=;fillColor=#FFD966;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="380" width="445" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-63" value="&lt;span style=&quot;color: rgba(0, 0, 0, 0); font-family: monospace; font-size: 0px; text-align: start; background-color: rgb(236, 236, 236);&quot;&gt;%3CmxGraphModel%3E%3Croot%3E%3CmxCell%20id%3D%220%22%2F%3E%3CmxCell%20id%3D%221%22%20parent%3D%220%22%2F%3E%3CmxCell%20id%3D%222%22%20value%3D%22%26lt%3Bspan%20style%3D%26quot%3Bcolor%3A%20rgb(0%2C%200%2C%200)%3B%20font-size%3A%2012px%3B%20text-align%3A%20left%3B%26quot%3B%26gt%3BCard1%3A%20Great%20team%20collaboration!%26amp%3Bnbsp%3B%26amp%3Bnbsp%3B%26lt%3B%2Fspan%26gt%3B%22%20style%3D%22strokeWidth%3D1%3Bshadow%3D0%3Bdashed%3D0%3Balign%3Dcenter%3Bhtml%3D1%3Bshape%3Dmxgraph.mockup.containers.rrect%3BrSize%3D0%3BstrokeColor%3D%23666666%3BfontColor%3D%23666666%3BfontSize%3D17%3BverticalAlign%3Dtop%3BwhiteSpace%3Dwrap%3BfillColor%3D%23FFD966%3BspacingTop%3D32%3B%22%20vertex%3D%221%22%20parent%3D%221%22%3E%3CmxGeometry%20x%3D%22575%22%20y%3D%22490%22%20width%3D%22440%22%20height%3D%22110%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%223%22%20value%3D%22%22%20style%3D%22strokeWidth%3D1%3Bshadow%3D0%3Bdashed%3D0%3Balign%3Dcenter%3Bhtml%3D1%3Bshape%3Dmxgraph.mockup.containers.rrect%3BrSize%3D0%3BfontSize%3D17%3BfontColor%3D%23666666%3BstrokeColor%3D%23666666%3Balign%3Dleft%3BspacingLeft%3D8%3BfillColor%3Dnone%3BresizeWidth%3D1%3BwhiteSpace%3Dwrap%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20width%3D%22440%22%20height%3D%2230%22%20relative%3D%221%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%224%22%20value%3D%22%F0%9F%91%8D%203%22%20style%3D%22rounded%3D1%3BwhiteSpace%3Dwrap%3Bhtml%3D1%3BfillColor%3D%23f5f5f5%3BstrokeColor%3D%23666666%3BfontSize%3D10%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%22390%22%20width%3D%2250%22%20height%3D%2225%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%225%22%20value%3D%22%22%20style%3D%22html%3D1%3BverticalLabelPosition%3Dbottom%3Balign%3Dcenter%3BlabelBackgroundColor%3D%23ffffff%3BverticalAlign%3Dtop%3BstrokeWidth%3D2%3BstrokeColor%3D%230080F0%3Bshadow%3D0%3Bdashed%3D0%3Bshape%3Dmxgraph.ios7.icons.trashcan%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%22360%22%20y%3D%225%22%20width%3D%2220%22%20height%3D%2220%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%226%22%20value%3D%22%22%20style%3D%22html%3D1%3BverticalLabelPosition%3Dbottom%3Balign%3Dcenter%3BlabelBackgroundColor%3D%23ffffff%3BverticalAlign%3Dtop%3BstrokeWidth%3D2%3BstrokeColor%3D%230080F0%3Bshadow%3D0%3Bdashed%3D0%3Bshape%3Dmxgraph.ios7.icons.link%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%2215%22%20y%3D%225%22%20width%3D%2224%22%20height%3D%2225%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3C%2Froot%3E%3C%2FmxGraphModel%3E&lt;/span&gt;" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.link;" vertex="1" parent="1">
+          <mxGeometry x="1105" y="385" width="24" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-65" value="&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;[Action Card link]" style="strokeWidth=1;shadow=0;dashed=0;align=center;html=1;shape=mxgraph.mockup.text.textBox;fontColor=#666666;align=left;fontSize=17;spacingLeft=4;spacingTop=-3;whiteSpace=wrap;strokeColor=#666666;mainText=;fillColor=#A9C4EB;" vertex="1" parent="1">
+          <mxGeometry x="575" y="600" width="445" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="qip8pImJ78JYszCvXdhF-66" value="&lt;span style=&quot;color: rgba(0, 0, 0, 0); font-family: monospace; font-size: 0px; text-align: start; background-color: rgb(236, 236, 236);&quot;&gt;%3CmxGraphModel%3E%3Croot%3E%3CmxCell%20id%3D%220%22%2F%3E%3CmxCell%20id%3D%221%22%20parent%3D%220%22%2F%3E%3CmxCell%20id%3D%222%22%20value%3D%22%26lt%3Bspan%20style%3D%26quot%3Bcolor%3A%20rgb(0%2C%200%2C%200)%3B%20font-size%3A%2012px%3B%20text-align%3A%20left%3B%26quot%3B%26gt%3BCard1%3A%20Great%20team%20collaboration!%26amp%3Bnbsp%3B%26amp%3Bnbsp%3B%26lt%3B%2Fspan%26gt%3B%22%20style%3D%22strokeWidth%3D1%3Bshadow%3D0%3Bdashed%3D0%3Balign%3Dcenter%3Bhtml%3D1%3Bshape%3Dmxgraph.mockup.containers.rrect%3BrSize%3D0%3BstrokeColor%3D%23666666%3BfontColor%3D%23666666%3BfontSize%3D17%3BverticalAlign%3Dtop%3BwhiteSpace%3Dwrap%3BfillColor%3D%23FFD966%3BspacingTop%3D32%3B%22%20vertex%3D%221%22%20parent%3D%221%22%3E%3CmxGeometry%20x%3D%22575%22%20y%3D%22490%22%20width%3D%22440%22%20height%3D%22110%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%223%22%20value%3D%22%22%20style%3D%22strokeWidth%3D1%3Bshadow%3D0%3Bdashed%3D0%3Balign%3Dcenter%3Bhtml%3D1%3Bshape%3Dmxgraph.mockup.containers.rrect%3BrSize%3D0%3BfontSize%3D17%3BfontColor%3D%23666666%3BstrokeColor%3D%23666666%3Balign%3Dleft%3BspacingLeft%3D8%3BfillColor%3Dnone%3BresizeWidth%3D1%3BwhiteSpace%3Dwrap%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20width%3D%22440%22%20height%3D%2230%22%20relative%3D%221%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%224%22%20value%3D%22%F0%9F%91%8D%203%22%20style%3D%22rounded%3D1%3BwhiteSpace%3Dwrap%3Bhtml%3D1%3BfillColor%3D%23f5f5f5%3BstrokeColor%3D%23666666%3BfontSize%3D10%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%22390%22%20width%3D%2250%22%20height%3D%2225%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%225%22%20value%3D%22%22%20style%3D%22html%3D1%3BverticalLabelPosition%3Dbottom%3Balign%3Dcenter%3BlabelBackgroundColor%3D%23ffffff%3BverticalAlign%3Dtop%3BstrokeWidth%3D2%3BstrokeColor%3D%230080F0%3Bshadow%3D0%3Bdashed%3D0%3Bshape%3Dmxgraph.ios7.icons.trashcan%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%22360%22%20y%3D%225%22%20width%3D%2220%22%20height%3D%2220%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3CmxCell%20id%3D%226%22%20value%3D%22%22%20style%3D%22html%3D1%3BverticalLabelPosition%3Dbottom%3Balign%3Dcenter%3BlabelBackgroundColor%3D%23ffffff%3BverticalAlign%3Dtop%3BstrokeWidth%3D2%3BstrokeColor%3D%230080F0%3Bshadow%3D0%3Bdashed%3D0%3Bshape%3Dmxgraph.ios7.icons.link%3B%22%20vertex%3D%221%22%20parent%3D%222%22%3E%3CmxGeometry%20x%3D%2215%22%20y%3D%225%22%20width%3D%2224%22%20height%3D%2225%22%20as%3D%22geometry%22%2F%3E%3C%2FmxCell%3E%3C%2Froot%3E%3C%2FmxGraphModel%3E&lt;/span&gt;" style="html=1;verticalLabelPosition=bottom;align=center;labelBackgroundColor=#ffffff;verticalAlign=top;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.link;" vertex="1" parent="1">
+          <mxGeometry x="585" y="605" width="24" height="25" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
