@@ -15,6 +15,7 @@ import { BoardRepository, BoardService, BoardController, createBoardRoutes } fro
 import { UserSessionRepository, UserSessionService, UserSessionController, createUserSessionRoutes } from '@/domains/user/index.js';
 import { CardRepository, CardService, CardController, createBoardCardRoutes, createCardRoutes } from '@/domains/card/index.js';
 import { ReactionRepository, ReactionService, ReactionController, createCardReactionRoutes, createBoardReactionRoutes } from '@/domains/reaction/index.js';
+import { AdminService, AdminController, createAdminRoutes } from '@/domains/admin/index.js';
 
 export function createApp(db?: Db): Express {
   const app = express();
@@ -90,6 +91,17 @@ export function createApp(db?: Db): Express {
     app.use('/v1/cards/:id/reactions', createCardReactionRoutes(reactionController));
     // Board-scoped reaction routes (/v1/boards/:id/reactions)
     app.use('/v1/boards/:id/reactions', createBoardReactionRoutes(reactionController));
+
+    // Admin test routes (/v1/boards/:id/test/*)
+    const adminService = new AdminService(
+      db,
+      boardRepository,
+      cardRepository,
+      reactionRepository,
+      userSessionRepository
+    );
+    const adminController = new AdminController(adminService);
+    app.use('/v1/boards/:id/test', createAdminRoutes(adminController));
   }
 
   // 404 handler

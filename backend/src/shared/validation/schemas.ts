@@ -117,6 +117,11 @@ export const seedTestDataSchema = z.object({
   create_relationships: z.boolean().default(true),
 });
 
+// ObjectId param schema (for route params)
+export const objectIdParamSchema = z.object({
+  id: objectIdSchema,
+});
+
 // Export types inferred from schemas
 export type CreateBoardDTO = z.infer<typeof createBoardSchema>;
 export type JoinBoardDTO = z.infer<typeof joinBoardSchema>;

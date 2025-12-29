@@ -1,8 +1,8 @@
 # Backend Core Context - RetroPulse
 
 > Single-file reference for understanding the backend structure, patterns, and testing setup.
-> Focus: All domains (Board, User, Card, Reaction), shared utilities, testing infrastructure.
-> **Last Updated**: 2025-12-28 | **Phases Complete**: 1-5 ✅
+> Focus: All domains (Board, User, Card, Reaction), real-time events, shared utilities, testing infrastructure.
+> **Last Updated**: 2025-12-28 | **Phases Complete**: 1-6 ✅
 
 ---
 
@@ -16,7 +16,7 @@
 | Database | MongoDB | 6.3+ (driver) |
 | Validation | Zod | 3.22 |
 | Logging | Winston | 3.11 |
-| Real-time | Socket.io | 4.7 (planned) |
+| Real-time | Socket.io | 4.7 ✅ |
 | Package Manager | pnpm | - |
 | Test Runner | Vitest | 1.1 |
 | Test DB | mongodb-memory-server | 10.0 |
@@ -441,6 +441,205 @@ app.use('/v1/boards/:id/reactions', createBoardReactionRoutes(reactionController
 
 ---
 
+## 📡 Real-time Events (Socket.io) - Phase 6
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Service Layer                                │
+│   BoardService / CardService / ReactionService / UserService    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ calls
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              EventBroadcaster (IEventBroadcaster)               │
+│   - Typed methods: cardCreated(), reactionAdded(), etc.         │
+│   - Abstracts Socket.io from services                           │
+│   - NoOpEventBroadcaster for testing                            │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ delegates to
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    SocketGateway                                │
+│   - Singleton wrapping Socket.io Server                         │
+│   - Room management: board:{boardId}                            │
+│   - Cookie auth via handshake                                   │
+│   - broadcast(boardId, eventType, payload)                      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ emits to room
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                Connected Clients (Socket.io)                    │
+│   - Join room on 'join-board' event                             │
+│   - Receive typed events: card:created, reaction:added, etc.    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Files (`src/gateway/socket/`)
+
+| File | Purpose |
+|------|---------|
+| `socket-types.ts` | All event type definitions (~215 lines) |
+| `SocketGateway.ts` | Socket.io server wrapper, room management (~304 lines) |
+| `EventBroadcaster.ts` | Service abstraction layer (~161 lines) |
+| `index.ts` | Exports |
+
+### Event Types
+
+**Board Events:**
+```typescript
+type BoardEventType = 'board:renamed' | 'board:closed' | 'board:deleted';
+```
+
+**Card Events:**
+```typescript
+type CardEventType = 'card:created' | 'card:updated' | 'card:deleted'
+                   | 'card:moved' | 'card:linked' | 'card:unlinked';
+```
+
+**Reaction Events:**
+```typescript
+type ReactionEventType = 'reaction:added' | 'reaction:removed';
+```
+
+**User Events:**
+```typescript
+type UserEventType = 'user:joined' | 'user:left' | 'user:alias_changed';
+```
+
+### Client-to-Server Events
+
+```typescript
+interface ClientToServerEvents {
+  'join-board': (boardId: string) => void;   // Join board room
+  'leave-board': (boardId: string) => void;  // Leave board room
+  'heartbeat': () => void;                   // Keep-alive
+}
+```
+
+### Key Payloads
+
+```typescript
+// Card created - includes full card data
+interface CardCreatedPayload {
+  cardId: string;
+  boardId: string;
+  columnId: string;
+  content: string;
+  cardType: 'feedback' | 'action';
+  isAnonymous: boolean;
+  createdByAlias: string | null;
+  createdAt: string;
+  directReactionCount: number;
+  aggregatedReactionCount: number;
+  parentCardId: string | null;
+  linkedFeedbackIds: string[];
+}
+
+// Reaction added - includes updated counts
+interface ReactionAddedPayload {
+  cardId: string;
+  boardId: string;
+  userAlias: string | null;
+  reactionType: 'thumbs_up';
+  directCount: number;
+  aggregatedCount: number;
+}
+```
+
+### SocketGateway Key Methods
+
+| Method | Purpose |
+|--------|---------|
+| `initialize(httpServer)` | Attach Socket.io to HTTP server |
+| `broadcast(boardId, eventType, payload)` | Emit to all in room |
+| `broadcastExcept(boardId, eventType, payload, excludeSocketId)` | Emit excluding sender |
+| `getRoomSize(boardId)` | Count clients in room |
+| `disconnectRoom(boardId)` | Kick all clients (board deleted) |
+| `close()` | Graceful shutdown |
+
+### EventBroadcaster Methods
+
+```typescript
+interface IEventBroadcaster {
+  // Board events
+  boardRenamed(boardId: string, name: string): void;
+  boardClosed(boardId: string, closedAt: string): void;
+  boardDeleted(boardId: string): void;
+
+  // Card events
+  cardCreated(payload: CardCreatedPayload): void;
+  cardUpdated(payload: CardUpdatedPayload): void;
+  cardDeleted(boardId: string, cardId: string): void;
+  cardMoved(payload: CardMovedPayload): void;
+  cardLinked(payload: CardLinkedPayload): void;
+  cardUnlinked(payload: CardUnlinkedPayload): void;
+
+  // Reaction events
+  reactionAdded(payload: ReactionAddedPayload): void;
+  reactionRemoved(payload: ReactionRemovedPayload): void;
+
+  // User events
+  userJoined(payload: UserJoinedPayload): void;
+  userLeft(payload: UserLeftPayload): void;
+  userAliasChanged(payload: UserAliasChangedPayload): void;
+}
+```
+
+### Room Management
+
+```typescript
+// Room naming convention
+getRoomName(boardId: string): string {
+  return `board:${boardId}`;
+}
+
+// Client joins room
+socket.on('join-board', (boardId) => {
+  socket.join(`board:${boardId}`);
+  socket.data.currentBoardId = boardId;
+});
+
+// Broadcasting to room
+io.to(`board:${boardId}`).emit('card:created', payload);
+```
+
+### Authentication
+
+Socket connections authenticate via cookie:
+```typescript
+// In SocketGateway.authenticateSocket()
+const cookieHeader = socket.handshake.headers.cookie;
+const cookieId = parseCookie(cookieHeader, 'retro_session_id');
+socket.data.cookieHash = sha256(cookieId);
+```
+
+### Configuration
+
+```typescript
+const HEARTBEAT_INTERVAL_MS = 30000;  // 30 seconds
+const HEARTBEAT_TIMEOUT_MS = 35000;   // 35 seconds
+
+// CORS config
+cors: {
+  origin: env.FRONTEND_URL,
+  credentials: true,
+  methods: ['GET', 'POST'],
+}
+```
+
+### Testing with NoOpEventBroadcaster
+
+Services accept `IEventBroadcaster` for testability:
+```typescript
+// In tests - use no-op to avoid Socket.io dependency
+const broadcaster = new NoOpEventBroadcaster();
+const service = new CardService(cardRepo, boardRepo, userRepo, broadcaster);
+```
+
+---
+
 ## ⚙️ Testing Infrastructure & Patterns
 
 ### Vitest Configuration (`vitest.config.ts`)
@@ -661,6 +860,14 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 | `src/gateway/app.ts` | Express app factory, middleware stack, route wiring |
 | `src/gateway/routes/health.ts` | `/health` endpoints |
 
+**Socket.io** (`src/gateway/socket/`):
+| File | Contains |
+|------|----------|
+| `socket-types.ts` | All event types & payloads (~215 lines) |
+| `SocketGateway.ts` | Socket.io wrapper, room management (~304 lines) |
+| `EventBroadcaster.ts` | `IEventBroadcaster` interface + implementations |
+| `index.ts` | Exports: `socketGateway`, `eventBroadcaster`, types |
+
 ### Domain Files
 
 **Board** (`src/domains/board/`):
@@ -731,10 +938,11 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 - `test-app.ts`: `cookieParser('test-secret')`
 - May not match production secret handling
 
-### 5. Real-time Events Not Wired (Phase 6)
-- Socket.io in dependencies but not implemented
-- Service methods don't emit events yet
-- Next phase will add WebSocket integration
+### 5. Real-time Events ✅ Implemented (Phase 6)
+- Socket.io gateway with room management
+- `EventBroadcaster` abstraction for service→gateway communication
+- `NoOpEventBroadcaster` for testing without Socket.io
+- All services emit events: board, card, reaction, user
 
 ### 6. Reaction Count Aggregation
 - `direct_reaction_count`: reactions directly on the card
