@@ -2,10 +2,8 @@ import { Response, NextFunction } from 'express';
 import { timingSafeEqual } from 'crypto';
 import { BoardService } from './board.service.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
-import { sendSuccess } from '@/shared/utils/index.js';
+import { sendSuccess, requireParam } from '@/shared/utils/index.js';
 import { env } from '@/shared/config/index.js';
-import { ApiError } from '@/shared/middleware/index.js';
-import { ErrorCodes } from '@/shared/types/index.js';
 
 /**
  * Timing-safe comparison of admin secret to prevent timing attacks
@@ -30,16 +28,6 @@ function isValidAdminSecret(providedSecret: string | string[] | undefined): bool
   } catch {
     return false;
   }
-}
-
-/**
- * Validate required path parameter exists
- */
-function requireParam(value: string | undefined, name: string): string {
-  if (!value) {
-    throw new ApiError(ErrorCodes.VALIDATION_ERROR, `${name} is required`, 400);
-  }
-  return value;
 }
 
 export class BoardController {

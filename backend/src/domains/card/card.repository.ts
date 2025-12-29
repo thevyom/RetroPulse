@@ -425,6 +425,70 @@ export class CardRepository {
   }
 
   /**
+   * Find a single card by ID with its relationships (children and linked feedback)
+   */
+  async findByIdWithRelationships(id: string): Promise<CardWithRelationships | null> {
+    const objectId = this.toObjectId(id);
+    if (!objectId) {
+      return null;
+    }
+
+    const pipeline = [
+      { $match: { _id: objectId } },
+      // Lookup children
+      {
+        $lookup: {
+          from: 'cards',
+          localField: '_id',
+          foreignField: 'parent_card_id',
+          as: 'children_docs',
+        },
+      },
+      // Lookup linked feedback cards
+      {
+        $lookup: {
+          from: 'cards',
+          localField: 'linked_feedback_ids',
+          foreignField: '_id',
+          as: 'linked_feedback_docs',
+        },
+      },
+    ];
+
+    const results = await this.collection.aggregate(pipeline).toArray();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    const doc = results[0];
+    const card = cardDocumentToCard(doc as CardDocument);
+    const childrenDocs = (doc.children_docs || []) as CardDocument[];
+    const linkedDocs = (doc.linked_feedback_docs || []) as CardDocument[];
+
+    return {
+      ...card,
+      children: childrenDocs
+        .sort((a, b) => a.created_at.getTime() - b.created_at.getTime())
+        .map(cardDocumentToChildCard),
+      linked_feedback_cards: linkedDocs.map(cardDocumentToLinkedFeedbackCard),
+    };
+  }
+
+  /**
+   * Check if a card has any children (for 1-level hierarchy enforcement)
+   */
+  async hasChildren(cardId: string): Promise<boolean> {
+    const objectId = this.toObjectId(cardId);
+    if (!objectId) {
+      return false;
+    }
+
+    const count = await this.collection.countDocuments({ parent_card_id: objectId }, { limit: 1 });
+    return count > 0;
+  }
+
+  /**
    * Check if a card is an ancestor of another (circular reference check)
    */
   async isAncestor(potentialAncestorId: string, cardId: string): Promise<boolean> {
@@ -477,14 +541,19 @@ export class CardRepository {
 
   /**
    * Delete all cards for a board (cascade delete)
+   * @param boardId - Board ID whose cards should be deleted
+   * @param session - Optional MongoDB session for transaction support
    */
-  async deleteByBoard(boardId: string): Promise<number> {
+  async deleteByBoard(boardId: string, session?: import('mongodb').ClientSession): Promise<number> {
     const boardObjectId = this.toObjectId(boardId);
     if (!boardObjectId) {
       return 0;
     }
 
-    const result = await this.collection.deleteMany({ board_id: boardObjectId });
+    const result = await this.collection.deleteMany(
+      { board_id: boardObjectId },
+      session ? { session } : undefined
+    );
 
     logger.debug('Cards deleted for board', { boardId, count: result.deletedCount });
 

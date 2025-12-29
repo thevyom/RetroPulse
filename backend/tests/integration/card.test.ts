@@ -610,7 +610,7 @@ describe('Card API Integration Tests', () => {
       expect(response.body.error.code).toBe('CIRCULAR_RELATIONSHIP');
     });
 
-    it('should prevent circular parent-child relationship', async () => {
+    it('should enforce 1-level hierarchy (parent cannot become child)', async () => {
       const { boardId, cookies } = await createBoard();
       await joinBoard(boardId, 'Alice', cookies);
 
@@ -630,25 +630,21 @@ describe('Card API Integration Tests', () => {
         .set('Cookie', cookies)
         .send({ column_id: 'col-1', content: 'Card 3', card_type: 'feedback' });
 
-      // Link: card1 -> card2 -> card3
+      // Link: card1 is parent of card2 (card2 becomes child)
       await request(app)
         .post(`/v1/cards/${card1.body.data.id}/link`)
         .set('Cookie', cookies)
         .send({ target_card_id: card2.body.data.id, link_type: 'parent_of' });
 
-      await request(app)
-        .post(`/v1/cards/${card2.body.data.id}/link`)
-        .set('Cookie', cookies)
-        .send({ target_card_id: card3.body.data.id, link_type: 'parent_of' });
-
-      // Try to create cycle: card3 -> card1 (would create cycle)
+      // Try: card3 is parent of card1 (card1 becomes child)
+      // This should fail because card1 already has children (1-level hierarchy)
       const response = await request(app)
         .post(`/v1/cards/${card3.body.data.id}/link`)
         .set('Cookie', cookies)
         .send({ target_card_id: card1.body.data.id, link_type: 'parent_of' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe('CIRCULAR_RELATIONSHIP');
+      expect(response.body.error.code).toBe('PARENT_CANNOT_BE_CHILD');
     });
 
     it('should return 400 when linking feedback card with linked_to type', async () => {

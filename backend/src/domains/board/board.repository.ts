@@ -239,13 +239,18 @@ export class BoardRepository {
 
   /**
    * Delete a board by ID
+   * @param id - Board ID to delete
+   * @param session - Optional MongoDB session for transaction support
    */
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, session?: import('mongodb').ClientSession): Promise<boolean> {
     if (!ObjectId.isValid(id)) {
       return false;
     }
 
-    const result = await this.collection.deleteOne({ _id: new ObjectId(id) });
+    const result = await this.collection.deleteOne(
+      { _id: new ObjectId(id) },
+      session ? { session } : undefined
+    );
     return result.deletedCount === 1;
   }
 

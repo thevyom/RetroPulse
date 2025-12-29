@@ -174,8 +174,13 @@ export interface SocketEvent {
 
 // ===== Client-to-Server Events =====
 
+export interface JoinBoardData {
+  boardId: string;
+  userAlias?: string; // Optional: user's display name for presence tracking
+}
+
 export interface ClientToServerEvents {
-  'join-board': (boardId: string) => void;
+  'join-board': (data: string | JoinBoardData) => void; // Supports both legacy (string) and new format
   'leave-board': (boardId: string) => void;
   'heartbeat': () => void;
 }
@@ -211,4 +216,5 @@ export interface ServerToClientEvents {
 export interface SocketData {
   cookieHash?: string;
   currentBoardId?: string;
+  userAlias?: string; // User's display name for presence tracking
 }

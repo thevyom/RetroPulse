@@ -186,16 +186,19 @@ export class UserSessionRepository {
 
   /**
    * Delete all sessions for a board (used in cascade delete)
+   * @param boardId - Board ID whose sessions should be deleted
+   * @param session - Optional MongoDB session for transaction support
    */
-  async deleteByBoard(boardId: string): Promise<number> {
+  async deleteByBoard(boardId: string, session?: import('mongodb').ClientSession): Promise<number> {
     const boardObjectId = this.tryParseBoardId(boardId);
     if (!boardObjectId) {
       return 0;
     }
 
-    const result = await this.collection.deleteMany({
-      board_id: boardObjectId,
-    });
+    const result = await this.collection.deleteMany(
+      { board_id: boardObjectId },
+      session ? { session } : undefined
+    );
 
     logger.debug('User sessions deleted for board', {
       boardId,

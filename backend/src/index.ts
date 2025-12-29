@@ -1,6 +1,6 @@
 import { createServer } from 'http';
 import { createApp } from '@/gateway/index.js';
-import { connectToDatabase, gracefulShutdown } from '@/shared/database/index.js';
+import { connectToDatabase, getMongoClient, gracefulShutdown } from '@/shared/database/index.js';
 import { logger } from '@/shared/logger/index.js';
 import { env } from '@/shared/config/index.js';
 import { socketGateway } from '@/gateway/socket/index.js';
@@ -9,9 +9,10 @@ async function main(): Promise<void> {
   try {
     // Connect to database
     const db = await connectToDatabase();
+    const mongoClient = getMongoClient();
 
-    // Create Express app with database
-    const app = createApp(db);
+    // Create Express app with database and MongoClient for transaction support
+    const app = createApp({ db, mongoClient });
 
     // Create HTTP server
     const server = createServer(app);

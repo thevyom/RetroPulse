@@ -1,3 +1,4 @@
+import type { ClientSession, MongoClient } from 'mongodb';
 import { BoardRepository } from './board.repository.js';
 import {
   Board,
@@ -10,15 +11,39 @@ import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 import { env } from '@/shared/config/index.js';
 import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
+import { logger } from '@/shared/logger/index.js';
+
+/**
+ * Interface for cascade delete dependencies
+ * Using interface to avoid direct repository imports and circular dependencies
+ */
+export interface CascadeDeleteDependencies {
+  getCardIdsByBoard: (boardId: string) => Promise<string[]>;
+  deleteReactionsByCards: (cardIds: string[], session?: ClientSession) => Promise<number>;
+  deleteCardsByBoard: (boardId: string, session?: ClientSession) => Promise<number>;
+  deleteSessionsByBoard: (boardId: string, session?: ClientSession) => Promise<number>;
+  deleteBoardById: (boardId: string, session?: ClientSession) => Promise<boolean>;
+  getMongoClient?: () => MongoClient;
+}
 
 export class BoardService {
   private broadcaster: IEventBroadcaster;
+  private cascadeDeps?: CascadeDeleteDependencies;
 
   constructor(
     private readonly boardRepository: BoardRepository,
-    broadcaster?: IEventBroadcaster
+    broadcaster?: IEventBroadcaster,
+    cascadeDeps?: CascadeDeleteDependencies
   ) {
     this.broadcaster = broadcaster ?? eventBroadcaster;
+    this.cascadeDeps = cascadeDeps;
+  }
+
+  /**
+   * Set cascade delete dependencies (called after all services are initialized)
+   */
+  setCascadeDeleteDependencies(deps: CascadeDeleteDependencies): void {
+    this.cascadeDeps = deps;
   }
 
   /**
@@ -239,22 +264,87 @@ export class BoardService {
 
   /**
    * Delete a board (creator only, or admin secret bypass)
+   * Performs cascade delete of all related data (cards, reactions, sessions) within a transaction
    */
   async deleteBoard(id: string, userHash: string, isAdminSecret = false): Promise<void> {
-    if (!isAdminSecret) {
-      await this.ensureCreator(id, userHash);
+    // Verify board exists before authorization check
+    const board = await this.boardRepository.findById(id);
+    if (!board) {
+      throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
-    // Note: Cascade delete of cards, reactions, user_sessions will be handled
-    // by calling their respective repositories. For now, just delete the board.
-    const deleted = await this.boardRepository.delete(id);
+    // Authorization check (unless admin secret bypass)
+    if (!isAdminSecret) {
+      if (board.created_by_hash !== userHash) {
+        throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the board creator can perform this action', 403);
+      }
+    }
 
-    if (!deleted) {
-      throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
+    // Cascade delete with transaction if MongoDB client is available
+    if (this.cascadeDeps?.getMongoClient) {
+      await this.deleteBoardWithTransaction(id);
+    } else if (this.cascadeDeps) {
+      // Fallback: cascade delete without transaction (for tests without replica set)
+      await this.deleteBoardWithoutTransaction(id);
+    } else {
+      // No cascade deps: just delete the board
+      await this.boardRepository.delete(id);
     }
 
     // Emit real-time event
     this.broadcaster.boardDeleted(id);
+  }
+
+  /**
+   * Delete board and related data within a MongoDB transaction
+   * Ensures atomicity - all deletes succeed or none do
+   */
+  private async deleteBoardWithTransaction(boardId: string): Promise<void> {
+    const client = this.cascadeDeps!.getMongoClient!();
+    const session = client.startSession();
+
+    try {
+      await session.withTransaction(async () => {
+        // Get all card IDs for reaction cleanup (outside transaction - read only)
+        const cardIds = await this.cascadeDeps!.getCardIdsByBoard(boardId);
+
+        // Delete in order: reactions → cards → sessions → board
+        const reactionsDeleted = await this.cascadeDeps!.deleteReactionsByCards(cardIds, session);
+        const cardsDeleted = await this.cascadeDeps!.deleteCardsByBoard(boardId, session);
+        const sessionsDeleted = await this.cascadeDeps!.deleteSessionsByBoard(boardId, session);
+        await this.cascadeDeps!.deleteBoardById(boardId, session);
+
+        logger.info('Board cascade delete completed (with transaction)', {
+          boardId,
+          reactionsDeleted,
+          cardsDeleted,
+          sessionsDeleted,
+        });
+      });
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  /**
+   * Delete board and related data without transaction (for test environments)
+   */
+  private async deleteBoardWithoutTransaction(boardId: string): Promise<void> {
+    // Get all card IDs for reaction cleanup
+    const cardIds = await this.cascadeDeps!.getCardIdsByBoard(boardId);
+
+    // Delete in order: reactions → cards → sessions → board
+    const reactionsDeleted = await this.cascadeDeps!.deleteReactionsByCards(cardIds);
+    const cardsDeleted = await this.cascadeDeps!.deleteCardsByBoard(boardId);
+    const sessionsDeleted = await this.cascadeDeps!.deleteSessionsByBoard(boardId);
+    await this.boardRepository.delete(boardId);
+
+    logger.info('Board cascade delete completed (without transaction)', {
+      boardId,
+      reactionsDeleted,
+      cardsDeleted,
+      sessionsDeleted,
+    });
   }
 
   /**

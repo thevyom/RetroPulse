@@ -1,13 +1,15 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import type { Db } from 'mongodb';
+import type { Db, MongoClient } from 'mongodb';
 import { env } from '@/shared/config/index.js';
 import {
   authMiddleware,
   errorHandler,
   notFoundHandler,
   requestLogger,
+  standardRateLimiter,
+  adminRateLimiter,
 } from '@/shared/middleware/index.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { healthRoutes } from './routes/health.js';
@@ -17,7 +19,20 @@ import { CardRepository, CardService, CardController, createBoardCardRoutes, cre
 import { ReactionRepository, ReactionService, ReactionController, createCardReactionRoutes, createBoardReactionRoutes } from '@/domains/reaction/index.js';
 import { AdminService, AdminController, createAdminRoutes } from '@/domains/admin/index.js';
 
-export function createApp(db?: Db): Express {
+/**
+ * App configuration options
+ */
+interface AppOptions {
+  db?: Db;
+  mongoClient?: MongoClient; // For transaction support in cascade deletes
+}
+
+export function createApp(dbOrOptions?: Db | AppOptions): Express {
+  // Handle both old signature (db only) and new signature (options object)
+  const options: AppOptions = dbOrOptions && 'db' in dbOrOptions
+    ? dbOrOptions
+    : { db: dbOrOptions };
+  const { db, mongoClient } = options;
   const app = express();
 
   // Trust proxy (for secure cookies behind reverse proxy)
@@ -45,6 +60,9 @@ export function createApp(db?: Db): Express {
 
   // Health check routes (no auth required)
   app.use('/health', healthRoutes);
+
+  // Rate limiting for all API routes (skipped in test environment)
+  app.use('/v1', standardRateLimiter);
 
   // Authentication middleware for all API routes
   app.use('/v1', (req, res, next) => {
@@ -92,7 +110,7 @@ export function createApp(db?: Db): Express {
     // Board-scoped reaction routes (/v1/boards/:id/reactions)
     app.use('/v1/boards/:id/reactions', createBoardReactionRoutes(reactionController));
 
-    // Admin test routes (/v1/boards/:id/test/*)
+    // Admin test routes (/v1/boards/:id/test/*) with stricter rate limiting
     const adminService = new AdminService(
       db,
       boardRepository,
@@ -101,7 +119,19 @@ export function createApp(db?: Db): Express {
       userSessionRepository
     );
     const adminController = new AdminController(adminService);
-    app.use('/v1/boards/:id/test', createAdminRoutes(adminController));
+    app.use('/v1/boards/:id/test', adminRateLimiter, createAdminRoutes(adminController));
+
+    // Wire up cascade delete dependencies for board service
+    // Transaction support requires a MongoClient (mongodb-memory-server doesn't support replica sets)
+    boardService.setCascadeDeleteDependencies({
+      getCardIdsByBoard: (boardId) => cardRepository.getCardIdsByBoard(boardId),
+      deleteReactionsByCards: (cardIds, session) => reactionRepository.deleteByCards(cardIds, session),
+      deleteCardsByBoard: (boardId, session) => cardRepository.deleteByBoard(boardId, session),
+      deleteSessionsByBoard: (boardId, session) => userSessionRepository.deleteByBoard(boardId, session),
+      deleteBoardById: (boardId, session) => boardRepository.delete(boardId, session),
+      // Provide MongoClient for transaction support in production
+      getMongoClient: mongoClient ? () => mongoClient : undefined,
+    });
   }
 
   // 404 handler

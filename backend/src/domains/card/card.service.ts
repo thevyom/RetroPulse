@@ -94,15 +94,15 @@ export class CardService {
   }
 
   /**
-   * Get a card by ID
+   * Get a card by ID with its relationships (children and linked_feedback_cards)
    */
-  async getCard(id: string): Promise<Card> {
-    const doc = await this.cardRepository.findById(id);
-    if (!doc) {
+  async getCard(id: string): Promise<CardWithRelationships> {
+    const card = await this.cardRepository.findByIdWithRelationships(id);
+    if (!card) {
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
-    return cardDocumentToCard(doc);
+    return card;
   }
 
   /**
@@ -326,6 +326,25 @@ export class CardService {
         throw new ApiError(
           ErrorCodes.CIRCULAR_RELATIONSHIP,
           'A card cannot be its own parent',
+          400
+        );
+      }
+
+      // 1-level hierarchy enforcement: source card cannot already be a child
+      if (sourceCard.parent_card_id) {
+        throw new ApiError(
+          ErrorCodes.CHILD_CANNOT_BE_PARENT,
+          'A child card cannot become a parent (1-level hierarchy limit)',
+          400
+        );
+      }
+
+      // 1-level hierarchy enforcement: target card cannot already have children
+      const targetHasChildren = await this.cardRepository.hasChildren(input.target_card_id);
+      if (targetHasChildren) {
+        throw new ApiError(
+          ErrorCodes.PARENT_CANNOT_BE_CHILD,
+          'A parent card cannot become a child (1-level hierarchy limit)',
           400
         );
       }

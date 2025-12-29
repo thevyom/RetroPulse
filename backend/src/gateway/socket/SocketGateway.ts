@@ -15,6 +15,8 @@ import type {
   SocketData,
   EventType,
   EventPayload,
+  JoinBoardData,
+  UserLeftPayload,
 } from './socket-types.js';
 
 const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
@@ -215,9 +217,9 @@ export class SocketGateway {
       hasCookie: !!socket.data.cookieHash,
     });
 
-    // Handle join-board event
-    socket.on('join-board', (boardId: string) => {
-      this.handleJoinBoard(socket, boardId);
+    // Handle join-board event (supports both legacy string and new object format)
+    socket.on('join-board', (data: string | JoinBoardData) => {
+      this.handleJoinBoard(socket, data);
     });
 
     // Handle leave-board event
@@ -236,7 +238,11 @@ export class SocketGateway {
     });
   }
 
-  private handleJoinBoard(socket: TypedSocket, boardId: string): void {
+  private handleJoinBoard(socket: TypedSocket, data: string | JoinBoardData): void {
+    // Parse data - support both legacy string format and new object format
+    const boardId = typeof data === 'string' ? data : data.boardId;
+    const userAlias = typeof data === 'object' ? data.userAlias : undefined;
+
     // Validate boardId format (MongoDB ObjectId: 24 hex characters)
     if (!boardId || typeof boardId !== 'string' || !/^[a-f\d]{24}$/i.test(boardId)) {
       logger.warn('Invalid boardId format in join-board', {
@@ -246,8 +252,9 @@ export class SocketGateway {
       return;
     }
 
-    // Leave any previous board room
+    // Leave any previous board room and emit user:left if we have alias
     if (socket.data.currentBoardId) {
+      this.emitUserLeftIfNeeded(socket);
       const oldRoomName = this.getRoomName(socket.data.currentBoardId);
       socket.leave(oldRoomName);
       logger.debug('Left previous room', {
@@ -260,21 +267,26 @@ export class SocketGateway {
     const roomName = this.getRoomName(boardId);
     socket.join(roomName);
     socket.data.currentBoardId = boardId;
+    socket.data.userAlias = userAlias;
 
     logger.info('Client joined board room', {
       socketId: socket.id,
       boardId,
+      userAlias,
       room: roomName,
     });
   }
 
   private handleLeaveBoard(socket: TypedSocket, boardId: string): void {
+    // Emit user:left before leaving the room
+    if (socket.data.currentBoardId === boardId) {
+      this.emitUserLeftIfNeeded(socket);
+      socket.data.currentBoardId = undefined;
+      socket.data.userAlias = undefined;
+    }
+
     const roomName = this.getRoomName(boardId);
     socket.leave(roomName);
-
-    if (socket.data.currentBoardId === boardId) {
-      socket.data.currentBoardId = undefined;
-    }
 
     logger.info('Client left board room', {
       socketId: socket.id,
@@ -291,11 +303,38 @@ export class SocketGateway {
   }
 
   private handleDisconnect(socket: TypedSocket, reason: string): void {
+    // Emit user:left for the current board if we have the alias
+    this.emitUserLeftIfNeeded(socket);
+
     logger.info('Client disconnected', {
       socketId: socket.id,
       reason,
       boardId: socket.data.currentBoardId,
+      userAlias: socket.data.userAlias,
     });
+  }
+
+  /**
+   * Emit user:left event if we have both boardId and userAlias
+   */
+  private emitUserLeftIfNeeded(socket: TypedSocket): void {
+    const { currentBoardId, userAlias } = socket.data;
+
+    if (currentBoardId && userAlias && this.io) {
+      const roomName = this.getRoomName(currentBoardId);
+      const payload: UserLeftPayload = {
+        boardId: currentBoardId,
+        userAlias,
+      };
+
+      this.io.to(roomName).emit('user:left', payload);
+
+      logger.debug('Emitted user:left event', {
+        socketId: socket.id,
+        boardId: currentBoardId,
+        userAlias,
+      });
+    }
   }
 }
 

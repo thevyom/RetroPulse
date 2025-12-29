@@ -72,6 +72,7 @@ describe('CardService', () => {
     mockCardRepository = {
       create: vi.fn(),
       findById: vi.fn(),
+      findByIdWithRelationships: vi.fn(),
       findByBoard: vi.fn(),
       findByBoardWithRelationships: vi.fn(),
       countByColumn: vi.fn(),
@@ -87,6 +88,7 @@ describe('CardService', () => {
       orphanChildren: vi.fn(),
       findChildren: vi.fn(),
       isAncestor: vi.fn(),
+      hasChildren: vi.fn(),
       delete: vi.fn(),
       deleteByBoard: vi.fn(),
       getCardIdsByBoard: vi.fn(),
@@ -252,16 +254,36 @@ describe('CardService', () => {
   });
 
   describe('getCard', () => {
-    it('should return card when found', async () => {
-      vi.mocked(mockCardRepository.findById!).mockResolvedValue(mockCardDoc);
+    it('should return card with relationships when found', async () => {
+      const cardWithRelationships = {
+        id: cardId.toHexString(),
+        board_id: boardId.toHexString(),
+        column_id: 'col-1',
+        content: 'Test card content',
+        card_type: 'feedback',
+        is_anonymous: false,
+        created_by_hash: userHash,
+        created_by_alias: 'Test User',
+        created_at: mockCardDoc.created_at.toISOString(),
+        updated_at: null,
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 0,
+        parent_card_id: null,
+        linked_feedback_ids: [],
+        children: [],
+        linked_feedback_cards: [],
+      };
+      vi.mocked(mockCardRepository.findByIdWithRelationships!).mockResolvedValue(cardWithRelationships as any);
 
       const result = await service.getCard(cardId.toHexString());
 
       expect(result.content).toBe('Test card content');
+      expect(result.children).toEqual([]);
+      expect(result.linked_feedback_cards).toEqual([]);
     });
 
     it('should throw CARD_NOT_FOUND when not found', async () => {
-      vi.mocked(mockCardRepository.findById!).mockResolvedValue(null);
+      vi.mocked(mockCardRepository.findByIdWithRelationships!).mockResolvedValue(null);
 
       await expect(service.getCard('nonexistent')).rejects.toMatchObject({
         code: 'CARD_NOT_FOUND',
@@ -430,6 +452,7 @@ describe('CardService', () => {
         .mockResolvedValueOnce(parentDoc) // source card
         .mockResolvedValueOnce(childDoc); // target card
       vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
+      vi.mocked(mockCardRepository.hasChildren!).mockResolvedValue(false); // target has no children (1-level check)
       vi.mocked(mockCardRepository.isAncestor!).mockResolvedValue(false);
       vi.mocked(mockCardRepository.setParentCard!).mockResolvedValue(childDoc);
       vi.mocked(mockCardRepository.incrementAggregatedReactionCount!).mockResolvedValue(parentDoc);
@@ -484,6 +507,7 @@ describe('CardService', () => {
         .mockResolvedValueOnce(card1Doc)
         .mockResolvedValueOnce(card2Doc);
       vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
+      vi.mocked(mockCardRepository.hasChildren!).mockResolvedValue(false); // source has no children
       vi.mocked(mockCardRepository.isAncestor!).mockResolvedValue(true); // Would create cycle
 
       await expect(
@@ -494,6 +518,54 @@ describe('CardService', () => {
         )
       ).rejects.toMatchObject({
         code: 'CIRCULAR_RELATIONSHIP',
+        statusCode: 400,
+      });
+    });
+
+    it('should throw CHILD_CANNOT_BE_PARENT when source already has a parent', async () => {
+      const card1Id = new ObjectId();
+      const card2Id = new ObjectId();
+      const parentId = new ObjectId();
+      const card1Doc = { ...mockCardDoc, _id: card1Id, parent_card_id: parentId }; // Already has parent
+      const card2Doc = { ...mockCardDoc, _id: card2Id };
+
+      vi.mocked(mockCardRepository.findById!)
+        .mockResolvedValueOnce(card1Doc)
+        .mockResolvedValueOnce(card2Doc);
+      vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
+
+      await expect(
+        service.linkCards(
+          card1Id.toHexString(),
+          { target_card_id: card2Id.toHexString(), link_type: 'parent_of' },
+          userHash
+        )
+      ).rejects.toMatchObject({
+        code: 'CHILD_CANNOT_BE_PARENT',
+        statusCode: 400,
+      });
+    });
+
+    it('should throw PARENT_CANNOT_BE_CHILD when target already has children', async () => {
+      const card1Id = new ObjectId();
+      const card2Id = new ObjectId();
+      const card1Doc = { ...mockCardDoc, _id: card1Id };
+      const card2Doc = { ...mockCardDoc, _id: card2Id };
+
+      vi.mocked(mockCardRepository.findById!)
+        .mockResolvedValueOnce(card1Doc)
+        .mockResolvedValueOnce(card2Doc);
+      vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
+      vi.mocked(mockCardRepository.hasChildren!).mockResolvedValue(true); // target has children
+
+      await expect(
+        service.linkCards(
+          card1Id.toHexString(),
+          { target_card_id: card2Id.toHexString(), link_type: 'parent_of' },
+          userHash
+        )
+      ).rejects.toMatchObject({
+        code: 'PARENT_CANNOT_BE_CHILD',
         statusCode: 400,
       });
     });

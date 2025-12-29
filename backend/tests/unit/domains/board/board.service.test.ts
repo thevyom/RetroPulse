@@ -286,6 +286,7 @@ describe('BoardService', () => {
 
   describe('deleteBoard', () => {
     it('should delete board when user is creator', async () => {
+      vi.mocked(mockRepository.findById!).mockResolvedValue(mockBoardDoc);
       vi.mocked(mockRepository.isCreator!).mockResolvedValue(true);
       vi.mocked(mockRepository.delete!).mockResolvedValue(true);
 
@@ -297,6 +298,7 @@ describe('BoardService', () => {
     });
 
     it('should delete board with admin secret bypass', async () => {
+      vi.mocked(mockRepository.findById!).mockResolvedValue(mockBoardDoc);
       vi.mocked(mockRepository.delete!).mockResolvedValue(true);
 
       await expect(
@@ -308,6 +310,7 @@ describe('BoardService', () => {
     });
 
     it('should throw FORBIDDEN when user is not creator', async () => {
+      vi.mocked(mockRepository.findById!).mockResolvedValue(mockBoardDoc);
       vi.mocked(mockRepository.isCreator!).mockResolvedValue(false);
 
       await expect(
@@ -319,8 +322,7 @@ describe('BoardService', () => {
     });
 
     it('should throw BOARD_NOT_FOUND when board does not exist', async () => {
-      vi.mocked(mockRepository.isCreator!).mockResolvedValue(true);
-      vi.mocked(mockRepository.delete!).mockResolvedValue(false);
+      vi.mocked(mockRepository.findById!).mockResolvedValue(null);
 
       await expect(
         service.deleteBoard(mockBoardDoc._id.toHexString(), 'creator-hash')

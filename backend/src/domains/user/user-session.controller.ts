@@ -1,19 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { UserSessionService } from './user-session.service.js';
-import { AuthenticatedRequest, ErrorCodes } from '@/shared/types/index.js';
-import { ApiError } from '@/shared/middleware/index.js';
-import { sendSuccess } from '@/shared/utils/index.js';
+import { AuthenticatedRequest } from '@/shared/types/index.js';
+import { sendSuccess, requireParam } from '@/shared/utils/index.js';
 import { JoinBoardDTO, UpdateAliasDTO } from '@/shared/validation/index.js';
-
-/**
- * Validate and extract required path parameter
- */
-function requireParam(value: string | undefined, name: string): string {
-  if (!value) {
-    throw new ApiError(ErrorCodes.VALIDATION_ERROR, `${name} is required`, 400);
-  }
-  return value;
-}
 
 export class UserSessionController {
   constructor(private readonly userSessionService: UserSessionService) {}

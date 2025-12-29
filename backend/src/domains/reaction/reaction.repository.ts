@@ -137,8 +137,10 @@ export class ReactionRepository {
 
   /**
    * Delete all reactions for multiple cards (for board cascade delete)
+   * @param cardIds - Array of card IDs whose reactions should be deleted
+   * @param session - Optional MongoDB session for transaction support
    */
-  async deleteByCards(cardIds: string[]): Promise<number> {
+  async deleteByCards(cardIds: string[], session?: import('mongodb').ClientSession): Promise<number> {
     if (cardIds.length === 0) {
       return 0;
     }
@@ -151,9 +153,10 @@ export class ReactionRepository {
       return 0;
     }
 
-    const result = await this.collection.deleteMany({
-      card_id: { $in: cardObjectIds },
-    });
+    const result = await this.collection.deleteMany(
+      { card_id: { $in: cardObjectIds } },
+      session ? { session } : undefined
+    );
 
     logger.debug('Reactions deleted for cards', { cardCount: cardIds.length, reactionCount: result.deletedCount });
 
