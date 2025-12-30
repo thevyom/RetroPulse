@@ -70,14 +70,25 @@ docs/frontend/
 
 | Category | Unit Tests | Integration Tests | E2E Tests | Status |
 |----------|------------|-------------------|-----------|--------|
-| Shared Utils | - | - | - | 🔲 |
-| API Services | - | - | - | 🔲 |
-| Stores | - | - | - | 🔲 |
-| ViewModels | - | - | - | 🔲 |
-| Components | - | - | - | 🔲 |
-| **Total** | **0** | **0** | **0** | **0 tests** |
+| Shared Utils | ~10 | - | - | 🔲 |
+| API Services | ~22 | - | - | 🔲 |
+| Stores | ~12 | - | - | 🔲 |
+| ViewModels | ~70 | - | - | 🔲 |
+| View Components | ~95 | - | - | 🔲 |
+| Integration | - | ~40 | - | 🔲 |
+| Real-time | - | ~23 | - | 🔲 |
+| Drag-Drop | - | ~11 | ~12 | 🔲 |
+| E2E Flows | - | - | ~35 | 🔲 |
+| **Total** | **~209** | **~74** | **~47** | **~321 tests planned** |
 
 Target: 80%+ code coverage
+
+**Test Architecture Decisions** (see [Test Master Plan](../test-docs/FRONTEND_TEST_MASTER_PLAN.md)):
+- Safari testing: Not required for MVP
+- CI: GitHub Actions with parallel runners
+- E2E backend: Real backend + socket.io-client
+- Test isolation: UUID-based board IDs + fresh browser contexts
+- Cleanup: `/test/cleanup` endpoint as global teardown
 
 ---
 

@@ -1,7 +1,7 @@
 # Test Phase 2: ViewModel Layer (Business Logic Tests)
 
 **Status**: 🔲 NOT STARTED
-**Tests**: 0/~55 complete
+**Tests**: 0/~70 complete
 **Coverage Target**: 90%+
 
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md)
@@ -115,7 +115,7 @@ describe('useBoardViewModel', () => {
 })
 ```
 
-**Test Cases** (~15 tests):
+**Test Cases** (~18 tests):
 | # | Test Case | Mock Setup | Assertion |
 |---|-----------|------------|-----------|
 | 1 | Loads board on mount | API returns board | board state populated |
@@ -126,6 +126,9 @@ describe('useBoardViewModel', () => {
 | 6 | API error handling | API rejects | error state set |
 | 7 | Socket subscription on mount | - | Events registered |
 | 8 | Socket cleanup on unmount | - | Events unregistered |
+| 9 | handleRenameColumn success | API resolves | Column name updated |
+| 10 | Column rename validation | Empty name | Error thrown, no API call |
+| 11 | Concurrent rename handling | Two renames | Last write wins |
 
 ---
 
@@ -133,7 +136,7 @@ describe('useBoardViewModel', () => {
 
 **File**: `tests/unit/features/card/viewmodels/useCardViewModel.test.ts`
 
-**Test Cases** (~22 tests):
+**Test Cases** (~28 tests):
 | # | Test Case | Mock Setup | Assertion |
 |---|-----------|------------|-----------|
 | 1 | Fetch cards with children | API returns nested | cards state has children |
@@ -147,6 +150,12 @@ describe('useBoardViewModel', () => {
 | 9 | Filter by user | User filter active | Only user's cards shown |
 | 10 | Filter by All Users | Default filter | All cards visible |
 | 11 | Optimistic update rollback | API error | Card removed from UI |
+| 12 | Filter + Sort combined | User filter + popularity | Correct order & filter |
+| 13 | Anonymous filter hides attributed children | Anonymous filter | Children hidden if attributed |
+| 14 | Move card updates column index | API success | cardsByColumn updated |
+| 15 | Action cards exempt from quota | card_type: action | No quota check |
+| 16 | 1-level hierarchy client block | Drop child on parent's child | Error before API call |
+| 17 | 1-level hierarchy backend fallback | API rejects 400 | Error shown to user |
 
 **Example Tests**:
 ```typescript
@@ -209,7 +218,7 @@ test('optimistic update rollback on API error', async () => {
 
 **File**: `tests/unit/features/participant/viewmodels/useParticipantViewModel.test.ts`
 
-**Test Cases** (~12 tests):
+**Test Cases** (~15 tests):
 | # | Test Case | Assertion |
 |---|-----------|-----------|
 | 1 | Fetch active users on mount | Active users populated |
@@ -220,6 +229,9 @@ test('optimistic update rollback on API error', async () => {
 | 6 | Toggle Anonymous filter | showAnonymous toggled |
 | 7 | Toggle user-specific filter | User added to filters |
 | 8 | Heartbeat sent periodically | API called every 60s |
+| 9 | Stale user cleanup | User inactive > 2min | Removed from activeUsers |
+| 10 | Multiple user filter OR logic | 2 users selected | Shows cards from either |
+| 11 | Admin promotion updates board | API success | board.admins includes user |
 
 **Example Test**:
 ```typescript
@@ -264,7 +276,7 @@ test('heartbeat sent every 60 seconds', async () => {
 
 **File**: `tests/unit/features/card/viewmodels/useDragDropViewModel.test.ts`
 
-**Test Cases** (~10 tests):
+**Test Cases** (~13 tests):
 | # | Test Case | Assertion |
 |---|-----------|-----------|
 | 1 | Drag start sets dragged item | isDragging: true, draggedItem set |
@@ -273,6 +285,9 @@ test('heartbeat sent every 60 seconds', async () => {
 | 4 | Circular relationship blocked | Drop prevented, error shown |
 | 5 | Drop on column moves card | handleMoveCard called |
 | 6 | Drag end clears state | isDragging: false, draggedItem: null |
+| 7 | 1-level hierarchy enforcement | Child has parent | Cannot become parent |
+| 8 | Action on action blocked | Both action type | Drop rejected |
+| 9 | Action→feedback→action chain | Valid multi-link | All links created |
 
 **Example Test**:
 ```typescript

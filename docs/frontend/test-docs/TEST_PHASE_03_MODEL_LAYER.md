@@ -1,7 +1,7 @@
 # Test Phase 3: Model Layer (API & State Tests)
 
 **Status**: 🔲 NOT STARTED
-**Tests**: 0/~25 complete
+**Tests**: 0/~35 complete
 **Coverage Target**: 85%+
 
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md)
@@ -90,7 +90,7 @@ describe('BoardAPI', () => {
 })
 ```
 
-**Test Cases** (~8 tests):
+**Test Cases** (~11 tests):
 | # | Test Case | Assertion |
 |---|-----------|-----------|
 | 1 | getBoard correct URL | GET /v1/boards/:id |
@@ -101,6 +101,9 @@ describe('BoardAPI', () => {
 | 6 | 500 error handling | Throws server error |
 | 7 | Network error handling | Throws network error |
 | 8 | Response data extraction | Unwraps data.data |
+| 9 | renameColumn PATCH | PATCH /v1/boards/:id/columns/:columnId |
+| 10 | joinBoard without alias | POST → backend generates alias |
+| 11 | getBoard returns embedded columns | columns array in response |
 
 ---
 
@@ -108,7 +111,7 @@ describe('BoardAPI', () => {
 
 **File**: `tests/unit/features/card/models/CardAPI.test.ts`
 
-**Test Cases** (~8 tests):
+**Test Cases** (~11 tests):
 | # | Test Case | Assertion |
 |---|-----------|-----------|
 | 1 | getCards with relationships | include_relationships=true |
@@ -118,6 +121,9 @@ describe('BoardAPI', () => {
 | 5 | linkParentChild POST | Correct relationship payload |
 | 6 | checkCardQuota GET | Returns quota object |
 | 7 | Error code mapping | Maps backend codes |
+| 8 | unlinkChild DELETE | DELETE /cards/:id/link |
+| 9 | linkActionFeedback POST | type: 'action_feedback' in payload |
+| 10 | Error 409 BOARD_CLOSED | Mapped to BoardClosedError |
 
 ---
 
@@ -197,12 +203,45 @@ describe('cardStore', () => {
 })
 ```
 
-**Test Cases per Store** (~10 tests each):
+**Test Cases per Store** (~12 tests each):
 | Store | Key Tests |
 |-------|-----------|
-| boardStore | setBoard, updateName, closeBoard, clearBoard |
-| cardStore | addCard, removeCard, setCardsWithChildren, incrementReaction |
+| boardStore | setBoard, updateName, closeBoard, clearBoard, updateColumn |
+| cardStore | addCard, removeCard, setCardsWithChildren, incrementReaction, selectorByColumn, selectorParentsWithAggregated, updateCardPreserveChildren |
 | userStore | setCurrentUser, updateAlias, clearUser |
+
+**Additional Store Tests**:
+```typescript
+test('selector for cards filtered by column', () => {
+  cardStore.getState().addCard({ id: '1', column_type: 'went_well' })
+  cardStore.getState().addCard({ id: '2', column_type: 'to_improve' })
+
+  const wentWellCards = cardStore.getState().selectByColumn('went_well')
+  expect(wentWellCards).toHaveLength(1)
+  expect(wentWellCards[0].id).toBe('1')
+})
+
+test('selector for parent cards with aggregated counts', () => {
+  const parent = { id: 'p1', direct_reaction_count: 3, children: [
+    { id: 'c1', direct_reaction_count: 2 }
+  ]}
+  cardStore.getState().setCardsWithChildren([parent])
+
+  const parents = cardStore.getState().selectParentsWithAggregated()
+  expect(parents[0].aggregated_reaction_count).toBe(5)
+})
+
+test('updateCard preserves children array', () => {
+  const card = { id: '1', content: 'Original', children: [{ id: 'c1' }] }
+  cardStore.getState().addCard(card)
+
+  cardStore.getState().updateCard('1', { content: 'Updated' })
+
+  const updated = cardStore.getState().cards.get('1')
+  expect(updated.content).toBe('Updated')
+  expect(updated.children).toHaveLength(1)
+})
+```
 
 ---
 
@@ -281,7 +320,7 @@ describe('SocketService', () => {
 })
 ```
 
-**Test Cases** (~8 tests):
+**Test Cases** (~11 tests):
 | # | Test Case | Assertion |
 |---|-----------|-----------|
 | 1 | Connect establishes connection | io() called |
@@ -291,6 +330,9 @@ describe('SocketService', () => {
 | 5 | Disconnect closes socket | disconnect() called |
 | 6 | Emit sends events | emit() called |
 | 7 | Reconnection config | Options set correctly |
+| 8 | Exponential backoff | 1s, 2s, 4s, max 30s |
+| 9 | Heartbeat interval | Emitted every 60s |
+| 10 | Event queue during disconnect | Events queued, replayed on connect |
 
 ---
 

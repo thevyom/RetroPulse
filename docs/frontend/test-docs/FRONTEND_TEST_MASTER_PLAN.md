@@ -12,15 +12,15 @@
 | Phase | Document | Focus | Tests |
 |-------|----------|-------|-------|
 | Overview | This Document | Strategy, tech stack, coverage goals | - |
-| Phase 1 | [View Layer Tests](./TEST_PHASE_01_VIEW_LAYER.md) | Component rendering, props, events | ~80 |
-| Phase 2 | [ViewModel Layer Tests](./TEST_PHASE_02_VIEWMODEL_LAYER.md) | Business logic hooks | ~55 |
-| Phase 3 | [Model Layer Tests](./TEST_PHASE_03_MODEL_LAYER.md) | API services, stores, WebSocket | ~25 |
-| Phase 4 | [Integration Tests](./TEST_PHASE_04_INTEGRATION.md) | MSW, full flows | ~30 |
-| Phase 5 | [E2E Tests](./TEST_PHASE_05_E2E.md) | Playwright, multi-user | ~15 |
-| Phase 6 | [Real-time Tests](./TEST_PHASE_06_REALTIME.md) | WebSocket events, sync | ~15 |
-| Phase 7 | [Drag-Drop Tests](./TEST_PHASE_07_DRAGDROP.md) | @dnd-kit interactions | ~15 |
+| Phase 1 | [View Layer Tests](./TEST_PHASE_01_VIEW_LAYER.md) | Component rendering, props, events, tablet | ~95 |
+| Phase 2 | [ViewModel Layer Tests](./TEST_PHASE_02_VIEWMODEL_LAYER.md) | Business logic hooks, 1-level hierarchy | ~70 |
+| Phase 3 | [Model Layer Tests](./TEST_PHASE_03_MODEL_LAYER.md) | API services, stores, WebSocket | ~35 |
+| Phase 4 | [Integration Tests](./TEST_PHASE_04_INTEGRATION.md) | MSW, full flows, admin ops | ~40 |
+| Phase 5 | [E2E Tests](./TEST_PHASE_05_E2E.md) | Playwright, multi-user, tablet, a11y | ~35 |
+| Phase 6 | [Real-time Tests](./TEST_PHASE_06_REALTIME.md) | WebSocket events, sync, link/unlink | ~23 |
+| Phase 7 | [Drag-Drop Tests](./TEST_PHASE_07_DRAGDROP.md) | @dnd-kit, touch, keyboard, concurrent | ~23 |
 
-**Total Estimated Tests**: ~235
+**Total Estimated Tests**: ~321
 
 ---
 
@@ -34,15 +34,15 @@ This test plan follows the MVVM architecture, ensuring clear separation of conce
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │                    ┌─────────────┐                          │
-│                    │    E2E      │  10-15 critical flows    │
-│                    │  Playwright │                          │
+│                    │    E2E      │  ~35 critical flows      │
+│                    │  Playwright │  (tablet, a11y)          │
 │                    └─────────────┘                          │
 │               ┌─────────────────────┐                       │
-│               │    Integration      │  25-30 scenarios      │
+│               │    Integration      │  ~40 scenarios        │
 │               │    Vitest + MSW     │                       │
 │               └─────────────────────┘                       │
 │          ┌─────────────────────────────┐                    │
-│          │         Unit Tests          │  150-200 tests     │
+│          │         Unit Tests          │  ~200 tests        │
 │          │       Vitest + RTL          │                    │
 │          └─────────────────────────────┘                    │
 │                                                             │
@@ -67,11 +67,13 @@ This test plan follows the MVVM architecture, ensuring clear separation of conce
 
 | Layer | Coverage Target | Test Count Estimate |
 |-------|----------------|---------------------|
-| View Components | 85%+ | 80-100 tests |
-| ViewModels | 90%+ | 50-70 tests |
-| Model Layer | 85%+ | 20-30 tests |
-| Integration | Critical paths | 25-30 scenarios |
-| E2E | User journeys | 10-15 flows |
+| View Components | 85%+ | ~95 tests |
+| ViewModels | 90%+ | ~70 tests |
+| Model Layer | 85%+ | ~35 tests |
+| Integration | Critical paths | ~40 scenarios |
+| E2E | User journeys + tablet | ~35 flows |
+| Real-time | Socket events | ~23 tests |
+| Drag-Drop | All interactions | ~23 tests |
 
 ---
 
@@ -245,10 +247,30 @@ tests/
 
 | Phase | Status | Tests Written | Coverage |
 |-------|--------|---------------|----------|
-| Phase 1: View Layer | 🔲 NOT STARTED | 0/80 | 0% |
-| Phase 2: ViewModel | 🔲 NOT STARTED | 0/55 | 0% |
-| Phase 3: Model | 🔲 NOT STARTED | 0/25 | 0% |
-| Phase 4: Integration | 🔲 NOT STARTED | 0/30 | 0% |
-| Phase 5: E2E | 🔲 NOT STARTED | 0/15 | 0% |
-| Phase 6: Real-time | 🔲 NOT STARTED | 0/15 | 0% |
-| Phase 7: Drag-Drop | 🔲 NOT STARTED | 0/15 | 0% |
+| Phase 1: View Layer | 🔲 NOT STARTED | 0/95 | 0% |
+| Phase 2: ViewModel | 🔲 NOT STARTED | 0/70 | 0% |
+| Phase 3: Model | 🔲 NOT STARTED | 0/35 | 0% |
+| Phase 4: Integration | 🔲 NOT STARTED | 0/40 | 0% |
+| Phase 5: E2E | 🔲 NOT STARTED | 0/35 | 0% |
+| Phase 6: Real-time | 🔲 NOT STARTED | 0/23 | 0% |
+| Phase 7: Drag-Drop | 🔲 NOT STARTED | 0/23 | 0% |
+
+---
+
+## ⚙️ E2E Configuration Decisions
+
+Based on project requirements:
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Safari testing | Not required | Not needed for MVP |
+| CI environment | GitHub Actions + parallel runners | Faster feedback |
+| Visual regression | Deferred | Low priority for MVP |
+| Accessibility testing | Basic checks in E2E | Phase 2 for advanced |
+| Performance testing | Basic assertions in E2E | Separate load testing later |
+| Tablet viewport | Included (P1 priority) | 768px viewport tests |
+| Test data cleanup | `/test/cleanup` endpoint | Global teardown |
+| Test isolation | UUID-based board IDs | Parallel-safe |
+| Session isolation | Fresh browser context per user | Clean sessions |
+| Backend | Real backend + socket.io | True integration |
+| 1-level hierarchy | Dual enforcement | Client + backend validation |

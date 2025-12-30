@@ -1,7 +1,7 @@
 # Test Phase 6: Real-time Tests (WebSocket)
 
 **Status**: 🔲 NOT STARTED
-**Tests**: 0/~15 complete
+**Tests**: 0/~20 complete
 **Coverage Target**: All socket events
 
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md)
@@ -11,6 +11,8 @@
 ## 🎯 Phase Goal
 
 Test WebSocket event handling, real-time synchronization between clients, and optimistic updates with rollback. These tests verify the real-time architecture works correctly.
+
+**Note**: These tests use real backend + real socket.io-client per your specifications.
 
 ---
 
@@ -164,6 +166,85 @@ describe('Real-time Event Synchronization', () => {
       )
     })
   })
+
+  test('card:linked event updates both cards', async () => {
+    const cardLinkedHandler = vi.fn()
+    client2.on('card:linked', cardLinkedHandler)
+
+    await fetch('http://localhost:4000/v1/cards/child-123/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parent_card_id: 'parent-123' })
+    })
+
+    await vi.waitFor(() => {
+      expect(cardLinkedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          childCardId: 'child-123',
+          parentCardId: 'parent-123'
+        })
+      )
+    })
+  })
+
+  test('card:unlinked event updates parent aggregation', async () => {
+    const cardUnlinkedHandler = vi.fn()
+    client2.on('card:unlinked', cardUnlinkedHandler)
+
+    await fetch('http://localhost:4000/v1/cards/child-123/link', {
+      method: 'DELETE'
+    })
+
+    await vi.waitFor(() => {
+      expect(cardUnlinkedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          childCardId: 'child-123',
+          previousParentId: 'parent-123'
+        })
+      )
+    })
+  })
+
+  test('user:left removes from participant list', async () => {
+    const userLeftHandler = vi.fn()
+    client1.on('user:left', userLeftHandler)
+
+    // Client 3 joins then disconnects
+    const client3 = io('http://localhost:4000')
+    await new Promise(resolve => client3.on('connect', resolve))
+    client3.emit('join-board', { boardId: 'board-123', userAlias: 'Charlie' })
+
+    await new Promise(r => setTimeout(r, 100))
+    client3.disconnect()
+
+    await vi.waitFor(() => {
+      expect(userLeftHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userAlias: 'Charlie'
+        })
+      )
+    })
+  })
+
+  test('user:alias_changed updates all card attributions', async () => {
+    const aliasChangedHandler = vi.fn()
+    client2.on('user:alias_changed', aliasChangedHandler)
+
+    await fetch('http://localhost:4000/v1/boards/board-123/users/me/alias', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alias: 'NewAlias' })
+    })
+
+    await vi.waitFor(() => {
+      expect(aliasChangedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          oldAlias: expect.any(String),
+          newAlias: 'NewAlias'
+        })
+      )
+    })
+  })
 })
 ```
 
@@ -268,6 +349,66 @@ describe('Optimistic Updates', () => {
       expect(screen.getByTestId('reaction-count')).toHaveTextContent('5')
     })
   })
+
+  test('link parent-child optimistic update and rollback', async () => {
+    server.use(
+      http.post('/v1/cards/:id/link', () => {
+        return HttpResponse.json({
+          success: false,
+          error: { code: 'MAX_DEPTH_EXCEEDED' }
+        }, { status: 400 })
+      })
+    )
+
+    render(<RetroBoardPageWithRealHooks boardId="board-123" />)
+
+    const child = await screen.findByText('Child').closest('[draggable]')
+    const parent = screen.getByText('Parent')
+
+    // Drag to link
+    await userEvent.dragAndDrop(child, parent)
+
+    // Optimistic: link icon appears
+    await waitFor(() => {
+      expect(screen.getByTestId('link-icon-child')).toBeVisible()
+    })
+
+    // Rollback: drag handle restored
+    await waitFor(() => {
+      expect(screen.getByTestId('drag-handle-child')).toBeVisible()
+      expect(screen.queryByTestId('link-icon-child')).not.toBeInTheDocument()
+    })
+
+    // Error shown
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  test('unlink child optimistic update and rollback', async () => {
+    server.use(
+      http.delete('/v1/cards/:id/link', () => {
+        return HttpResponse.json({
+          success: false,
+          error: { code: 'INTERNAL_ERROR' }
+        }, { status: 500 })
+      })
+    )
+
+    // Setup: child already linked
+    const linkedChild = { id: 'child', parent_card_id: 'parent' }
+    render(<RetroCard card={linkedChild} />)
+
+    await userEvent.click(screen.getByTestId('link-icon'))
+
+    // Optimistic: drag handle appears
+    await waitFor(() => {
+      expect(screen.getByTestId('drag-handle')).toBeVisible()
+    })
+
+    // Rollback: link icon restored
+    await waitFor(() => {
+      expect(screen.getByTestId('link-icon')).toBeVisible()
+    })
+  })
 })
 ```
 
@@ -335,6 +476,36 @@ describe('Store Updates from Socket Events', () => {
     const user = result.current.activeUsers.find(u => u.hash === 'user-1')
     expect(user.alias).toBe('NewAlias')
   })
+
+  test('reaction on child updates parent aggregated count via socket', async () => {
+    const { result } = renderHook(() => useCardStore())
+
+    // Setup parent with child
+    act(() => {
+      result.current.setCardsWithChildren([
+        {
+          id: 'parent',
+          direct_reaction_count: 3,
+          aggregated_reaction_count: 5,
+          children: [
+            { id: 'child', direct_reaction_count: 2 }
+          ]
+        }
+      ])
+    })
+
+    // Simulate reaction:added on child
+    act(() => {
+      socketService.simulateEvent('reaction:added', {
+        cardId: 'child',
+        boardId: 'board-123'
+      })
+    })
+
+    // Parent aggregated should update
+    const parent = result.current.cards.get('parent')
+    expect(parent.aggregated_reaction_count).toBe(6)
+  })
 })
 ```
 
@@ -401,11 +572,11 @@ tests/integration/
 
 | Test Suite | Tests | Focus |
 |------------|-------|-------|
-| Socket Events | ~6 | card:*, reaction:*, user:*, board:* |
-| Optimistic Updates | ~4 | Immediate UI, rollback |
-| Store Sync | ~4 | Socket → Store updates |
+| Socket Events | ~10 | card:*, reaction:*, user:*, board:*, link/unlink |
+| Optimistic Updates | ~6 | Immediate UI, rollback, link/unlink |
+| Store Sync | ~5 | Socket → Store updates, aggregation |
 | Connection State | ~2 | Reconnect, offline indicator |
-| **Total** | **~16** | |
+| **Total** | **~23** | |
 
 ---
 

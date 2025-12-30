@@ -1,7 +1,7 @@
 # Test Phase 4: Integration Tests
 
 **Status**: 🔲 NOT STARTED
-**Tests**: 0/~30 complete
+**Tests**: 0/~40 complete
 **Coverage Target**: Critical paths
 
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md)
@@ -190,6 +190,39 @@ describe('Integration: Card Creation Flow', () => {
         .not.toHaveTextContent(/created by/i)
     })
   })
+
+  test('creates card in action column (card_type: action)', async () => {
+    render(<RetroColumnWithViewModel boardId="board-123" columnId="action-item" />)
+
+    await userEvent.click(screen.getByRole('button', { name: /add card/i }))
+    await userEvent.type(screen.getByLabelText(/content/i), 'Action item task')
+    await userEvent.click(screen.getByRole('button', { name: /create/i }))
+
+    await waitFor(() => {
+      const card = screen.getByText('Action item task')
+      expect(card.closest('[data-testid="retro-card"]'))
+        .toHaveAttribute('data-card-type', 'action')
+    })
+  })
+
+  test('shows error for empty content', async () => {
+    render(<RetroColumnWithViewModel boardId="board-123" columnId="col-1" />)
+
+    await userEvent.click(screen.getByRole('button', { name: /add card/i }))
+    await userEvent.click(screen.getByRole('button', { name: /create/i }))
+
+    expect(await screen.findByText(/content is required/i)).toBeInTheDocument()
+  })
+
+  test('shows error for content exceeding 5000 chars', async () => {
+    render(<RetroColumnWithViewModel boardId="board-123" columnId="col-1" />)
+
+    await userEvent.click(screen.getByRole('button', { name: /add card/i }))
+    await userEvent.type(screen.getByLabelText(/content/i), 'x'.repeat(5001))
+    await userEvent.click(screen.getByRole('button', { name: /create/i }))
+
+    expect(await screen.findByText(/5000 characters or less/i)).toBeInTheDocument()
+  })
 })
 ```
 
@@ -250,12 +283,81 @@ describe('Integration: Parent-Child Linking', () => {
   })
 
   test('unlink child from parent decreases aggregation', async () => {
-    // Test that clicking link icon on child calls unlink API
-    // and parent aggregation decreases
+    server.use(
+      http.delete('/v1/cards/:id/link', () => {
+        return HttpResponse.json({ success: true }, { status: 200 })
+      })
+    )
+
+    render(<RetroBoardPageWithRealHooks boardId="board-123" />)
+
+    const childCard = await screen.findByText('Child')
+    const linkIcon = within(childCard.closest('[data-testid="retro-card"]'))
+      .getByLabelText(/unlink/i)
+
+    await userEvent.click(linkIcon)
+
+    // Parent aggregation should decrease
+    await waitFor(() => {
+      const parentCard = screen.getByText('Parent').closest('[data-testid="retro-card"]')
+      expect(within(parentCard).getByLabelText(/reactions/i)).toHaveTextContent('5')
+    })
   })
 
   test('circular relationship prevented', async () => {
     // A is parent of B, trying to make B parent of A should fail
+    const childCard = screen.getByText('Child').closest('[draggable]')
+    const parentCard = screen.getByText('Parent')
+
+    // Try to drag parent onto child (reverse the relationship)
+    await userEvent.dragAndDrop(
+      parentCard.closest('[draggable]'),
+      childCard
+    )
+
+    // Error message shown
+    expect(await screen.findByRole('alert')).toHaveTextContent(/circular relationship/i)
+  })
+
+  test('1-level hierarchy enforced: child cannot have children', async () => {
+    // Child card already has parent, cannot accept drop
+    const standalone = screen.getByText('Standalone').closest('[draggable]')
+    const child = screen.getByText('Child')
+
+    await userEvent.dragAndDrop(standalone, child)
+
+    expect(await screen.findByRole('alert'))
+      .toHaveTextContent(/only 1 level/i)
+  })
+
+  test('cross-column parent-child relationship works', async () => {
+    server.use(
+      http.get('/v1/boards/:id/cards', () => {
+        return HttpResponse.json({
+          success: true,
+          data: [
+            { id: 'p1', content: 'Parent', column_type: 'went_well', children: [] },
+            { id: 'c1', content: 'Child', column_type: 'to_improve', children: [] }
+          ]
+        })
+      })
+    )
+
+    render(<RetroBoardPageWithRealHooks boardId="board-123" />)
+
+    const child = await screen.findByText('Child')
+    const parent = screen.getByText('Parent')
+
+    await userEvent.dragAndDrop(
+      child.closest('[draggable]'),
+      parent
+    )
+
+    // Child now shows link icon even though in different column
+    await waitFor(() => {
+      expect(within(child.closest('[data-testid="retro-card"]'))
+        .getByLabelText(/unlink/i)).toBeInTheDocument()
+    })
   })
 })
 ```
@@ -300,7 +402,66 @@ describe('Integration: Reaction Flow', () => {
   })
 
   test('toggle reaction off decreases count', async () => {
-    // User has already reacted, clicking again removes reaction
+    // User has already reacted
+    const mockCard = {
+      id: 'card-1',
+      direct_reaction_count: 5,
+      user_has_reacted: true
+    }
+
+    render(<RetroCard card={mockCard} {...props} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /react/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reaction-count')).toHaveTextContent('4')
+    })
+  })
+
+  test('view who reacted shows alias list on hover', async () => {
+    server.use(
+      http.get('/v1/cards/:id/reactions', () => {
+        return HttpResponse.json({
+          success: true,
+          data: [
+            { user_alias: 'Alice' },
+            { user_alias: 'Bob' }
+          ]
+        })
+      })
+    )
+
+    const mockCard = { id: 'card-1', direct_reaction_count: 2 }
+    render(<RetroCard card={mockCard} {...props} />)
+
+    await userEvent.hover(screen.getByTestId('reaction-count'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Alice')
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Bob')
+    })
+  })
+
+  test('reaction on child updates parent aggregated count', async () => {
+    const parentCard = {
+      id: 'parent-1',
+      direct_reaction_count: 3,
+      aggregated_reaction_count: 5,
+      children: [
+        { id: 'child-1', direct_reaction_count: 2 }
+      ]
+    }
+
+    render(<RetroCard card={parentCard} {...props} />)
+
+    // React to child
+    const childCard = screen.getByText('child content').closest('[data-testid="retro-card"]')
+    await userEvent.click(within(childCard).getByRole('button', { name: /react/i }))
+
+    // Parent aggregated count should increase
+    await waitFor(() => {
+      expect(screen.getByTestId('parent-aggregated-count')).toHaveTextContent('6')
+    })
   })
 })
 ```
@@ -365,6 +526,91 @@ describe('Integration: Board Operations', () => {
       expect(screen.getByTestId('my-user-card')).toHaveTextContent('NewAlias123')
     })
   })
+
+  test('column rename updates header and persists', async () => {
+    server.use(
+      http.patch('/v1/boards/:id/columns/:columnId', async ({ request }) => {
+        const body = await request.json()
+        return HttpResponse.json({
+          success: true,
+          data: { id: 'col-1', name: body.name }
+        })
+      })
+    )
+
+    render(<RetroBoardPage boardId="board-123" />)
+
+    // Find column header and click edit
+    const columnHeader = await screen.findByText('What Went Well')
+    await userEvent.click(within(columnHeader.closest('[data-testid="column-header"]'))
+      .getByRole('button', { name: /edit/i }))
+
+    const input = screen.getByLabelText(/column name/i)
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Successes')
+    await userEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Successes')).toBeInTheDocument()
+      expect(screen.queryByText('What Went Well')).not.toBeInTheDocument()
+    })
+  })
+
+  test('admin designation from dropdown works', async () => {
+    server.use(
+      http.post('/v1/boards/:id/admins', async ({ request }) => {
+        const body = await request.json()
+        return HttpResponse.json({
+          success: true,
+          data: { admins: ['creator-hash', body.user_hash] }
+        })
+      })
+    )
+
+    render(<RetroBoardPage boardId="board-123" />)
+
+    // Open admin dropdown
+    await userEvent.click(screen.getByRole('button', { name: /promote to admin/i }))
+
+    // Select user
+    await userEvent.click(screen.getByText('Bob'))
+
+    // Bob should now have admin badge
+    await waitFor(() => {
+      const bobAvatar = screen.getByLabelText('Bob')
+      expect(bobAvatar).toHaveAttribute('data-is-admin', 'true')
+    })
+  })
+
+  test('co-admin can close board', async () => {
+    // Setup: current user is co-admin (not creator)
+    server.use(
+      http.get('/v1/boards/:id', () => {
+        return HttpResponse.json({
+          success: true,
+          data: {
+            id: 'board-123',
+            name: 'Test Board',
+            state: 'active',
+            admins: ['creator-hash', 'current-user-hash']
+          }
+        })
+      })
+    )
+
+    render(<RetroBoardPage boardId="board-123" />)
+
+    // Close button should be visible for co-admin
+    const closeBtn = await screen.findByRole('button', { name: /close board/i })
+    expect(closeBtn).toBeEnabled()
+
+    await userEvent.click(closeBtn)
+    await userEvent.click(screen.getByRole('button', { name: /confirm/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lock-icon')).toBeVisible()
+    })
+  })
 })
 ```
 
@@ -390,11 +636,11 @@ tests/
 
 | Test Suite | Tests | Focus |
 |------------|-------|-------|
-| Card Creation | ~8 | Quota, create, anonymous |
-| Parent-Child Linking | ~5 | Link, unlink, aggregation |
-| Reaction Flow | ~5 | Add, remove, quota |
-| Board Operations | ~6 | Rename, close, alias |
-| **Total** | **~24** | |
+| Card Creation | ~11 | Quota, create, anonymous, validation |
+| Parent-Child Linking | ~8 | Link, unlink, aggregation, 1-level, cross-column |
+| Reaction Flow | ~8 | Add, remove, quota, tooltip, aggregation |
+| Board Operations | ~10 | Rename board/column, close, alias, admin |
+| **Total** | **~37** | |
 
 ---
 

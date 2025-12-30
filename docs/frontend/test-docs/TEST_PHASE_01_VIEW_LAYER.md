@@ -1,7 +1,7 @@
 # Test Phase 1: View Layer (Component Tests)
 
 **Status**: 🔲 NOT STARTED
-**Tests**: 0/~80 complete
+**Tests**: 0/~95 complete
 **Coverage Target**: 85%+
 
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md)
@@ -171,7 +171,7 @@ test('validates alias against pattern', async () => {
 
 **File**: `tests/unit/features/participant/components/ParticipantBar.test.tsx`
 
-**Test Cases** (~18 tests):
+**Test Cases** (~22 tests):
 | # | Test Case | Scenario | Assertion |
 |---|-----------|----------|-----------|
 | 1 | Special avatars render | All Users + Anonymous | Both visible |
@@ -182,6 +182,10 @@ test('validates alias against pattern', async () => {
 | 6 | Admin dropdown visible | User is creator | Dropdown button shown |
 | 7 | Promote user from dropdown | Select user | `onPromoteToAdmin` called |
 | 8 | Multiple filter states | 2 users + anonymous | Correct highlighting |
+| 9 | Horizontal scroll with 15+ users | Many participants | Scroll container appears |
+| 10 | Current user has "You" indicator | Current user avatar | Badge/label "You" visible |
+| 11 | Anonymous cannot be promoted | Admin dropdown | Anonymous not in list |
+| 12 | Admin badge tooltip | Hover admin avatar | Tooltip shows "Admin" |
 
 **Example Test**:
 ```typescript
@@ -210,7 +214,7 @@ test('clicking All Users avatar toggles filter', async () => {
 
 **File**: `tests/unit/features/card/components/RetroCard.test.tsx`
 
-**Test Cases** (~25 tests):
+**Test Cases** (~30 tests):
 | # | Test Case | Scenario | Assertion |
 |---|-----------|----------|-----------|
 | 1 | Standalone card has drag handle | No parent_card_id | Drag handle visible |
@@ -222,6 +226,12 @@ test('clicking All Users avatar toggles filter', async () => {
 | 7 | No gap between parent-child | Visual check | Children directly below |
 | 8 | Anonymous card no author | is_anonymous: true | No creator name shown |
 | 9 | Aggregated count for parent | Parent with children | Combined count shown |
+| 10 | Action card distinct styling | card_type: 'action' | Different background/icon |
+| 11 | Hyperlink on linked feedback | Has linked_action_ids | Hyperlink indicator visible |
+| 12 | Click hyperlink emits event | Click hyperlink | `onNavigateToAction` called |
+| 13 | Card edit lock overlay | being_edited_by set | Lock overlay with user alias |
+| 14 | Long content truncation | Content > 500 chars | Truncated with "..." and expand |
+| 15 | Card color matches column | column_type: went_well | Green border/accent |
 
 **Example Test**:
 ```typescript
@@ -275,7 +285,7 @@ test('recursively renders child cards with no gap', () => {
 
 **File**: `tests/unit/features/card/components/RetroColumn.test.tsx`
 
-**Test Cases** (~15 tests):
+**Test Cases** (~18 tests):
 | # | Test Case | Scenario | Assertion |
 |---|-----------|----------|-----------|
 | 1 | Render column header | Column name | Header shows correct title |
@@ -286,6 +296,9 @@ test('recursively renders child cards with no gap', () => {
 | 6 | Drag-over highlight | Card dragged over | Drop zone highlighted |
 | 7 | Drop card triggers callback | Card dropped | `onCardDropped` called |
 | 8 | Cards sorted correctly | Sort by recency | Cards in expected order |
+| 9 | Empty column placeholder | No cards | "No cards yet" text shown |
+| 10 | Column header color | Different columns | Header color matches theme |
+| 11 | Quota indicator format | 3 of 5 used | Shows "3/5" in tooltip |
 
 **Example Test**:
 ```typescript
@@ -314,12 +327,46 @@ test('+ button disabled when quota reached, shows tooltip', async () => {
 
 **File**: `tests/unit/features/board/components/SortBar.test.tsx`
 
-**Test Cases** (~5 tests):
+**Test Cases** (~6 tests):
 | # | Test Case | Assertion |
 |---|-----------|-----------|
 | 1 | Sort dropdown renders options | Recency, Popularity visible |
 | 2 | Direction toggle changes icon | Arrow flips on click |
 | 3 | onSortChange callback | Called with new mode |
+| 4 | Disabled state on closed board | Controls disabled when isClosed |
+| 5 | Default sort indicator | Recency desc highlighted |
+
+---
+
+### 1.8 Tablet Viewport Tests
+
+**File**: `tests/unit/features/board/components/RetroBoardPage.tablet.test.tsx`
+
+**Test Cases** (~5 tests):
+| # | Test Case | Scenario | Assertion |
+|---|-----------|----------|-----------|
+| 1 | 768px viewport layout | Tablet width | 2 columns visible, scroll for 3rd |
+| 2 | Touch-friendly drag handles | Touch device | Larger hit area (44x44px min) |
+| 3 | Participant bar collapse | Narrow width | Collapses to dropdown/scroll |
+| 4 | Card touch interactions | Touch events | Tap to select, long-press for actions |
+| 5 | Modal fullscreen on tablet | Dialog open | Modal fills viewport width |
+
+**Example Test**:
+```typescript
+test('tablet viewport shows 2 columns with horizontal scroll', () => {
+  // Set viewport to tablet size
+  window.innerWidth = 768
+  window.dispatchEvent(new Event('resize'))
+
+  render(<RetroBoardPage boardId="123" />)
+
+  const columnContainer = screen.getByTestId('column-container')
+  expect(columnContainer).toHaveStyle({ overflowX: 'auto' })
+
+  const columns = screen.getAllByTestId(/^column-/)
+  expect(columns).toHaveLength(3) // All rendered, but scrollable
+})
+```
 
 ---
 
@@ -329,6 +376,7 @@ test('+ button disabled when quota reached, shows tooltip', async () => {
 tests/unit/features/
 ├── board/components/
 │   ├── RetroBoardPage.test.tsx
+│   ├── RetroBoardPage.tablet.test.tsx
 │   ├── RetroBoardHeader.test.tsx
 │   └── SortBar.test.tsx
 ├── card/components/

@@ -1,7 +1,7 @@
 # Test Phase 7: Drag-and-Drop Tests
 
 **Status**: 🔲 NOT STARTED
-**Tests**: 0/~15 complete
+**Tests**: 0/~22 complete
 **Coverage Target**: All drag interactions
 
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md)
@@ -191,6 +191,87 @@ describe('@dnd-kit Drag and Drop', () => {
     // Should show invalid indicator (red border or icon)
     expect(dropTarget).toHaveClass('drop-invalid')
   })
+
+  test('touch events work for drag and drop', async () => {
+    const mockLinkCards = vi.fn()
+
+    render(
+      <DndContext onDragEnd={(event) => {
+        if (event.over?.data.current?.type === 'card') {
+          mockLinkCards(event.active.id, event.over.id)
+        }
+      }}>
+        <RetroCard card={parentCard} />
+        <RetroCard card={childCard} />
+      </DndContext>
+    )
+
+    const draggable = screen.getByTestId(`drag-handle-${childCard.id}`)
+    const dropTarget = screen.getByTestId(`drop-zone-${parentCard.id}`)
+
+    // Simulate touch events
+    fireEvent.touchStart(draggable, {
+      touches: [{ clientX: 100, clientY: 100 }]
+    })
+    fireEvent.touchMove(draggable, {
+      touches: [{ clientX: 150, clientY: 200 }]
+    })
+    fireEvent.touchEnd(dropTarget)
+
+    expect(mockLinkCards).toHaveBeenCalledWith('child-1', 'parent-1')
+  })
+
+  test('keyboard alternative: Enter to select, Tab to target, Enter to drop', async () => {
+    const mockLinkCards = vi.fn()
+
+    render(
+      <DndContext onDragEnd={(event) => {
+        mockLinkCards(event.active?.id, event.over?.id)
+      }}>
+        <RetroCard card={childCard} />
+        <RetroCard card={parentCard} />
+      </DndContext>
+    )
+
+    const dragHandle = screen.getByTestId(`drag-handle-${childCard.id}`)
+
+    // Focus and activate with Enter
+    dragHandle.focus()
+    fireEvent.keyDown(dragHandle, { key: 'Enter' })
+
+    // Tab to target
+    fireEvent.keyDown(document, { key: 'Tab' })
+
+    // Drop with Enter
+    fireEvent.keyDown(document, { key: 'Enter' })
+
+    expect(mockLinkCards).toHaveBeenCalled()
+  })
+
+  test('1-level hierarchy: drop child on parent\'s child is blocked', async () => {
+    const grandparent = { id: 'gp', parent_card_id: null }
+    const parent = { id: 'p', parent_card_id: 'gp' }
+    const child = { id: 'c', parent_card_id: null }
+
+    const mockLinkCards = vi.fn()
+
+    render(
+      <DndContext onDragEnd={mockLinkCards}>
+        <RetroCard card={grandparent} />
+        <RetroCard card={parent} />
+        <RetroCard card={child} />
+      </DndContext>
+    )
+
+    const draggable = screen.getByTestId(`drag-handle-${child.id}`)
+    const dropTarget = screen.getByTestId(`drop-zone-${parent.id}`)
+
+    fireEvent.dragStart(draggable)
+    fireEvent.dragOver(dropTarget)
+
+    // Parent already has parent, so it can't accept children (1-level max)
+    expect(dropTarget).toHaveClass('drop-invalid')
+  })
 })
 ```
 
@@ -350,6 +431,110 @@ test.describe('E2E: Drag and Drop Interactions', () => {
     await expect(page.locator('[data-testid="column-went_well"]')
       .locator('text="Movable card"')).not.toBeVisible()
   })
+
+  test('mobile/tablet touch drag works', async ({ page }) => {
+    // Set tablet viewport
+    await page.setViewportSize({ width: 768, height: 1024 })
+
+    const boardId = await createBoard(page, 'Touch Drag Test')
+    await joinBoard(page, boardId, 'Alice')
+
+    await createCard(page, 'went-well', 'Parent')
+    await createCard(page, 'went-well', 'Child')
+
+    const child = page.locator('text="Child"').locator('..')
+    const parent = page.locator('text="Parent"')
+
+    const childHandle = child.locator('[data-testid="drag-handle"]')
+    const childBox = await childHandle.boundingBox()
+    const parentBox = await parent.boundingBox()
+
+    // Simulate touch drag
+    await page.touchscreen.tap(childBox!.x + 22, childBox!.y + 22)
+    await page.mouse.move(parentBox!.x + 50, parentBox!.y + 50)
+    await page.touchscreen.tap(parentBox!.x + 50, parentBox!.y + 50)
+
+    // Verify link
+    await expect(child.locator('[data-testid="link-icon"]')).toBeVisible()
+  })
+
+  test('two users drag same card simultaneously: last write wins', async ({ browser }) => {
+    const aliceContext = await browser.newContext()
+    const bobContext = await browser.newContext()
+
+    const alice = await aliceContext.newPage()
+    const bob = await bobContext.newPage()
+
+    const boardId = await createBoard(alice, 'Concurrent Drag Test')
+    await joinBoard(alice, boardId, 'Alice')
+    await joinBoard(bob, boardId, 'Bob')
+
+    await createCard(alice, 'went-well', 'Target1')
+    await createCard(alice, 'went-well', 'Target2')
+    await createCard(alice, 'went-well', 'Shared card')
+
+    const aliceShared = alice.locator('text="Shared card"').locator('..')
+    const bobShared = bob.locator('text="Shared card"').locator('..')
+
+    // Both try to drag to different targets
+    const aliceTarget = alice.locator('text="Target1"')
+    const bobTarget = bob.locator('text="Target2"')
+
+    // Start both drags (race condition)
+    await Promise.all([
+      aliceShared.locator('[data-testid="drag-handle"]').dragTo(aliceTarget),
+      bobShared.locator('[data-testid="drag-handle"]').dragTo(bobTarget)
+    ])
+
+    // Wait for sync - one of them wins
+    await alice.waitForTimeout(500)
+
+    // Both should see same final state
+    const aliceLink = await aliceShared.locator('[data-testid="link-icon"]').isVisible()
+    const bobLink = await bobShared.locator('[data-testid="link-icon"]').isVisible()
+
+    expect(aliceLink).toBe(bobLink) // Consistent state
+
+    await aliceContext.close()
+    await bobContext.close()
+  })
+
+  test('drag preview shows card content', async ({ page }) => {
+    const boardId = await createBoard(page, 'Preview Test')
+    await joinBoard(page, boardId, 'Alice')
+
+    await createCard(page, 'went-well', 'Card with preview')
+
+    const card = page.locator('text="Card with preview"').locator('..')
+    const handle = card.locator('[data-testid="drag-handle"]')
+
+    // Start drag but don't drop
+    await handle.hover()
+    await page.mouse.down()
+    await page.mouse.move(300, 300)
+
+    // Drag preview should contain card text
+    await expect(page.locator('[data-testid="drag-preview"]'))
+      .toContainText('Card with preview')
+
+    await page.mouse.up()
+  })
+
+  test('drop zone animation on valid drop', async ({ page }) => {
+    const boardId = await createBoard(page, 'Animation Test')
+    await joinBoard(page, boardId, 'Alice')
+
+    await createCard(page, 'went-well', 'Parent')
+    await createCard(page, 'went-well', 'Child')
+
+    const child = page.locator('text="Child"').locator('..')
+    const parent = page.locator('text="Parent"')
+
+    await child.locator('[data-testid="drag-handle"]').dragTo(parent)
+
+    // Check for animation class on parent after drop
+    await expect(parent).toHaveClass(/drop-success-animation/)
+  })
 })
 ```
 
@@ -373,10 +558,10 @@ tests/
 
 | Test Suite | Tests | Focus |
 |------------|-------|-------|
-| Component-level Drag | ~7 | @dnd-kit events, highlighting |
+| Component-level Drag | ~11 | @dnd-kit events, touch, keyboard, 1-level |
 | Circular Prevention | ~3 | Cycle detection |
-| E2E Drag-Drop | ~5 | Visual verification |
-| **Total** | **~15** | |
+| E2E Drag-Drop | ~9 | Visual verification, touch, concurrent, preview |
+| **Total** | **~23** | |
 
 ---
 
