@@ -791,16 +791,33 @@ interface BoardStore {
 }
 ```
 
-### 13.3 Material-UI Components Used
+### 13.3 shadcn/ui Components Used
 
-- **Card**: `<Card>` for card container
-- **Avatar**: `<Avatar>` for participant circles
-- **Button**: `<Button>` for all buttons
-- **TextField**: `<TextField>` for inline editing
-- **Dialog**: `<Dialog>` for card creation modal
-- **Menu**: `<Menu>` for Make Admin dropdown
-- **Select**: `<Select>` for sort dropdown
-- **Tooltip**: `<Tooltip>` for hover hints
+> **Note:** We use shadcn/ui + Tailwind CSS instead of Material-UI for smaller bundle size, faster test execution, and full component source ownership.
+
+| Component | Usage | Notes |
+|-----------|-------|-------|
+| `<Card>` | Card container, column wrapper | Customizable with Tailwind |
+| `<Avatar>` | Participant circles, user identity | Supports fallback initials |
+| `<Button>` | All interactive buttons | Variant system for styles |
+| `<Input>` | Inline editing, form fields | - |
+| `<Textarea>` | Card content input | - |
+| `<Dialog>` | Card creation, confirmations | Accessible modal |
+| `<DropdownMenu>` | Make Admin dropdown, sort options | Keyboard navigable |
+| `<Select>` | Sort mode selection | - |
+| `<Tooltip>` | Hover hints, truncated text | - |
+| `<Skeleton>` | Loading states | Matches layout structure |
+
+**Icons** (Lucide React):
+- `Pencil` - Edit actions
+- `Trash2` - Delete actions
+- `Link2` - Card linking
+- `Lock` - Board closed
+- `GripVertical` - Drag handle
+- `ThumbsUp` - Reactions
+- `Ghost` - Anonymous filter
+- `Users` - All users filter
+- `Crown` - Admin indicator
 
 ---
 

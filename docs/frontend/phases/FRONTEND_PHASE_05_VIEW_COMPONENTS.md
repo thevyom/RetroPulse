@@ -409,7 +409,7 @@ tests/unit/features/
 - [ ] All View components are presentational (minimal logic)
 - [ ] Components receive all data via props from ViewModels
 - [ ] Proper TypeScript interfaces for all props
-- [ ] Components use Material-UI or consistent styling
+- [ ] Components use shadcn/ui + Tailwind CSS for consistent styling
 - [ ] All interactive elements have appropriate ARIA labels
 - [ ] Unit tests pass with >90% coverage
 

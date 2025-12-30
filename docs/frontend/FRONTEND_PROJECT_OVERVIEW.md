@@ -35,7 +35,7 @@ RetroPulse is a **real-time collaborative retrospective board** for agile teams.
 ### Current Focus: Phase 1 - Project Setup
 
 1. Initialize Vite + React + TypeScript
-2. Install core deps (Zustand, MUI, Socket.io-client, @dnd-kit)
+2. Install core deps (Zustand, shadcn/ui, Tailwind, Socket.io-client, @dnd-kit)
 3. Configure Vitest + Playwright testing
 4. Set up MVVM folder structure with path aliases
 
@@ -89,14 +89,17 @@ Phase 1 (Setup) → Phase 3 (Model) → Phase 4 (ViewModel) → Phase 5 (View) �
 
 | Category | Technology |
 |----------|------------|
-| Framework | React 18+ / TypeScript 5+ |
+| Framework | React 19+ / TypeScript 5+ |
 | Build | Vite |
 | State | Zustand |
-| UI | Material-UI v5 |
+| UI | shadcn/ui + Tailwind CSS |
+| Icons | Lucide React |
 | Drag & Drop | @dnd-kit |
 | Real-time | Socket.io-client |
 | HTTP | Axios |
 | Testing | Vitest + Playwright |
+
+> **Why shadcn/ui?** Smaller bundle (~5-15KB vs MUI's 80-150KB), faster tests (no barrel import delays), build-time CSS (Tailwind) vs runtime CSS-in-JS, and full component source ownership for customization.
 
 ---
 

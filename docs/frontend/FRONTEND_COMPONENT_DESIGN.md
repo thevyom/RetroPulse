@@ -54,13 +54,16 @@ graph TB
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Framework** | React 18+ | Component-based UI |
+| **Framework** | React 19+ | Component-based UI |
 | **Language** | TypeScript 5+ | Type safety, shared types with backend |
 | **State Management** | Zustand | Lightweight global state (3KB) |
-| **UI Library** | Material-UI v5 | Card, Chip, Avatar components |
+| **UI Library** | shadcn/ui + Tailwind CSS | Copy-paste components, utility-first styling |
+| **Icons** | Lucide React | Consistent icon set, tree-shakeable |
 | **Drag & Drop** | @dnd-kit | Accessible drag-drop, modern API |
 | **Real-time** | Socket.IO Client | WebSocket connection to backend |
 | **Build Tool** | Vite | Fast development server, HMR |
+
+> **Note:** shadcn/ui was chosen over Material-UI for smaller bundle size (~5-15KB vs 80-150KB), faster test execution, build-time CSS (Tailwind) vs runtime CSS-in-JS, and full component source ownership.
 
 ---
 

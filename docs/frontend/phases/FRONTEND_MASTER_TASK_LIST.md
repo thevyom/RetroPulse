@@ -1,7 +1,7 @@
 # Frontend Master Task List - RetroPulse
 
 > **Single source of truth** for all frontend implementation phases and tasks.
-> Last Updated: 2025-12-28 | Total Phases: 9 | Completed: 0/9
+> Last Updated: 2024-12-29 | Total Phases: 9 | Completed: 1/9
 
 ---
 
@@ -23,6 +23,7 @@ docs/frontend/
 │   └── FRONTEND_PHASE_09_DOCUMENTATION.md
 ├── test-docs/
 │   ├── FRONTEND_TEST_MASTER_PLAN.md  ← Test strategy overview
+│   ├── TEST_PHASE_01_ProjectSetup.md ← Phase 1 test report
 │   ├── TEST_PHASE_01_VIEW_LAYER.md
 │   ├── TEST_PHASE_02_VIEWMODEL_LAYER.md
 │   ├── TEST_PHASE_03_MODEL_LAYER.md
@@ -30,6 +31,8 @@ docs/frontend/
 │   ├── TEST_PHASE_05_E2E.md
 │   ├── TEST_PHASE_06_REALTIME.md
 │   └── TEST_PHASE_07_DRAGDROP.md
+├── code-review/
+│   └── CR_PHASE_01_ProjectSetup.md   ← Phase 1 code review
 ├── FRONTEND_COMPONENT_DESIGN.md      ← Component architecture
 └── FRONTEND_TEST_PLAN.md             ← Original test plan (legacy)
 ```
@@ -40,7 +43,7 @@ docs/frontend/
 
 | # | Phase | Status | Tasks | Priority | Test Plan | Details |
 |---|-------|--------|-------|----------|-----------|---------|
-| 1 | [Project Setup](./FRONTEND_PHASE_01_PROJECT_SETUP.md) | 🔲 Not Started | 0/4 | High | - | Vite, React, TypeScript, testing framework |
+| 1 | [Project Setup](./FRONTEND_PHASE_01_PROJECT_SETUP.md) | ✅ Done | 4/4 | High | [Tests](../test-docs/TEST_PHASE_01_ProjectSetup.md) | Vite, React, TypeScript, testing framework |
 | 2 | [Shared Utilities](./FRONTEND_PHASE_02_SHARED_UTILITIES.md) | 🔲 Not Started | 0/6 | High | - | Validation, ErrorBoundary, LoadingIndicator |
 | 3 | [Model Layer](./FRONTEND_PHASE_03_MODEL_LAYER.md) | 🔲 Not Started | 0/16 | High | [Tests](../test-docs/TEST_PHASE_03_MODEL_LAYER.md) | API services, WebSocket, Zustand stores |
 | 4 | [ViewModel Layer](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md) | 🔲 Not Started | 0/10 | High | [Tests](../test-docs/TEST_PHASE_02_VIEWMODEL_LAYER.md) | Business logic hooks (MVVM) |
@@ -50,19 +53,23 @@ docs/frontend/
 | 8 | [Polish & Production](./FRONTEND_PHASE_08_POLISH_PRODUCTION.md) | 🔲 Not Started | 0/8 | Medium | - | Error handling, performance, a11y |
 | 9 | [Documentation](./FRONTEND_PHASE_09_DOCUMENTATION.md) | 🔲 Not Started | 0/4 | Low | - | JSDoc, README, CONTRIBUTING |
 
-**Overall Progress**: 0/80 tasks complete (0%)
+**Overall Progress**: 4/80 tasks complete (5%)
 
 ---
 
-## 🎯 Current Focus: Phase 1 - Project Setup
+## 🎯 Current Focus: Phase 2 - Shared Utilities
 
-**Next tasks to implement:**
-1. Initialize Vite + React + TypeScript project
-2. Install and configure core dependencies (Zustand, MUI, Socket.io-client)
-3. Configure Vitest + Playwright testing framework
-4. Set up MVVM folder structure with path aliases
+**Phase 1 Completed:** Project setup and infrastructure is complete with all tests passing.
 
-[→ View Phase 1 Details](./phases/FRONTEND_PHASE_01_PROJECT_SETUP.md)
+**Next tasks to implement (Phase 2):**
+1. Create validation utilities (board name, card text, user name)
+2. Implement ErrorBoundary component
+3. Implement LoadingIndicator component
+4. Create shared TypeScript types/interfaces
+5. Add utility functions (debounce, formatDate, generateId)
+6. Write unit tests for all utilities
+
+[→ View Phase 2 Details](./FRONTEND_PHASE_02_SHARED_UTILITIES.md)
 
 ---
 
@@ -126,20 +133,23 @@ Target: 80%+ code coverage
 
 | Category | Technology | Version |
 |----------|------------|---------|
-| Framework | React | 18+ |
+| Framework | React | 19+ |
 | Language | TypeScript | 5+ |
 | Build Tool | Vite | Latest |
-| State | Zustand | 4+ |
-| UI Library | Material-UI | v5 |
+| State | Zustand | 5+ |
+| UI Library | shadcn/ui + Tailwind CSS | Latest |
+| Icons | Lucide React | Latest |
 | Drag & Drop | @dnd-kit | Latest |
 | Real-time | Socket.io-client | 4+ |
 | HTTP | Axios | Latest |
 | Testing | Vitest + Playwright | Latest |
 
+> **UI Library Decision:** shadcn/ui chosen over Material-UI for smaller bundle (~5-15KB vs 80-150KB), faster tests, build-time CSS (Tailwind), and full component ownership.
+
 ### Tech Debt
 | Item | Priority | Status | Notes |
 |------|----------|--------|-------|
-| - | - | - | No tech debt tracked yet |
+| - | - | - | No tech debt - MUI → shadcn/ui migration completed |
 
 ### Documentation
 | Item | Status |

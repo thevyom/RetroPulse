@@ -26,9 +26,10 @@ This task list breaks down the frontend implementation into discrete, manageable
   - _Requirements: Tech stack decision from design doc_
 
 - [ ] 1.2 Install and configure core dependencies
-  - Install React 18+, TypeScript 5+
+  - Install React 19+, TypeScript 5+
   - Install Zustand for state management
-  - Install Material-UI v5 for UI components
+  - Install shadcn/ui + Tailwind CSS for UI components
+  - Install Lucide React for icons
   - Install @dnd-kit for drag-and-drop
   - Install Socket.io-client for real-time
   - Install axios for HTTP requests

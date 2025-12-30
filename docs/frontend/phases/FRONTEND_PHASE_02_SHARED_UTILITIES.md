@@ -254,7 +254,7 @@ tests/unit/shared/
 
 ## 📝 Notes
 
-- Use Material-UI's Skeleton and CircularProgress as base
+- Use shadcn/ui's `<Skeleton>` component and Lucide's `<Loader2>` icon for loading states
 - ErrorBoundary should log errors to console in development
 - Consider adding error tracking service integration point in ErrorBoundary
 
