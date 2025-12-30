@@ -1,7 +1,7 @@
 # Frontend Master Task List - RetroPulse
 
 > **Single source of truth** for all frontend implementation phases and tasks.
-> Last Updated: 2024-12-29 | Total Phases: 9 | Completed: 1/9
+> Last Updated: 2025-12-29 | Total Phases: 9 | Completed: 3/9
 
 ---
 
@@ -44,8 +44,8 @@ docs/frontend/
 | # | Phase | Status | Tasks | Priority | Test Plan | Details |
 |---|-------|--------|-------|----------|-----------|---------|
 | 1 | [Project Setup](./FRONTEND_PHASE_01_PROJECT_SETUP.md) | ✅ Done | 4/4 | High | [Tests](../test-docs/TEST_PHASE_01_ProjectSetup.md) | Vite, React, TypeScript, testing framework |
-| 2 | [Shared Utilities](./FRONTEND_PHASE_02_SHARED_UTILITIES.md) | 🔲 Not Started | 0/6 | High | - | Validation, ErrorBoundary, LoadingIndicator |
-| 3 | [Model Layer](./FRONTEND_PHASE_03_MODEL_LAYER.md) | 🔲 Not Started | 0/16 | High | [Tests](../test-docs/TEST_PHASE_03_MODEL_LAYER.md) | API services, WebSocket, Zustand stores |
+| 2 | [Shared Utilities](./FRONTEND_PHASE_02_SHARED_UTILITIES.md) | ✅ Done | 6/6 | High | [Tests](../code-review/TEST_PHASE_02_SharedUtilities.md) | Validation, ErrorBoundary, LoadingIndicator |
+| 3 | [Model Layer](./FRONTEND_PHASE_03_MODEL_LAYER.md) | ✅ Done | 16/16 | High | [Tests](../code-review/TEST_PHASE_03_ModelLayer.md) | API services, WebSocket, Zustand stores |
 | 4 | [ViewModel Layer](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md) | 🔲 Not Started | 0/10 | High | [Tests](../test-docs/TEST_PHASE_02_VIEWMODEL_LAYER.md) | Business logic hooks (MVVM) |
 | 5 | [View Components](./FRONTEND_PHASE_05_VIEW_COMPONENTS.md) | 🔲 Not Started | 0/18 | High | [Tests](../test-docs/TEST_PHASE_01_VIEW_LAYER.md) | UI components (React + MUI) |
 | 6 | [Integration & Real-time](./FRONTEND_PHASE_06_INTEGRATION_REALTIME.md) | 🔲 Not Started | 0/4 | Medium | [Tests](../test-docs/TEST_PHASE_06_REALTIME.md) | Socket.io events, drag-and-drop |
@@ -53,23 +53,30 @@ docs/frontend/
 | 8 | [Polish & Production](./FRONTEND_PHASE_08_POLISH_PRODUCTION.md) | 🔲 Not Started | 0/8 | Medium | - | Error handling, performance, a11y |
 | 9 | [Documentation](./FRONTEND_PHASE_09_DOCUMENTATION.md) | 🔲 Not Started | 0/4 | Low | - | JSDoc, README, CONTRIBUTING |
 
-**Overall Progress**: 4/80 tasks complete (5%)
+**Overall Progress**: 26/80 tasks complete (32.5%)
 
 ---
 
-## 🎯 Current Focus: Phase 2 - Shared Utilities
+## 🎯 Current Focus: Phase 4 - ViewModel Layer
 
-**Phase 1 Completed:** Project setup and infrastructure is complete with all tests passing.
+**Phase 3 Completed:** Model Layer implemented with 199 tests (337 total tests passing).
 
-**Next tasks to implement (Phase 2):**
-1. Create validation utilities (board name, card text, user name)
-2. Implement ErrorBoundary component
-3. Implement LoadingIndicator component
-4. Create shared TypeScript types/interfaces
-5. Add utility functions (debounce, formatDate, generateId)
-6. Write unit tests for all utilities
+**Completed in Phase 3:**
+- TypeScript types matching backend API spec
+- Axios HTTP client with interceptors
+- BoardAPI, CardAPI, ReactionAPI services
+- SocketService for real-time WebSocket events
+- Zustand stores (boardStore, cardStore, userStore)
+- Code review completed - all issues resolved
 
-[→ View Phase 2 Details](./FRONTEND_PHASE_02_SHARED_UTILITIES.md)
+**Next tasks to implement (Phase 4):**
+1. Implement useBoardViewModel hook
+2. Implement useCardViewModel hook
+3. Implement useParticipantViewModel hook
+4. Implement useDragDropViewModel hook
+5. Hook up ViewModels with stores and API services
+
+[→ View Phase 4 Details](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md)
 
 ---
 
@@ -77,16 +84,17 @@ docs/frontend/
 
 | Category | Unit Tests | Integration Tests | E2E Tests | Status |
 |----------|------------|-------------------|-----------|--------|
-| Shared Utils | ~10 | - | - | 🔲 |
-| API Services | ~22 | - | - | 🔲 |
-| Stores | ~12 | - | - | 🔲 |
+| Shared Utils | 116 | - | - | ✅ |
+| API Services | 56 | - | - | ✅ |
+| Stores | 112 | - | - | ✅ |
+| Socket Service | 31 | - | - | ✅ |
 | ViewModels | ~70 | - | - | 🔲 |
 | View Components | ~95 | - | - | 🔲 |
 | Integration | - | ~40 | - | 🔲 |
 | Real-time | - | ~23 | - | 🔲 |
 | Drag-Drop | - | ~11 | ~12 | 🔲 |
 | E2E Flows | - | - | ~35 | 🔲 |
-| **Total** | **~209** | **~74** | **~47** | **~321 tests planned** |
+| **Total** | **337 actual** | **~74** | **~47** | **337+ tests** |
 
 Target: 80%+ code coverage
 
