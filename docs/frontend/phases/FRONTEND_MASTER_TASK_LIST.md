@@ -1,7 +1,7 @@
 # Frontend Master Task List - RetroPulse
 
 > **Single source of truth** for all frontend implementation phases and tasks.
-> Last Updated: 2025-12-29 | Total Phases: 9 | Completed: 3/9
+> Last Updated: 2025-12-30 | Total Phases: 9 | Completed: 4/9
 
 ---
 
@@ -32,7 +32,13 @@ docs/frontend/
 │   ├── TEST_PHASE_06_REALTIME.md
 │   └── TEST_PHASE_07_DRAGDROP.md
 ├── code-review/
-│   └── CR_PHASE_01_ProjectSetup.md   ← Phase 1 code review
+│   ├── CR_PHASE_01_ProjectSetup.md   ← Phase 1 code review
+│   ├── CR_PHASE_02_SharedUtilities.md
+│   ├── CR_PHASE_03_ModelLayer.md
+│   ├── CR_PHASE_04_ViewModelLayer.md ← Phase 4 code review
+│   ├── TEST_PHASE_02_SharedUtilities.md
+│   ├── TEST_PHASE_03_ModelLayer.md
+│   └── TEST_PHASE_04_ViewModelLayer.md ← Phase 4 test report
 ├── FRONTEND_COMPONENT_DESIGN.md      ← Component architecture
 └── FRONTEND_TEST_PLAN.md             ← Original test plan (legacy)
 ```
@@ -46,37 +52,39 @@ docs/frontend/
 | 1 | [Project Setup](./FRONTEND_PHASE_01_PROJECT_SETUP.md) | ✅ Done | 4/4 | High | [Tests](../test-docs/TEST_PHASE_01_ProjectSetup.md) | Vite, React, TypeScript, testing framework |
 | 2 | [Shared Utilities](./FRONTEND_PHASE_02_SHARED_UTILITIES.md) | ✅ Done | 6/6 | High | [Tests](../code-review/TEST_PHASE_02_SharedUtilities.md) | Validation, ErrorBoundary, LoadingIndicator |
 | 3 | [Model Layer](./FRONTEND_PHASE_03_MODEL_LAYER.md) | ✅ Done | 16/16 | High | [Tests](../code-review/TEST_PHASE_03_ModelLayer.md) | API services, WebSocket, Zustand stores |
-| 4 | [ViewModel Layer](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md) | 🔲 Not Started | 0/10 | High | [Tests](../test-docs/TEST_PHASE_02_VIEWMODEL_LAYER.md) | Business logic hooks (MVVM) |
-| 5 | [View Components](./FRONTEND_PHASE_05_VIEW_COMPONENTS.md) | 🔲 Not Started | 0/18 | High | [Tests](../test-docs/TEST_PHASE_01_VIEW_LAYER.md) | UI components (React + MUI) |
+| 4 | [ViewModel Layer](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md) | ✅ Done | 10/10 | High | [Tests](../code-review/TEST_PHASE_04_ViewModelLayer.md) | Business logic hooks (MVVM) |
+| 5 | [View Components](./FRONTEND_PHASE_05_VIEW_COMPONENTS.md) | 🔲 Not Started | 0/18 | High | [Tests](../test-docs/TEST_PHASE_01_VIEW_LAYER.md) | UI components (React + shadcn/ui) |
 | 6 | [Integration & Real-time](./FRONTEND_PHASE_06_INTEGRATION_REALTIME.md) | 🔲 Not Started | 0/4 | Medium | [Tests](../test-docs/TEST_PHASE_06_REALTIME.md) | Socket.io events, drag-and-drop |
 | 7 | [E2E Testing](./FRONTEND_PHASE_07_E2E_TESTING.md) | 🔲 Not Started | 0/10 | Medium | [Tests](../test-docs/TEST_PHASE_05_E2E.md) | MSW mocks, Playwright tests |
 | 8 | [Polish & Production](./FRONTEND_PHASE_08_POLISH_PRODUCTION.md) | 🔲 Not Started | 0/8 | Medium | - | Error handling, performance, a11y |
 | 9 | [Documentation](./FRONTEND_PHASE_09_DOCUMENTATION.md) | 🔲 Not Started | 0/4 | Low | - | JSDoc, README, CONTRIBUTING |
 
-**Overall Progress**: 26/80 tasks complete (32.5%)
+**Overall Progress**: 36/80 tasks complete (45%)
 
 ---
 
-## 🎯 Current Focus: Phase 4 - ViewModel Layer
+## 🎯 Current Focus: Phase 5 - View Components
 
-**Phase 3 Completed:** Model Layer implemented with 199 tests (337 total tests passing).
+**Phase 4 Completed:** ViewModel Layer implemented with 160+ tests (471 total tests passing).
 
-**Completed in Phase 3:**
-- TypeScript types matching backend API spec
-- Axios HTTP client with interceptors
-- BoardAPI, CardAPI, ReactionAPI services
-- SocketService for real-time WebSocket events
-- Zustand stores (boardStore, cardStore, userStore)
-- Code review completed - all issues resolved
+**Completed in Phase 4:**
+- useBoardViewModel hook - board state, rename, close operations
+- useCardViewModel hook - CRUD, reactions, filtering, sorting, relationships
+- useDragDropViewModel hook - drag validation, drop results
+- useParticipantViewModel hook - user management, heartbeat, filters
+- Shared utility functions (cardRelationships.ts)
+- Code review completed - all blocking issues resolved
 
-**Next tasks to implement (Phase 4):**
-1. Implement useBoardViewModel hook
-2. Implement useCardViewModel hook
-3. Implement useParticipantViewModel hook
-4. Implement useDragDropViewModel hook
-5. Hook up ViewModels with stores and API services
+**Next tasks to implement (Phase 5):**
+1. Implement RetroBoardPage component
+2. Implement Header component
+3. Implement ParticipantBar component
+4. Implement RetroColumn component
+5. Implement Card component
+6. Implement CardForm component
+7. Connect components with ViewModels
 
-[→ View Phase 4 Details](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md)
+[→ View Phase 5 Details](./FRONTEND_PHASE_05_VIEW_COMPONENTS.md)
 
 ---
 
@@ -88,13 +96,13 @@ docs/frontend/
 | API Services | 56 | - | - | ✅ |
 | Stores | 112 | - | - | ✅ |
 | Socket Service | 31 | - | - | ✅ |
-| ViewModels | ~70 | - | - | 🔲 |
+| ViewModels | 160+ | - | - | ✅ |
 | View Components | ~95 | - | - | 🔲 |
 | Integration | - | ~40 | - | 🔲 |
 | Real-time | - | ~23 | - | 🔲 |
 | Drag-Drop | - | ~11 | ~12 | 🔲 |
 | E2E Flows | - | - | ~35 | 🔲 |
-| **Total** | **337 actual** | **~74** | **~47** | **337+ tests** |
+| **Total** | **471 actual** | **~74** | **~47** | **471+ tests** |
 
 Target: 80%+ code coverage
 
@@ -157,7 +165,7 @@ Target: 80%+ code coverage
 ### Tech Debt
 | Item | Priority | Status | Notes |
 |------|----------|--------|-------|
-| - | - | - | No tech debt - MUI → shadcn/ui migration completed |
+| - | - | - | No tech debt - All phases completed cleanly |
 
 ### Documentation
 | Item | Status |
@@ -165,6 +173,7 @@ Target: 80%+ code coverage
 | Component Design V2 | ✅ Complete |
 | Test Plan | ✅ Complete |
 | API Integration Guide | 🔲 Pending |
+| Code Review Phase 1-4 | ✅ Complete |
 
 ---
 
@@ -173,7 +182,7 @@ Target: 80%+ code coverage
 The frontend is considered complete when:
 
 1. 🔲 All 80 tasks completed and merged
-2. 🔲 Unit test coverage >80%
+2. ✅ Unit test coverage >80% (471 tests passing)
 3. 🔲 All integration test suites pass
 4. 🔲 All E2E scenarios pass
 5. 🔲 Real-time sync working (<200ms latency)
@@ -241,13 +250,13 @@ Before starting work, read these documents:
 
 | Phase | Duration |
 |-------|----------|
-| Phase 1-2 (Setup & Utilities) | 3-5 days |
-| Phase 3 (Model Layer) | 1-2 weeks |
-| Phase 4 (ViewModel Layer) | 1-2 weeks |
+| Phase 1-2 (Setup & Utilities) | ✅ Complete |
+| Phase 3 (Model Layer) | ✅ Complete |
+| Phase 4 (ViewModel Layer) | ✅ Complete |
 | Phase 5 (View Components) | 2-3 weeks |
 | Phase 6-7 (Integration & E2E) | 1-2 weeks |
 | Phase 8-9 (Polish & Docs) | 3-5 days |
-| **Total** | **6-9 weeks** |
+| **Remaining** | **3-5 weeks** |
 
 ---
 

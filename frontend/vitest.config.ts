@@ -20,6 +20,8 @@ export default mergeConfig(
           '**/*.config.*',
           '**/index.ts',
           'src/main.tsx',
+          // Exclude axios interceptor code - requires integration testing
+          'src/models/api/client.ts',
         ],
         thresholds: {
           lines: 80,

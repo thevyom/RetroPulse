@@ -217,6 +217,40 @@ describe('cardStore', () => {
       const card = useCardStore.getState().cards.get('card-1');
       expect(card?.children).toEqual([]);
     });
+
+    it('should update parent reference when child exists as full card', () => {
+      // Create a child card that also exists as a full card in the list
+      const childAsFullCard = {
+        id: 'child-1',
+        board_id: 'board-1',
+        column_id: 'col-1',
+        content: 'Child as full card',
+        card_type: 'feedback' as const,
+        is_anonymous: false,
+        created_by_hash: 'hash-child',
+        created_by_alias: 'ChildUser',
+        created_at: '2025-12-28T11:00:00Z',
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 0,
+        parent_card_id: null, // Initially null
+        linked_feedback_ids: [],
+        children: [],
+      };
+
+      const parentWithChildRef = {
+        ...mockCardWithChildren,
+        children: [
+          { id: 'child-1', content: 'Child content', is_anonymous: false, created_by_alias: 'ChildUser', created_at: '2025-12-28T11:00:00Z', direct_reaction_count: 0, aggregated_reaction_count: 0 },
+        ],
+      };
+
+      // Pass both parent and child as full cards
+      useCardStore.getState().setCardsWithChildren([parentWithChildRef, childAsFullCard]);
+
+      // The child card should have its parent_card_id updated
+      const childCard = useCardStore.getState().cards.get('child-1');
+      expect(childCard?.parent_card_id).toBe('parent-1');
+    });
   });
 
   // ============================================================================

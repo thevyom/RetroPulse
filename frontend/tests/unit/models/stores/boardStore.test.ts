@@ -196,6 +196,14 @@ describe('boardStore', () => {
 
       expect(useBoardStore.getState().board?.columns).toEqual(mockBoard.columns);
     });
+
+    it('should handle renaming when board is null', () => {
+      useBoardStore.getState().clearBoard();
+
+      useBoardStore.getState().renameColumn('col-1', 'New Name');
+
+      expect(useBoardStore.getState().board).toBeNull();
+    });
   });
 
   // ============================================================================
@@ -304,6 +312,14 @@ describe('boardStore', () => {
 
       expect(isAdmin).toBe(false);
     });
+
+    it('should return false when board is null', () => {
+      useBoardStore.getState().clearBoard();
+
+      const isAdmin = useBoardStore.getState().isAdmin('any-user');
+
+      expect(isAdmin).toBe(false);
+    });
   });
 
   describe('isBoardClosed', () => {
@@ -349,6 +365,12 @@ describe('boardStore', () => {
       useBoardStore.getState().setBoard(mockBoard);
 
       expect(boardSelectors.getAdmins()).toContain('admin-hash');
+    });
+
+    it('getAdmins should return empty array when no board', () => {
+      useBoardStore.getState().clearBoard();
+
+      expect(boardSelectors.getAdmins()).toEqual([]);
     });
 
     it('isLoading should return loading state', () => {
