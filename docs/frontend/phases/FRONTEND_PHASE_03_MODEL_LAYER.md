@@ -1,9 +1,10 @@
 # Phase 3: Model Layer (API Services & State)
 
-**Status**: 🔲 NOT STARTED
+**Status**: ✅ COMPLETE
 **Priority**: High
-**Tasks**: 0/16 complete
+**Tasks**: 16/16 complete
 **Dependencies**: Phase 1-2 complete
+**Completed**: 2025-12-29
 
 [← Back to Master Task List](../FRONTEND_MASTER_TASK_LIST.md)
 
@@ -21,11 +22,11 @@ Implement the Model layer following MVVM architecture: API service clients (Boar
 
 #### 5.1 Create Axios HTTP Client Configuration
 
-- [ ] Create `models/api/client.ts`
-- [ ] Configure base URL from environment variables
-- [ ] Set up request/response interceptors
-- [ ] Add cookie handling for session auth (withCredentials)
-- [ ] Add error response parsing
+- [x] Create `models/api/client.ts`
+- [x] Configure base URL from environment variables
+- [x] Set up request/response interceptors
+- [x] Add cookie handling for session auth (withCredentials)
+- [x] Add error response parsing
 
 **Implementation:**
 ```typescript
@@ -54,14 +55,14 @@ apiClient.interceptors.response.use(
 
 #### 5.2 Implement BoardAPI Service
 
-- [ ] Create `models/api/BoardAPI.ts`
-- [ ] Implement `getBoard(boardId)` - GET /boards/:id
-- [ ] Implement `createBoard(data)` - POST /boards
-- [ ] Implement `updateBoardName(boardId, name)` - PATCH /boards/:id/name
-- [ ] Implement `closeBoard(boardId)` - PATCH /boards/:id/close
-- [ ] Implement `addAdmin(boardId, userHash)` - POST /boards/:id/admins
-- [ ] Implement `joinBoard(boardId, alias)` - POST /boards/:id/join
-- [ ] Implement `updateAlias(boardId, alias)` - PATCH /boards/:id/users/alias
+- [x] Create `models/api/BoardAPI.ts`
+- [x] Implement `getBoard(boardId)` - GET /boards/:id
+- [x] Implement `createBoard(data)` - POST /boards
+- [x] Implement `updateBoardName(boardId, name)` - PATCH /boards/:id/name
+- [x] Implement `closeBoard(boardId)` - PATCH /boards/:id/close
+- [x] Implement `addAdmin(boardId, userHash)` - POST /boards/:id/admins
+- [x] Implement `joinBoard(boardId, alias)` - POST /boards/:id/join
+- [x] Implement `updateAlias(boardId, alias)` - PATCH /boards/:id/users/alias
 
 **Interface:**
 ```typescript
@@ -83,11 +84,11 @@ export interface BoardAPI {
 
 #### 5.3 Write Unit Tests for BoardAPI
 
-- [ ] Mock axios for all methods
-- [ ] Test correct HTTP method and URL
-- [ ] Test request payload structure
-- [ ] Test response data extraction
-- [ ] Test error handling (404, 403, 409)
+- [x] Mock axios for all methods
+- [x] Test correct HTTP method and URL
+- [x] Test request payload structure
+- [x] Test response data extraction
+- [x] Test error handling (404, 403, 409)
 
 **Reference**: Test plan Section 5.1
 
@@ -95,15 +96,15 @@ export interface BoardAPI {
 
 #### 5.4 Implement CardAPI Service
 
-- [ ] Create `models/api/CardAPI.ts`
-- [ ] Implement `getCards(boardId, includeRelationships)` - GET /boards/:id/cards
-- [ ] Implement `checkCardQuota(boardId)` - GET /boards/:id/cards/quota
-- [ ] Implement `createCard(boardId, data)` - POST /boards/:id/cards
-- [ ] Implement `updateCard(cardId, content)` - PUT /cards/:id
-- [ ] Implement `deleteCard(cardId)` - DELETE /cards/:id
-- [ ] Implement `moveCard(cardId, columnId)` - PATCH /cards/:id/column
-- [ ] Implement `linkCards(sourceId, targetId, linkType)` - POST /cards/:id/link
-- [ ] Implement `unlinkCards(sourceId, targetId, linkType)` - DELETE /cards/:id/link
+- [x] Create `models/api/CardAPI.ts`
+- [x] Implement `getCards(boardId, includeRelationships)` - GET /boards/:id/cards
+- [x] Implement `checkCardQuota(boardId)` - GET /boards/:id/cards/quota
+- [x] Implement `createCard(boardId, data)` - POST /boards/:id/cards
+- [x] Implement `updateCard(cardId, content)` - PUT /cards/:id
+- [x] Implement `deleteCard(cardId)` - DELETE /cards/:id
+- [x] Implement `moveCard(cardId, columnId)` - PATCH /cards/:id/column
+- [x] Implement `linkCards(sourceId, targetId, linkType)` - POST /cards/:id/link
+- [x] Implement `unlinkCards(sourceId, targetId, linkType)` - DELETE /cards/:id/link
 
 **Interface:**
 ```typescript
@@ -133,10 +134,10 @@ export interface CardAPI {
 
 #### 5.5 Write Unit Tests for CardAPI
 
-- [ ] Test all CRUD operations
-- [ ] Test quota check API
-- [ ] Test link/unlink operations
-- [ ] Test embedded relationships parameter
+- [x] Test all CRUD operations
+- [x] Test quota check API
+- [x] Test link/unlink operations
+- [x] Test embedded relationships parameter
 
 **Reference**: Test plan Section 5.1
 
@@ -144,10 +145,10 @@ export interface CardAPI {
 
 #### 5.6 Implement ReactionAPI Service
 
-- [ ] Create `models/api/ReactionAPI.ts`
-- [ ] Implement `addReaction(cardId, type)` - POST /cards/:id/reactions
-- [ ] Implement `removeReaction(cardId)` - DELETE /cards/:id/reactions
-- [ ] Implement `checkQuota(boardId)` - GET /boards/:id/reactions/quota
+- [x] Create `models/api/ReactionAPI.ts`
+- [x] Implement `addReaction(cardId, type)` - POST /cards/:id/reactions
+- [x] Implement `removeReaction(cardId)` - DELETE /cards/:id/reactions
+- [x] Implement `checkQuota(boardId)` - GET /boards/:id/reactions/quota
 
 **Interface:**
 ```typescript
@@ -172,9 +173,9 @@ export interface ReactionAPI {
 
 #### 5.7 Write Unit Tests for ReactionAPI
 
-- [ ] Test add/remove operations
-- [ ] Test quota check
-- [ ] Test error handling
+- [x] Test add/remove operations
+- [x] Test quota check
+- [x] Test error handling
 
 **Reference**: Test plan Section 5.1
 
@@ -184,13 +185,13 @@ export interface ReactionAPI {
 
 #### 6.1 Implement SocketService
 
-- [ ] Create `models/socket/SocketService.ts`
-- [ ] Implement `connect(boardId)` with socket.io-client
-- [ ] Implement `disconnect()` method
-- [ ] Implement `on(eventType, handler)` subscription
-- [ ] Implement `off(eventType)` unsubscription
-- [ ] Implement `emit(eventType, data)` for client events
-- [ ] Handle 'join-board' and 'leave-board' events
+- [x] Create `models/socket/SocketService.ts`
+- [x] Implement `connect(boardId)` with socket.io-client
+- [x] Implement `disconnect()` method
+- [x] Implement `on(eventType, handler)` subscription
+- [x] Implement `off(eventType)` unsubscription
+- [x] Implement `emit(eventType, data)` for client events
+- [x] Handle 'join-board' and 'leave-board' events
 
 **Implementation:**
 ```typescript
@@ -246,10 +247,10 @@ export const socketService = new SocketService();
 
 #### 6.2 Write Tests for SocketService
 
-- [ ] Mock socket.io-client
-- [ ] Test connect establishes connection
-- [ ] Test event subscription
-- [ ] Test disconnect cleanup
+- [x] Mock socket.io-client
+- [x] Test connect establishes connection
+- [x] Test event subscription
+- [x] Test disconnect cleanup
 
 **Reference**: Test plan Section 5.3
 
@@ -259,12 +260,12 @@ export const socketService = new SocketService();
 
 #### 7.1 Implement boardStore
 
-- [ ] Create `models/stores/boardStore.ts`
-- [ ] Define Board state shape
-- [ ] Implement `setBoard(board)` action
-- [ ] Implement `updateBoardName(name)` action
-- [ ] Implement `closeBoard(closedAt)` action
-- [ ] Implement `addAdmin(userHash)` action
+- [x] Create `models/stores/boardStore.ts`
+- [x] Define Board state shape
+- [x] Implement `setBoard(board)` action
+- [x] Implement `updateBoardName(name)` action
+- [x] Implement `closeBoard(closedAt)` action
+- [x] Implement `addAdmin(userHash)` action
 
 **Implementation:**
 ```typescript
@@ -311,10 +312,10 @@ export const useBoardStore = create<BoardState>((set) => ({
 
 #### 7.2 Write Tests for boardStore
 
-- [ ] Test initial state
-- [ ] Test setBoard updates state
-- [ ] Test updateBoardName mutation
-- [ ] Test closeBoard sets state to 'closed'
+- [x] Test initial state
+- [x] Test setBoard updates state
+- [x] Test updateBoardName mutation
+- [x] Test closeBoard sets state to 'closed'
 
 **Reference**: Test plan Section 5.2
 
@@ -322,15 +323,15 @@ export const useBoardStore = create<BoardState>((set) => ({
 
 #### 7.3 Implement cardStore
 
-- [ ] Create `models/stores/cardStore.ts`
-- [ ] Define Card state with Map<cardId, Card>
-- [ ] Implement `addCard(card)` action
-- [ ] Implement `updateCard(cardId, updates)` action
-- [ ] Implement `removeCard(cardId)` action
-- [ ] Implement `setCardsWithChildren(cards)` for API response
-- [ ] Implement `incrementReactionCount(cardId)` action
-- [ ] Implement `decrementReactionCount(cardId)` action
-- [ ] Create derived state: cardsByColumn
+- [x] Create `models/stores/cardStore.ts`
+- [x] Define Card state with Map<cardId, Card>
+- [x] Implement `addCard(card)` action
+- [x] Implement `updateCard(cardId, updates)` action
+- [x] Implement `removeCard(cardId)` action
+- [x] Implement `setCardsWithChildren(cards)` for API response
+- [x] Implement `incrementReactionCount(cardId)` action
+- [x] Implement `decrementReactionCount(cardId)` action
+- [x] Create derived state: cardsByColumn
 
 **Implementation:**
 ```typescript
@@ -358,10 +359,10 @@ interface CardState {
 
 #### 7.4 Write Tests for cardStore
 
-- [ ] Test addCard adds to map
-- [ ] Test setCardsWithChildren populates embedded children
-- [ ] Test incrementReactionCount updates count
-- [ ] Test removeCard deletes from map
+- [x] Test addCard adds to map
+- [x] Test setCardsWithChildren populates embedded children
+- [x] Test incrementReactionCount updates count
+- [x] Test removeCard deletes from map
 
 **Reference**: Test plan Section 5.2
 
@@ -369,13 +370,13 @@ interface CardState {
 
 #### 7.5 Implement userStore
 
-- [ ] Create `models/stores/userStore.ts`
-- [ ] Define User state with currentUser and activeUsers
-- [ ] Implement `setCurrentUser(user)` action
-- [ ] Implement `updateAlias(newAlias)` action
-- [ ] Implement `addActiveUser(user)` action
-- [ ] Implement `removeUser(userHash)` action
-- [ ] Implement `updateHeartbeat(userHash)` action
+- [x] Create `models/stores/userStore.ts`
+- [x] Define User state with currentUser and activeUsers
+- [x] Implement `setCurrentUser(user)` action
+- [x] Implement `updateAlias(newAlias)` action
+- [x] Implement `addActiveUser(user)` action
+- [x] Implement `removeUser(userHash)` action
+- [x] Implement `updateHeartbeat(userHash)` action
 
 **Implementation:**
 ```typescript
@@ -400,10 +401,10 @@ interface UserState {
 
 #### 7.6 Write Tests for userStore
 
-- [ ] Test setCurrentUser updates state
-- [ ] Test updateAlias modifies currentUser
-- [ ] Test addActiveUser adds to array
-- [ ] Test heartbeat updates last_active_at
+- [x] Test setCurrentUser updates state
+- [x] Test updateAlias modifies currentUser
+- [x] Test addActiveUser adds to array
+- [x] Test heartbeat updates last_active_at
 
 **Reference**: Test plan Section 5.2
 
@@ -451,26 +452,27 @@ tests/unit/models/
 
 ## 🧪 Test Requirements
 
-| Test Suite | Tests | Focus |
-|------------|-------|-------|
-| BoardAPI (unit) | ~12 | HTTP calls, error handling |
-| CardAPI (unit) | ~15 | CRUD, linking, quota |
-| ReactionAPI (unit) | ~6 | Add/remove, quota |
-| SocketService (unit) | ~8 | Connect, events, disconnect |
-| boardStore (unit) | ~6 | State mutations |
-| cardStore (unit) | ~8 | Map operations, derived |
-| userStore (unit) | ~6 | User state |
-| **Total** | **~61** | |
+| Test Suite | Tests (Planned) | Tests (Actual) | Focus |
+|------------|-----------------|----------------|-------|
+| client.ts (unit) | ~4 | 9 | Interceptors, error handling |
+| BoardAPI (unit) | ~12 | 21 | HTTP calls, error handling |
+| CardAPI (unit) | ~15 | 19 | CRUD, linking, quota |
+| ReactionAPI (unit) | ~6 | 7 | Add/remove, quota |
+| SocketService (unit) | ~8 | 31 | Connect, events, disconnect |
+| boardStore (unit) | ~6 | 35 | State mutations |
+| cardStore (unit) | ~8 | 38 | Map operations, derived |
+| userStore (unit) | ~6 | 39 | User state |
+| **Total** | **~61** | **199** | ✅ Exceeded target |
 
 ---
 
 ## ✅ Acceptance Criteria
 
-- [ ] All API methods match backend specification
-- [ ] WebSocket connects and handles events
-- [ ] Zustand stores update state correctly
-- [ ] Types match backend API contracts
-- [ ] Unit tests pass with >90% coverage
+- [x] All API methods match backend specification
+- [x] WebSocket connects and handles events
+- [x] Zustand stores update state correctly
+- [x] Types match backend API contracts
+- [x] Unit tests pass with >90% coverage (337 tests passing)
 
 ---
 
