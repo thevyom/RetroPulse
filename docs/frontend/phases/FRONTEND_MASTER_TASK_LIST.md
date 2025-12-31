@@ -9,6 +9,7 @@
 
 ```
 docs/frontend/
+├── FRONTEND_CORE_CONTEXT.md          ← Codebase summary (AI/developer onboarding)
 ├── FRONTEND_PROJECT_OVERVIEW.md      ← Quick context (start here)
 ├── phases/
 │   ├── FRONTEND_MASTER_TASK_LIST.md  ← You are here (task tracking)
@@ -16,7 +17,12 @@ docs/frontend/
 │   ├── FRONTEND_PHASE_02_SHARED_UTILITIES.md
 │   ├── FRONTEND_PHASE_03_MODEL_LAYER.md
 │   ├── FRONTEND_PHASE_04_VIEWMODEL_LAYER.md
-│   ├── FRONTEND_PHASE_05_VIEW_COMPONENTS.md
+│   ├── 
+
+
+
+
+FRONTEND_PHASE_05_VIEW_COMPONENTS.md
 │   ├── FRONTEND_PHASE_06_INTEGRATION_REALTIME.md
 │   ├── FRONTEND_PHASE_07_E2E_TESTING.md
 │   ├── FRONTEND_PHASE_08_POLISH_PRODUCTION.md
