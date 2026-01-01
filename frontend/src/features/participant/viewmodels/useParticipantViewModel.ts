@@ -43,6 +43,7 @@ export interface UseParticipantViewModelResult {
   // Filter state
   showAll: boolean;
   showAnonymous: boolean;
+  showOnlyAnonymous: boolean;
   selectedUsers: string[];
 
   // Derived state
@@ -92,6 +93,7 @@ export function useParticipantViewModel(
   const [operationError, setOperationError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(true);
   const [showAnonymous, setShowAnonymous] = useState(true);
+  const [showOnlyAnonymous, setShowOnlyAnonymous] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
   // Heartbeat interval ref
@@ -336,7 +338,18 @@ export function useParticipantViewModel(
   }, []);
 
   const handleToggleAnonymousFilter = useCallback(() => {
-    setShowAnonymous((prev) => !prev);
+    setShowOnlyAnonymous((prev) => {
+      const newValue = !prev;
+      if (newValue) {
+        // When enabling anonymous-only mode, clear user filters
+        setSelectedUsers([]);
+        setShowAll(false);
+      } else {
+        // When disabling, show all cards
+        setShowAll(true);
+      }
+      return newValue;
+    });
   }, []);
 
   const handleToggleUserFilter = useCallback((alias: string) => {
@@ -349,6 +362,8 @@ export function useParticipantViewModel(
         setShowAll(true);
       } else {
         setShowAll(false);
+        // User filters are mutually exclusive with anonymous-only
+        setShowOnlyAnonymous(false);
       }
 
       return newSelected;
@@ -358,6 +373,7 @@ export function useParticipantViewModel(
   const handleClearFilters = useCallback(() => {
     setShowAll(true);
     setShowAnonymous(true);
+    setShowOnlyAnonymous(false);
     setSelectedUsers([]);
   }, []);
 
@@ -375,6 +391,7 @@ export function useParticipantViewModel(
     // Filter state
     showAll,
     showAnonymous,
+    showOnlyAnonymous,
     selectedUsers,
 
     // Derived state

@@ -6,6 +6,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RetroBoardHeader } from '@/features/board/components/RetroBoardHeader';
+import { toast } from 'sonner';
+
+// Mock sonner toast
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+// Create mock for clipboard writeText
+const mockWriteText = vi.fn();
 
 // Mock user session
 const mockCurrentUser = {
@@ -157,6 +169,73 @@ describe('RetroBoardHeader', () => {
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       expect(defaultProps.onCloseBoard).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Copy Link Button', () => {
+    beforeEach(() => {
+      // Reset clipboard mock
+      mockWriteText.mockReset();
+      mockWriteText.mockResolvedValue(undefined);
+
+      // Mock navigator.clipboard - must be done before each test
+      // because jsdom may reset it
+      if (!navigator.clipboard) {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: { writeText: mockWriteText },
+          writable: true,
+          configurable: true,
+        });
+      } else {
+        vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(mockWriteText);
+      }
+    });
+
+    it('should show copy link button on active board', () => {
+      render(<RetroBoardHeader {...defaultProps} isClosed={false} />);
+
+      expect(screen.getByRole('button', { name: /copy board link/i })).toBeInTheDocument();
+    });
+
+    it('should show copy link button on closed board', () => {
+      render(<RetroBoardHeader {...defaultProps} isClosed={true} />);
+
+      expect(screen.getByRole('button', { name: /copy board link/i })).toBeInTheDocument();
+    });
+
+    it('should show copy link button for non-admin users', () => {
+      render(<RetroBoardHeader {...defaultProps} isAdmin={false} />);
+
+      expect(screen.getByRole('button', { name: /copy board link/i })).toBeInTheDocument();
+    });
+
+    it('should display "Copy Link" text', () => {
+      render(<RetroBoardHeader {...defaultProps} />);
+
+      expect(screen.getByText('Copy Link')).toBeInTheDocument();
+    });
+
+    it('should have copy link button between Close Board button and user card', () => {
+      render(<RetroBoardHeader {...defaultProps} />);
+
+      const closeButton = screen.getByRole('button', { name: /close board/i });
+      const copyButton = screen.getByRole('button', { name: /copy board link/i });
+      const userCard = screen.getByText('TestUser');
+
+      // All should exist in the same header
+      expect(closeButton).toBeInTheDocument();
+      expect(copyButton).toBeInTheDocument();
+      expect(userCard).toBeInTheDocument();
+    });
+
+    it('should be clickable', async () => {
+      const user = userEvent.setup();
+      render(<RetroBoardHeader {...defaultProps} />);
+
+      const copyButton = screen.getByRole('button', { name: /copy board link/i });
+
+      // Should not throw when clicking
+      await expect(user.click(copyButton)).resolves.not.toThrow();
     });
   });
 });

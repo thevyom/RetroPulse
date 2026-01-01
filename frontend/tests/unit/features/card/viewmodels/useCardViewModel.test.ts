@@ -985,6 +985,274 @@ describe('useCardViewModel', () => {
   });
 
   // ============================================================================
+  // CardsByColumn Sorting Tests (UTB-009)
+  // ============================================================================
+
+  describe('cardsByColumn Sorting (UTB-009 Fix)', () => {
+    // Test data with multiple cards in same column for sorting verification
+    const multipleCardsInColumn: Card[] = [
+      {
+        id: 'card-a',
+        board_id: 'board-123',
+        column_id: 'col-1',
+        content: 'Card A - oldest, few reactions',
+        card_type: 'feedback',
+        is_anonymous: false,
+        created_by_hash: 'hash-user-1',
+        created_by_alias: 'TestUser',
+        created_at: '2025-12-28T08:00:00Z', // oldest
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2, // lowest
+        parent_card_id: null,
+        linked_feedback_ids: [],
+      },
+      {
+        id: 'card-b',
+        board_id: 'board-123',
+        column_id: 'col-1',
+        content: 'Card B - middle age, most reactions',
+        card_type: 'feedback',
+        is_anonymous: false,
+        created_by_hash: 'hash-user-1',
+        created_by_alias: 'TestUser',
+        created_at: '2025-12-28T10:00:00Z', // middle
+        direct_reaction_count: 10,
+        aggregated_reaction_count: 10, // highest
+        parent_card_id: null,
+        linked_feedback_ids: [],
+      },
+      {
+        id: 'card-c',
+        board_id: 'board-123',
+        column_id: 'col-1',
+        content: 'Card C - newest, medium reactions',
+        card_type: 'feedback',
+        is_anonymous: false,
+        created_by_hash: 'hash-user-1',
+        created_by_alias: 'TestUser',
+        created_at: '2025-12-28T12:00:00Z', // newest
+        direct_reaction_count: 5,
+        aggregated_reaction_count: 5, // middle
+        parent_card_id: null,
+        linked_feedback_ids: [],
+      },
+    ];
+
+    beforeEach(() => {
+      vi.mocked(CardAPI.getCards).mockResolvedValue({
+        cards: multipleCardsInColumn,
+        total_count: multipleCardsInColumn.length,
+        cards_by_column: { 'col-1': 3 },
+      });
+    });
+
+    it('should sort cards by recency (newest first) by default in cardsByColumn', async () => {
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(3);
+      });
+
+      expect(result.current.sortMode).toBe('recency');
+      expect(result.current.sortDirection).toBe('desc');
+
+      const col1Cards = result.current.cardsByColumn.get('col-1');
+      expect(col1Cards).toBeDefined();
+      expect(col1Cards?.length).toBe(3);
+
+      // Desc recency: newest first (card-c, card-b, card-a)
+      expect(col1Cards?.[0].id).toBe('card-c');
+      expect(col1Cards?.[1].id).toBe('card-b');
+      expect(col1Cards?.[2].id).toBe('card-a');
+    });
+
+    it('should reorder cards in cardsByColumn when sort mode changes to popularity', async () => {
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(3);
+      });
+
+      // Change to popularity mode
+      act(() => {
+        result.current.setSortMode('popularity');
+      });
+
+      expect(result.current.sortMode).toBe('popularity');
+
+      const col1Cards = result.current.cardsByColumn.get('col-1');
+      expect(col1Cards).toBeDefined();
+
+      // Desc popularity: most reactions first (card-b=10, card-c=5, card-a=2)
+      expect(col1Cards?.[0].id).toBe('card-b');
+      expect(col1Cards?.[1].id).toBe('card-c');
+      expect(col1Cards?.[2].id).toBe('card-a');
+    });
+
+    it('should reverse order in cardsByColumn when sort direction toggles', async () => {
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(3);
+      });
+
+      // Default: recency desc (newest first: c, b, a)
+      let col1Cards = result.current.cardsByColumn.get('col-1');
+      expect(col1Cards?.[0].id).toBe('card-c');
+      expect(col1Cards?.[2].id).toBe('card-a');
+
+      // Toggle to ascending (oldest first)
+      act(() => {
+        result.current.toggleSortDirection();
+      });
+
+      expect(result.current.sortDirection).toBe('asc');
+
+      col1Cards = result.current.cardsByColumn.get('col-1');
+      // Asc recency: oldest first (card-a, card-b, card-c)
+      expect(col1Cards?.[0].id).toBe('card-a');
+      expect(col1Cards?.[1].id).toBe('card-b');
+      expect(col1Cards?.[2].id).toBe('card-c');
+    });
+
+    it('should sort by recency ascending (oldest first) correctly', async () => {
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(3);
+      });
+
+      // Set recency ascending
+      act(() => {
+        result.current.toggleSortDirection(); // asc
+      });
+
+      const col1Cards = result.current.cardsByColumn.get('col-1');
+
+      // Oldest created_at first
+      expect(col1Cards?.[0].created_at).toBe('2025-12-28T08:00:00Z'); // card-a
+      expect(col1Cards?.[1].created_at).toBe('2025-12-28T10:00:00Z'); // card-b
+      expect(col1Cards?.[2].created_at).toBe('2025-12-28T12:00:00Z'); // card-c
+    });
+
+    it('should sort by popularity ascending (least reactions first) correctly', async () => {
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(3);
+      });
+
+      // Set popularity ascending
+      act(() => {
+        result.current.setSortMode('popularity');
+        result.current.toggleSortDirection(); // asc
+      });
+
+      const col1Cards = result.current.cardsByColumn.get('col-1');
+
+      // Least aggregated_reaction_count first
+      expect(col1Cards?.[0].aggregated_reaction_count).toBe(2); // card-a
+      expect(col1Cards?.[1].aggregated_reaction_count).toBe(5); // card-c
+      expect(col1Cards?.[2].aggregated_reaction_count).toBe(10); // card-b
+    });
+
+    it('should use aggregated_reaction_count for popularity sorting', async () => {
+      // Card with children where aggregated count differs from direct count
+      const cardWithChildren: Card[] = [
+        {
+          id: 'parent-card',
+          board_id: 'board-123',
+          column_id: 'col-1',
+          content: 'Parent with aggregated reactions',
+          card_type: 'feedback',
+          is_anonymous: false,
+          created_by_hash: 'hash-user-1',
+          created_by_alias: 'TestUser',
+          created_at: '2025-12-28T10:00:00Z',
+          direct_reaction_count: 2, // Only 2 direct
+          aggregated_reaction_count: 15, // But 15 total with children
+          parent_card_id: null,
+          linked_feedback_ids: [],
+        },
+        {
+          id: 'standalone-card',
+          board_id: 'board-123',
+          column_id: 'col-1',
+          content: 'Standalone with more direct reactions',
+          card_type: 'feedback',
+          is_anonymous: false,
+          created_by_hash: 'hash-user-1',
+          created_by_alias: 'TestUser',
+          created_at: '2025-12-28T09:00:00Z',
+          direct_reaction_count: 8,
+          aggregated_reaction_count: 8, // Same as direct (no children)
+          parent_card_id: null,
+          linked_feedback_ids: [],
+        },
+      ];
+
+      vi.mocked(CardAPI.getCards).mockResolvedValue({
+        cards: cardWithChildren,
+        total_count: cardWithChildren.length,
+        cards_by_column: { 'col-1': 2 },
+      });
+
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(2);
+      });
+
+      act(() => {
+        result.current.setSortMode('popularity');
+      });
+
+      const col1Cards = result.current.cardsByColumn.get('col-1');
+
+      // Parent should be first because aggregated_reaction_count (15) > standalone (8)
+      expect(col1Cards?.[0].id).toBe('parent-card');
+      expect(col1Cards?.[0].aggregated_reaction_count).toBe(15);
+      expect(col1Cards?.[1].id).toBe('standalone-card');
+      expect(col1Cards?.[1].aggregated_reaction_count).toBe(8);
+    });
+
+    it('should recalculate cardsByColumn when sortMode or sortDirection changes', async () => {
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(3);
+      });
+
+      // Get initial reference
+      const initialCardsByColumn = result.current.cardsByColumn;
+      const initialOrder = initialCardsByColumn.get('col-1')?.map((c) => c.id);
+
+      // Change sort mode
+      act(() => {
+        result.current.setSortMode('popularity');
+      });
+
+      // Should be a new Map (recalculated)
+      const afterModeChange = result.current.cardsByColumn;
+      const newOrder = afterModeChange.get('col-1')?.map((c) => c.id);
+
+      // Order should have changed
+      expect(newOrder).not.toEqual(initialOrder);
+
+      // Toggle direction
+      act(() => {
+        result.current.toggleSortDirection();
+      });
+
+      const afterDirectionChange = result.current.cardsByColumn;
+      const finalOrder = afterDirectionChange.get('col-1')?.map((c) => c.id);
+
+      // Order should have reversed
+      expect(finalOrder).not.toEqual(newOrder);
+    });
+  });
+
+  // ============================================================================
   // Error Path Tests
   // ============================================================================
 

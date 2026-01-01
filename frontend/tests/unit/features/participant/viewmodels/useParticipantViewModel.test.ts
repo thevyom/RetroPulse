@@ -454,6 +454,7 @@ describe('useParticipantViewModel', () => {
 
       expect(result.current.showAll).toBe(true);
       expect(result.current.showAnonymous).toBe(true);
+      expect(result.current.showOnlyAnonymous).toBe(false);
       expect(result.current.selectedUsers).toEqual([]);
     });
 
@@ -480,16 +481,56 @@ describe('useParticipantViewModel', () => {
       expect(result.current.selectedUsers).toEqual([]);
     });
 
-    it('should toggle Anonymous filter', () => {
+    it('should toggle showOnlyAnonymous filter', () => {
       const { result } = renderHook(() => useParticipantViewModel('board-123'));
 
-      expect(result.current.showAnonymous).toBe(true);
+      expect(result.current.showOnlyAnonymous).toBe(false);
 
       act(() => {
         result.current.handleToggleAnonymousFilter();
       });
 
-      expect(result.current.showAnonymous).toBe(false);
+      expect(result.current.showOnlyAnonymous).toBe(true);
+      expect(result.current.showAll).toBe(false); // Should disable showAll when anonymous-only is enabled
+    });
+
+    it('should clear user selection when enabling anonymous-only filter', () => {
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // Select a user first
+      act(() => {
+        result.current.handleToggleUserFilter('ParticipantOne');
+      });
+
+      expect(result.current.selectedUsers).toContain('ParticipantOne');
+
+      // Enable anonymous-only filter
+      act(() => {
+        result.current.handleToggleAnonymousFilter();
+      });
+
+      expect(result.current.showOnlyAnonymous).toBe(true);
+      expect(result.current.selectedUsers).toEqual([]); // User selection should be cleared
+    });
+
+    it('should restore showAll when disabling anonymous-only filter', () => {
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // Enable anonymous-only filter
+      act(() => {
+        result.current.handleToggleAnonymousFilter();
+      });
+
+      expect(result.current.showOnlyAnonymous).toBe(true);
+      expect(result.current.showAll).toBe(false);
+
+      // Disable anonymous-only filter
+      act(() => {
+        result.current.handleToggleAnonymousFilter();
+      });
+
+      expect(result.current.showOnlyAnonymous).toBe(false);
+      expect(result.current.showAll).toBe(true); // Should restore showAll
     });
 
     it('should toggle user-specific filter', async () => {
@@ -531,17 +572,34 @@ describe('useParticipantViewModel', () => {
       expect(result.current.selectedUsers.length).toBe(2);
     });
 
-    it('should clear all filters', () => {
+    it('should clear showOnlyAnonymous when selecting a user', () => {
       const { result } = renderHook(() => useParticipantViewModel('board-123'));
 
-      // Set some filters
+      // Enable anonymous-only filter first
       act(() => {
         result.current.handleToggleAnonymousFilter();
+      });
+
+      expect(result.current.showOnlyAnonymous).toBe(true);
+
+      // Select a user
+      act(() => {
         result.current.handleToggleUserFilter('ParticipantOne');
       });
 
-      expect(result.current.showAnonymous).toBe(false);
-      expect(result.current.selectedUsers.length).toBe(1);
+      expect(result.current.selectedUsers).toContain('ParticipantOne');
+      expect(result.current.showOnlyAnonymous).toBe(false); // Should be cleared
+    });
+
+    it('should clear all filters including showOnlyAnonymous', () => {
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // Enable anonymous-only filter
+      act(() => {
+        result.current.handleToggleAnonymousFilter();
+      });
+
+      expect(result.current.showOnlyAnonymous).toBe(true);
 
       // Clear all
       act(() => {
@@ -550,6 +608,7 @@ describe('useParticipantViewModel', () => {
 
       expect(result.current.showAll).toBe(true);
       expect(result.current.showAnonymous).toBe(true);
+      expect(result.current.showOnlyAnonymous).toBe(false);
       expect(result.current.selectedUsers).toEqual([]);
     });
   });

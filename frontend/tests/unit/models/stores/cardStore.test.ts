@@ -528,6 +528,337 @@ describe('cardStore', () => {
   });
 
   // ============================================================================
+  // linkChild Tests
+  // ============================================================================
+
+  describe('linkChild', () => {
+    it('should update child parent_card_id', () => {
+      const parentCard = { ...mockCard, id: 'parent-1', children: [] };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: null,
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().linkChild('parent-1', 'child-1');
+
+      expect(useCardStore.getState().cards.get('child-1')?.parent_card_id).toBe('parent-1');
+    });
+
+    it('should add child to parent children array', () => {
+      const parentCard = { ...mockCard, id: 'parent-1', children: [] };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: null,
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().linkChild('parent-1', 'child-1');
+
+      const parent = useCardStore.getState().cards.get('parent-1');
+      expect(parent?.children).toHaveLength(1);
+      expect(parent?.children?.[0].id).toBe('child-1');
+    });
+
+    it('should add child reactions to parent aggregated count', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        direct_reaction_count: 3,
+        aggregated_reaction_count: 3,
+        children: [],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: null,
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().linkChild('parent-1', 'child-1');
+
+      expect(useCardStore.getState().cards.get('parent-1')?.aggregated_reaction_count).toBe(5);
+    });
+
+    it('should handle non-existent parent gracefully', () => {
+      const childCard = { ...mockCard, id: 'child-1', parent_card_id: null };
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().linkChild('non-existent', 'child-1');
+
+      expect(useCardStore.getState().cards.get('child-1')?.parent_card_id).toBeNull();
+    });
+
+    it('should handle non-existent child gracefully', () => {
+      const parentCard = { ...mockCard, id: 'parent-1', children: [] };
+      useCardStore.getState().addCard(parentCard);
+
+      useCardStore.getState().linkChild('parent-1', 'non-existent');
+
+      expect(useCardStore.getState().cards.get('parent-1')?.children).toHaveLength(0);
+    });
+
+    it('should preserve existing children when linking new child', () => {
+      const existingChild = {
+        id: 'existing-child',
+        content: 'Existing child content',
+        is_anonymous: false,
+        created_by_alias: 'Bob',
+        created_at: '2025-12-28T00:00:00Z',
+        direct_reaction_count: 1,
+        aggregated_reaction_count: 1,
+      };
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 4, // 3 direct + 1 from existing child
+        children: [existingChild],
+      };
+      const newChildCard = {
+        ...mockCard,
+        id: 'new-child',
+        parent_card_id: null,
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(newChildCard);
+
+      useCardStore.getState().linkChild('parent-1', 'new-child');
+
+      const parent = useCardStore.getState().cards.get('parent-1');
+      expect(parent?.children).toHaveLength(2);
+      expect(parent?.aggregated_reaction_count).toBe(6); // 4 + 2
+    });
+  });
+
+  // ============================================================================
+  // unlinkChild Tests
+  // ============================================================================
+
+  describe('unlinkChild', () => {
+    it('should remove child parent_card_id', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 5,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 2,
+            aggregated_reaction_count: 2,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().unlinkChild('parent-1', 'child-1');
+
+      expect(useCardStore.getState().cards.get('child-1')?.parent_card_id).toBeNull();
+    });
+
+    it('should remove child from parent children array', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 5,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 2,
+            aggregated_reaction_count: 2,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().unlinkChild('parent-1', 'child-1');
+
+      expect(useCardStore.getState().cards.get('parent-1')?.children).toHaveLength(0);
+    });
+
+    it('should subtract child reactions from parent aggregated count', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        direct_reaction_count: 3,
+        aggregated_reaction_count: 5,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 2,
+            aggregated_reaction_count: 2,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().unlinkChild('parent-1', 'child-1');
+
+      expect(useCardStore.getState().cards.get('parent-1')?.aggregated_reaction_count).toBe(3);
+    });
+
+    it('should not go below zero for aggregated count', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 1,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 5,
+            aggregated_reaction_count: 5,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 5,
+        aggregated_reaction_count: 5,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().unlinkChild('parent-1', 'child-1');
+
+      expect(useCardStore.getState().cards.get('parent-1')?.aggregated_reaction_count).toBe(0);
+    });
+
+    it('should handle non-existent parent gracefully', () => {
+      const childCard = { ...mockCard, id: 'child-1', parent_card_id: 'parent-1' };
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().unlinkChild('non-existent', 'child-1');
+
+      expect(useCardStore.getState().cards.get('child-1')?.parent_card_id).toBe('parent-1');
+    });
+
+    it('should handle non-existent child gracefully', () => {
+      const parentCard = { ...mockCard, id: 'parent-1', children: [] };
+      useCardStore.getState().addCard(parentCard);
+
+      useCardStore.getState().unlinkChild('parent-1', 'non-existent');
+
+      expect(useCardStore.getState().cards.get('parent-1')?.children).toHaveLength(0);
+    });
+
+    it('should preserve other children when unlinking one child', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 6,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child 1 content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 2,
+            aggregated_reaction_count: 2,
+          },
+          {
+            id: 'child-2',
+            content: 'Child 2 content',
+            is_anonymous: false,
+            created_by_alias: 'Charlie',
+            created_at: '2025-12-28T01:00:00Z',
+            direct_reaction_count: 1,
+            aggregated_reaction_count: 1,
+          },
+        ],
+      };
+      const child1Card = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+      const child2Card = {
+        ...mockCard,
+        id: 'child-2',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 1,
+        aggregated_reaction_count: 1,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(child1Card);
+      useCardStore.getState().addCard(child2Card);
+
+      useCardStore.getState().unlinkChild('parent-1', 'child-1');
+
+      const parent = useCardStore.getState().cards.get('parent-1');
+      expect(parent?.children).toHaveLength(1);
+      expect(parent?.children?.[0].id).toBe('child-2');
+      expect(parent?.aggregated_reaction_count).toBe(4); // 6 - 2
+    });
+  });
+
+  // ============================================================================
   // setLoading Tests
   // ============================================================================
 

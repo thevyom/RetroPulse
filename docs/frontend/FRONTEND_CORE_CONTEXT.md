@@ -1,8 +1,8 @@
 # Frontend Core Context - RetroPulse
 
 **Generated:** 2026-01-01
-**Phase:** 1-8.1 Complete (Project Setup → Home Page)
-**Status:** Production-ready with Home Page landing experience and board creation flow
+**Phase:** 1-8.1 Complete (Project Setup → Home Page) + QA Bug Fixes
+**Status:** Production-ready with bug fixes from QA validation cycle
 
 ---
 
@@ -385,6 +385,7 @@ interface UserSession {
 | 7 | E2E Testing | ✅ Complete | 699 |
 | 8 | Polish & Production | ✅ Complete | 699 |
 | 8.1 | Home Page | ✅ Complete | 761 |
+| 8.2 | QA Bug Fixes | ✅ Complete | 800+ |
 | 9 | Final Review | 🔲 Pending | - |
 
 ---
@@ -415,6 +416,16 @@ interface UserSession {
 - Husky 9.x + lint-staged for pre-commit hooks (lint + typecheck)
 - GitHub Actions CI with health-check wait loop for E2E
 - `sonner` for toast notifications
+
+**Phase 8.2 (QA Bug Fixes):**
+- E2E: `pressSequentially()` instead of `fill()` for React controlled inputs
+- E2E: Enhanced helpers with retry logic and better selectors
+- RetroCard: Improved reaction handling and accessibility
+- CreateBoardDialog: Enhanced form validation and error states
+- cardStore: Additional store methods for card operations
+- ParticipantBar: Fixed admin detection timing
+- useCardViewModel: Improved card CRUD operations
+- Known issue: @dnd-kit incompatible with Playwright drag simulation
 
 ---
 

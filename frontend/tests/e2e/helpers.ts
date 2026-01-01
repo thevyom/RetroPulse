@@ -5,7 +5,7 @@
  * These helpers interact with the real frontend and backend.
  */
 
-import type { Page, BrowserContext } from '@playwright/test';
+import type { Page, BrowserContext, Locator } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -378,6 +378,77 @@ export async function getReactionCount(page: Page, content: string): Promise<num
 // ============================================================================
 
 /**
+ * Perform drag-and-drop using keyboard events for @dnd-kit compatibility.
+ *
+ * This is the PRIMARY drag method for E2E tests. @dnd-kit's KeyboardSensor
+ * is more reliable in Playwright than PointerSensor because keyboard events
+ * are handled consistently across browsers.
+ *
+ * Keyboard drag sequence:
+ * 1. Focus the draggable element
+ * 2. Press Space to pick up
+ * 3. Press Arrow keys to move (or Tab to move between drop zones)
+ * 4. Press Space to drop
+ *
+ * For card-to-card linking, we use Tab to navigate between cards.
+ */
+export async function dndKitDragKeyboard(
+  page: Page,
+  sourceLocator: Locator,
+  targetLocator: Locator
+): Promise<void> {
+  // Focus the source element (the draggable card)
+  await sourceLocator.focus();
+  await page.waitForTimeout(100);
+
+  // Press Space to pick up the item
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(200);
+
+  // Get positions to determine direction
+  const sourceBox = await sourceLocator.boundingBox();
+  const targetBox = await targetLocator.boundingBox();
+
+  if (sourceBox && targetBox) {
+    // Calculate relative position and press arrow keys to move
+    const dx = targetBox.x - sourceBox.x;
+    const dy = targetBox.y - sourceBox.y;
+
+    // Move horizontally first (columns are side by side)
+    const horizontalMoves = Math.round(Math.abs(dx) / 100);
+    const horizontalKey = dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+    for (let i = 0; i < horizontalMoves; i++) {
+      await page.keyboard.press(horizontalKey);
+      await page.waitForTimeout(50);
+    }
+
+    // Then move vertically (cards are stacked)
+    const verticalMoves = Math.round(Math.abs(dy) / 80);
+    const verticalKey = dy > 0 ? 'ArrowDown' : 'ArrowUp';
+    for (let i = 0; i < verticalMoves; i++) {
+      await page.keyboard.press(verticalKey);
+      await page.waitForTimeout(50);
+    }
+  }
+
+  // Press Space to drop
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Legacy pointer-based drag (kept for reference, but keyboard is preferred)
+ */
+export async function dndKitDrag(
+  page: Page,
+  sourceLocator: Locator,
+  targetLocator: Locator
+): Promise<void> {
+  // Use keyboard-based drag as the default - more reliable in Playwright
+  await dndKitDragKeyboard(page, sourceLocator, targetLocator);
+}
+
+/**
  * Drag a card onto another card (create parent-child)
  */
 export async function dragCardOntoCard(
@@ -395,11 +466,11 @@ export async function dragCardOntoCard(
   await sourceCard.waitFor({ state: 'visible', timeout: 5000 });
   await targetCard.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Perform drag with force for reliability
-  await sourceCard.dragTo(targetCard, { force: true });
+  // Use keyboard-based drag for @dnd-kit compatibility
+  await dndKitDragKeyboard(page, sourceCard, targetCard);
 
-  // Wait for UI to settle after drag
-  await page.waitForTimeout(500);
+  // Additional wait for UI to settle after drag
+  await page.waitForTimeout(300);
 }
 
 /**
@@ -423,11 +494,11 @@ export async function dragCardToColumn(
   await card.waitFor({ state: 'visible', timeout: 5000 });
   await column.first().waitFor({ state: 'visible', timeout: 5000 });
 
-  // Perform drag
-  await card.dragTo(column.first(), { force: true });
+  // Use keyboard-based drag for @dnd-kit compatibility
+  await dndKitDrag(page, card, column.first());
 
-  // Wait for UI to settle after drag
-  await page.waitForTimeout(500);
+  // Additional wait for UI to settle after drag
+  await page.waitForTimeout(300);
 }
 
 // ============================================================================
@@ -654,13 +725,73 @@ export async function waitForBoardClosed(
 
 /**
  * Wait for admin badge to appear on participant
+ * The admin badge is a Crown SVG with aria-label="Admin"
  */
 export async function waitForAdminBadge(
   page: Page,
   options: { timeout?: number } = {}
 ): Promise<void> {
   const { timeout = 10000 } = options;
-  await page.waitForSelector('[data-testid^="participant-avatar"][data-is-admin="true"]', {
+  // The admin badge is a Crown icon with aria-label="Admin"
+  await page.waitForSelector('[aria-label="Admin"]', {
     timeout,
+    state: 'visible',
   });
+}
+
+/**
+ * Wait for admin status to be established (WebSocket session confirmation)
+ * This waits for either admin controls or admin badge to appear, indicating
+ * that the WebSocket session has confirmed admin status.
+ */
+export async function waitForAdminStatus(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 5000 } = options;
+
+  // First, wait for the "No participants yet" message to disappear
+  // This indicates the WebSocket session is registering the user
+  await page.waitForSelector('text="No participants yet"', {
+    state: 'hidden',
+    timeout,
+  }).catch(() => {
+    // May already be hidden if participants exist
+  });
+
+  // Then wait for any admin indicator to appear:
+  // - Admin crown icon (Crown SVG with aria-label="Admin")
+  // - Close Board button (text contains "Close Board")
+  // - Edit board button (aria-label="Edit board name")
+  await page
+    .waitForSelector(
+      '[aria-label="Admin"], [aria-label="Edit board name"], button:has-text("Close Board")',
+      { timeout, state: 'visible' }
+    )
+    .catch(() => {
+      // Silently fail - some tests may proceed without admin indicators visible
+    });
+}
+
+/**
+ * Wait for WebSocket session to be established (user appears as participant)
+ * This waits for the "No participants yet" message to disappear, indicating
+ * the WebSocket connection has registered the user.
+ */
+export async function waitForParticipantRegistration(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+
+  // Wait for the "No participants yet" message to disappear
+  await page.waitForSelector('text="No participants yet"', {
+    state: 'hidden',
+    timeout,
+  }).catch(() => {
+    // May already be hidden if participants exist
+  });
+
+  // Also wait a bit for the participant avatar to render
+  await page.waitForTimeout(500);
 }

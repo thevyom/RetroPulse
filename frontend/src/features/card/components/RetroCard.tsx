@@ -4,10 +4,10 @@
  * Supports drag-and-drop via @dnd-kit.
  */
 
-import { memo, useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Link2, ThumbsUp, Trash2, User } from 'lucide-react';
+import { ArrowRight, GripVertical, Link2, ThumbsUp, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,9 +18,50 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { Card } from '@/models/types';
+import type { Card, LinkedFeedbackCard } from '@/models/types';
 import type { ColumnType } from './RetroColumn';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Scrolls to a card element and applies a highlight animation
+ * @param cardId - The ID of the card to scroll to
+ */
+export function scrollToCard(cardId: string): void {
+  const element = document.getElementById(`card-${cardId}`);
+  if (!element) return;
+
+  // Scroll into view
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Add highlight animation class
+  element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+
+  // Remove highlight after 2 seconds
+  setTimeout(() => {
+    element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+  }, 2000);
+}
+
+/**
+ * Truncates text to a maximum length with ellipsis
+ */
+function truncateText(text: string, maxLength: number = 50): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trim() + '...';
+}
+
+// ============================================================================
+// Types for Linked Cards
+// ============================================================================
+
+export interface LinkedActionCard {
+  id: string;
+  content: string;
+}
 
 // ============================================================================
 // Types
@@ -43,10 +84,17 @@ export interface RetroCardProps {
   // DnD props
   isDragging?: boolean;
   isValidDropTarget?: (targetId: string, targetType: 'card' | 'column') => boolean;
+  // Linked cards for visual indicators (UTB-004)
+  linkedActionCards?: LinkedActionCard[];
+  linkedFeedbackCards?: LinkedFeedbackCard[];
   onReact: () => Promise<void>;
   onUnreact: () => Promise<void>;
   onDelete: () => Promise<void>;
   onUnlinkFromParent: () => Promise<void>;
+  // Child card reaction props (UTB-007)
+  onReactToChild?: (childId: string) => Promise<void>;
+  onUnreactFromChild?: (childId: string) => Promise<void>;
+  hasUserReactedToChild?: (childId: string) => boolean;
   level?: number;
 }
 
@@ -63,14 +111,33 @@ export const RetroCard = memo(function RetroCard({
   hasReacted,
   isDragging: externalIsDragging = false,
   isValidDropTarget,
+  linkedActionCards = [],
+  linkedFeedbackCards = [],
   onReact,
   onUnreact,
   onDelete,
   onUnlinkFromParent,
+  onReactToChild,
+  onUnreactFromChild,
+  hasUserReactedToChild,
   level = 0,
 }: RetroCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handler for clicking on linked card previews
+  const handleLinkedCardClick = useCallback((linkedCardId: string) => {
+    scrollToCard(linkedCardId);
+  }, []);
+
+  // Determine if this card has action-feedback links
+  const hasLinkedActions = linkedActionCards.length > 0;
+  const hasLinkedFeedback = linkedFeedbackCards.length > 0 || (card.linked_feedback_cards && card.linked_feedback_cards.length > 0);
+
+  // Use embedded linked_feedback_cards if available, otherwise use passed prop
+  const feedbackCardsToShow = card.linked_feedback_cards && card.linked_feedback_cards.length > 0
+    ? card.linked_feedback_cards
+    : linkedFeedbackCards;
 
   const hasParent = !!card.parent_card_id;
   const hasChildren = card.children && card.children.length > 0;
@@ -156,9 +223,28 @@ export const RetroCard = memo(function RetroCard({
     }
   };
 
+  // Handler for child card reaction clicks (UTB-007)
+  const handleChildReactionClick = useCallback(async (childId: string) => {
+    if (isClosed) return;
+    if (!onReactToChild || !onUnreactFromChild || !hasUserReactedToChild) return;
+
+    const hasReactedToChild = hasUserReactedToChild(childId);
+
+    try {
+      if (hasReactedToChild) {
+        await onUnreactFromChild(childId);
+      } else {
+        await onReactToChild(childId);
+      }
+    } catch {
+      // Error handling is done in the parent viewmodel
+    }
+  }, [isClosed, onReactToChild, onUnreactFromChild, hasUserReactedToChild]);
+
   return (
     <TooltipProvider>
       <div
+        id={`card-${card.id}`}
         ref={setNodeRef}
         style={style}
         className={cn(
@@ -182,7 +268,7 @@ export const RetroCard = memo(function RetroCard({
                     type="button"
                     onClick={handleUnlink}
                     disabled={isClosed || isSubmitting}
-                    className="cursor-pointer text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    className="cursor-pointer text-muted-foreground transition-all duration-150 hover:text-primary hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Unlink from parent card"
                   >
                     <Link2 className="h-4 w-4" />
@@ -273,6 +359,47 @@ export const RetroCard = memo(function RetroCard({
         {/* Card Content */}
         <p className="whitespace-pre-wrap text-sm text-foreground">{card.content}</p>
 
+        {/* Link Indicators (UTB-004) */}
+        {hasLinkedActions && (
+          <div className="mt-2 rounded-md bg-blue-100 p-2" data-testid="linked-actions-section">
+            <div className="mb-1 text-xs font-medium text-blue-700">Linked Actions</div>
+            <div className="space-y-1">
+              {linkedActionCards.map((actionCard) => (
+                <button
+                  key={actionCard.id}
+                  type="button"
+                  onClick={() => handleLinkedCardClick(actionCard.id)}
+                  className="flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1 text-left text-xs text-blue-600 transition-colors hover:bg-blue-200 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  aria-label={`Navigate to linked action: ${truncateText(actionCard.content, 30)}`}
+                >
+                  <ArrowRight className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{truncateText(actionCard.content)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {hasLinkedFeedback && (
+          <div className="mt-2 rounded-md bg-green-100 p-2" data-testid="linked-feedback-section">
+            <div className="mb-1 text-xs font-medium text-green-700">Links to</div>
+            <div className="space-y-1">
+              {feedbackCardsToShow.map((feedbackCard) => (
+                <button
+                  key={feedbackCard.id}
+                  type="button"
+                  onClick={() => handleLinkedCardClick(feedbackCard.id)}
+                  className="flex w-full items-center gap-1 rounded bg-green-50 px-2 py-1 text-left text-xs text-green-600 transition-colors hover:bg-green-200 focus:outline-none focus:ring-1 focus:ring-green-400"
+                  aria-label={`Navigate to linked feedback: ${truncateText(feedbackCard.content, 30)}`}
+                >
+                  <ArrowRight className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{truncateText(feedbackCard.content)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Children Cards (recursive) */}
         {hasChildren && (
           <div className="mt-2 space-y-2">
@@ -287,12 +414,23 @@ export const RetroCard = memo(function RetroCard({
                     <span>{child.created_by_alias}</span>
                   )}
                   {child.is_anonymous && <span className="italic">Anonymous</span>}
-                  {child.direct_reaction_count > 0 && (
-                    <span className="ml-auto flex items-center gap-1">
-                      <ThumbsUp className="h-3 w-3" />
-                      {child.direct_reaction_count}
-                    </span>
-                  )}
+                  {/* Child card reaction button (UTB-007) */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'ml-auto h-5 gap-1 px-1.5 py-0 text-xs',
+                      hasUserReactedToChild?.(child.id) && 'text-primary'
+                    )}
+                    onClick={() => handleChildReactionClick(child.id)}
+                    disabled={isClosed || (!canReact && !hasUserReactedToChild?.(child.id))}
+                    aria-label={hasUserReactedToChild?.(child.id) ? 'Remove reaction from child card' : 'Add reaction to child card'}
+                  >
+                    <ThumbsUp className={cn('h-3 w-3', hasUserReactedToChild?.(child.id) && 'fill-current')} />
+                    {child.direct_reaction_count > 0 && (
+                      <span>{child.direct_reaction_count}</span>
+                    )}
+                  </Button>
                 </div>
                 <p className="whitespace-pre-wrap text-foreground">{child.content}</p>
               </div>

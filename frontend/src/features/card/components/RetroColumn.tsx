@@ -59,6 +59,10 @@ export interface RetroColumnProps {
   onRemoveReaction: (cardId: string) => Promise<void>;
   onUnlinkChild: (childId: string) => Promise<void>;
   onEditColumnTitle?: (newName: string) => Promise<void>;
+  // Child card reaction handlers (UTB-007)
+  onReactToChild?: (childId: string) => Promise<void>;
+  onUnreactFromChild?: (childId: string) => Promise<void>;
+  hasUserReactedToChild?: (childId: string) => boolean;
 }
 
 // ============================================================================
@@ -86,6 +90,9 @@ export const RetroColumn = memo(function RetroColumn({
   onRemoveReaction,
   onUnlinkChild,
   onEditColumnTitle,
+  onReactToChild,
+  onUnreactFromChild,
+  hasUserReactedToChild,
 }: RetroColumnProps) {
   // Add card dialog state
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -248,6 +255,9 @@ export const RetroColumn = memo(function RetroColumn({
             onUnreact={() => onRemoveReaction(card.id)}
             onDelete={() => onDeleteCard(card.id)}
             onUnlinkFromParent={() => onUnlinkChild(card.id)}
+            onReactToChild={onReactToChild}
+            onUnreactFromChild={onUnreactFromChild}
+            hasUserReactedToChild={hasUserReactedToChild}
           />
         ))}
 

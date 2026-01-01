@@ -48,6 +48,7 @@ export interface CreateBoardDTO {
   columns: Omit<Column, 'id'>[];
   card_limit_per_user?: number | null;
   reaction_limit_per_user?: number | null;
+  creator_alias?: string;
 }
 
 export interface JoinBoardDTO {

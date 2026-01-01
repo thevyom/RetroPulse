@@ -63,6 +63,7 @@ const mockParticipantVM = {
   error: null,
   showAll: true,
   showAnonymous: true,
+  showOnlyAnonymous: false,
   selectedUsers: [],
   isCurrentUserCreator: false,
   handleUpdateAlias: vi.fn(),

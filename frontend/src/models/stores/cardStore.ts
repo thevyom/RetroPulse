@@ -25,6 +25,8 @@ interface CardStoreState {
   incrementReactionCount: (cardId: string) => void;
   decrementReactionCount: (cardId: string) => void;
   moveCard: (cardId: string, columnId: string) => void;
+  linkChild: (parentId: string, childId: string) => void;
+  unlinkChild: (parentId: string, childId: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearCards: () => void;
@@ -177,6 +179,76 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
         ...card,
         column_id: columnId,
       });
+      return { cards: newCards };
+    }),
+
+  linkChild: (parentId, childId) =>
+    set((state) => {
+      const parent = state.cards.get(parentId);
+      const child = state.cards.get(childId);
+      if (!parent || !child) return state;
+
+      const newCards = new Map(state.cards);
+
+      // Update child's parent_card_id
+      newCards.set(childId, {
+        ...child,
+        parent_card_id: parentId,
+      });
+
+      // Create CardChild from child card
+      const childEntry: CardChild = {
+        id: child.id,
+        content: child.content,
+        is_anonymous: child.is_anonymous,
+        created_by_alias: child.created_by_alias,
+        created_at: child.created_at,
+        direct_reaction_count: child.direct_reaction_count,
+        aggregated_reaction_count: child.aggregated_reaction_count,
+      };
+
+      // Update parent: add child to children array and update aggregated count
+      const existingChildren = parent.children ?? [];
+      const newAggregatedCount =
+        parent.aggregated_reaction_count + child.aggregated_reaction_count;
+
+      newCards.set(parentId, {
+        ...parent,
+        children: [...existingChildren, childEntry],
+        aggregated_reaction_count: newAggregatedCount,
+      });
+
+      return { cards: newCards };
+    }),
+
+  unlinkChild: (parentId, childId) =>
+    set((state) => {
+      const parent = state.cards.get(parentId);
+      const child = state.cards.get(childId);
+      if (!parent || !child) return state;
+
+      const newCards = new Map(state.cards);
+
+      // Update child: remove parent_card_id
+      newCards.set(childId, {
+        ...child,
+        parent_card_id: null,
+      });
+
+      // Update parent: remove child from children array and subtract aggregated count
+      const existingChildren = parent.children ?? [];
+      const newChildren = existingChildren.filter((c) => c.id !== childId);
+      const newAggregatedCount = Math.max(
+        0,
+        parent.aggregated_reaction_count - child.aggregated_reaction_count
+      );
+
+      newCards.set(parentId, {
+        ...parent,
+        children: newChildren,
+        aggregated_reaction_count: newAggregatedCount,
+      });
+
       return { cards: newCards };
     }),
 

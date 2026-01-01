@@ -91,11 +91,15 @@ test.describe('Board Creation', () => {
 
     await page.getByTestId('create-board-button').click();
 
-    // Should show default columns in the dialog
+    // Should show default columns in the dialog - look for column chips
     const dialog = page.getByTestId('create-board-dialog');
-    await expect(dialog.getByText('What Went Well')).toBeVisible();
-    await expect(dialog.getByText('To Improve')).toBeVisible();
-    await expect(dialog.getByText('Action Items')).toBeVisible();
+    const columnSection = dialog.getByTestId('column-customization');
+    await expect(columnSection).toBeVisible();
+
+    // Check that column inputs have default values
+    await expect(dialog.getByTestId('column-input-col-1')).toHaveValue('What Went Well');
+    await expect(dialog.getByTestId('column-input-col-2')).toHaveValue('To Improve');
+    await expect(dialog.getByTestId('column-input-col-3')).toHaveValue('Action Items');
   });
 
   test('submit button is disabled when input is empty', async ({ page }) => {
@@ -108,16 +112,23 @@ test.describe('Board Creation', () => {
     await expect(submitButton).toBeDisabled();
   });
 
-  test('submit button is enabled when board name is entered', async ({ page }) => {
+  test('submit button is enabled when board name and alias are entered', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     await page.getByTestId('create-board-button').click();
 
-    const input = page.getByTestId('board-name-input');
-    await input.fill('Test Board');
-
+    // Submit requires both board name AND creator alias
+    const boardInput = page.getByTestId('board-name-input');
+    const aliasInput = page.getByTestId('creator-alias-input');
     const submitButton = page.getByTestId('submit-create-board');
+
+    // Fill only board name - should still be disabled (need alias too)
+    await boardInput.pressSequentially('Test Board');
+    await expect(submitButton).toBeDisabled();
+
+    // Fill alias - now should be enabled
+    await aliasInput.pressSequentially('TestUser');
     await expect(submitButton).not.toBeDisabled();
   });
 
@@ -128,9 +139,10 @@ test.describe('Board Creation', () => {
     // Open dialog
     await page.getByTestId('create-board-button').click();
 
-    // Fill board name
+    // Fill board name and alias (both required)
     const boardName = uniqueBoardName('creation');
-    await page.getByTestId('board-name-input').fill(boardName);
+    await page.getByTestId('board-name-input').pressSequentially(boardName);
+    await page.getByTestId('creator-alias-input').pressSequentially('TestCreator');
 
     // Submit
     await page.getByTestId('submit-create-board').click();
@@ -150,9 +162,10 @@ test.describe('Board Creation', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Create a new board
+    // Create a new board (both name and alias required)
     await page.getByTestId('create-board-button').click();
-    await page.getByTestId('board-name-input').fill(uniqueBoardName('columns'));
+    await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('columns'));
+    await page.getByTestId('creator-alias-input').pressSequentially('TestUser');
     await page.getByTestId('submit-create-board').click();
 
     await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
@@ -188,11 +201,18 @@ test.describe('Board Creation', () => {
     await page.getByTestId('create-board-button').click();
 
     // Enter a name that exceeds the 75 character limit
-    const longName = 'a'.repeat(100);
-    await page.getByTestId('board-name-input').fill(longName);
+    // Use pressSequentially to trigger React onChange properly
+    const longName = 'a'.repeat(80);
+    const boardInput = page.getByTestId('board-name-input');
+    const aliasInput = page.getByTestId('creator-alias-input');
+
+    await boardInput.pressSequentially(longName, { delay: 1 }); // Fast typing
+    await aliasInput.pressSequentially('TestUser');
+
+    // Click submit to trigger validation
     await page.getByTestId('submit-create-board').click();
 
-    // Should show error
+    // Should show error (form validates on submit)
     await expect(page.getByTestId('board-name-error')).toBeVisible();
     await expect(page.getByTestId('board-name-error')).toContainText('75 characters');
   });
@@ -202,9 +222,10 @@ test.describe('Board Creation', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Create a new board
+    // Create a new board (both name and alias required)
     await page.getByTestId('create-board-button').click();
-    await page.getByTestId('board-name-input').fill(uniqueBoardName('admin'));
+    await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('admin'));
+    await page.getByTestId('creator-alias-input').pressSequentially('AdminUser');
     await page.getByTestId('submit-create-board').click();
 
     await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });

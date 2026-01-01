@@ -11,12 +11,14 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
   type DragOverEvent,
 } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useBoardViewModel } from '../viewmodels/useBoardViewModel';
 import { useCardViewModel } from '../../card/viewmodels/useCardViewModel';
 import { useParticipantViewModel } from '../../participant/viewmodels/useParticipantViewModel';
@@ -64,12 +66,15 @@ function BoardContent({ boardId }: BoardContentProps) {
   const participantVM = useParticipantViewModel(boardId);
   const dragDropVM = useDragDropViewModel();
 
-  // DnD sensors configuration
+  // DnD sensors configuration - both pointer and keyboard for accessibility + testing
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8, // Minimum drag distance to prevent accidental drags
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -149,12 +154,16 @@ function BoardContent({ boardId }: BoardContentProps) {
     boardVM.board?.columns.forEach((column) => {
       const columnCards = cardVM.cardsByColumn.get(column.id) ?? [];
       const filtered = columnCards.filter((card) => {
+        // Anonymous-only filter takes priority (shows ONLY anonymous cards)
+        if (participantVM.showOnlyAnonymous) {
+          return card.is_anonymous === true;
+        }
         // Apply user filters
         if (!participantVM.showAll && participantVM.selectedUsers.length > 0) {
           if (card.is_anonymous) return false;
           if (!participantVM.selectedUsers.includes(card.created_by_hash)) return false;
         }
-        // Apply anonymous filter
+        // Apply anonymous filter (hide anonymous cards when disabled)
         if (!participantVM.showAnonymous && card.is_anonymous) return false;
         return true;
       });
@@ -168,6 +177,7 @@ function BoardContent({ boardId }: BoardContentProps) {
     participantVM.showAll,
     participantVM.selectedUsers,
     participantVM.showAnonymous,
+    participantVM.showOnlyAnonymous,
   ]);
 
   // Loading state
@@ -230,6 +240,7 @@ function BoardContent({ boardId }: BoardContentProps) {
           admins={board.admins}
           showAll={participantVM.showAll}
           showAnonymous={participantVM.showAnonymous}
+          showOnlyAnonymous={participantVM.showOnlyAnonymous}
           selectedUsers={participantVM.selectedUsers}
           onToggleAllUsers={participantVM.handleToggleAllUsersFilter}
           onToggleAnonymous={participantVM.handleToggleAnonymousFilter}
@@ -283,6 +294,9 @@ function BoardContent({ boardId }: BoardContentProps) {
                 onEditColumnTitle={
                   isAdmin ? (newName) => handleRenameColumn(column.id, newName) : undefined
                 }
+                onReactToChild={cardVM.handleAddReaction}
+                onUnreactFromChild={cardVM.handleRemoveReaction}
+                hasUserReactedToChild={cardVM.hasUserReacted}
               />
             );
           })}

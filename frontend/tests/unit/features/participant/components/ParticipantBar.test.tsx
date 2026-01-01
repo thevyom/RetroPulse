@@ -37,6 +37,7 @@ describe('ParticipantBar', () => {
     admins: ['admin-hash-1'],
     showAll: true,
     showAnonymous: true,
+    showOnlyAnonymous: false,
     selectedUsers: [] as string[],
     onToggleAllUsers: vi.fn(),
     onToggleAnonymous: vi.fn(),
@@ -68,11 +69,18 @@ describe('ParticipantBar', () => {
       expect(allUsersBtn).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('should show Anonymous as selected when showAnonymous is true', () => {
-      render(<ParticipantBar {...defaultProps} showAnonymous={true} />);
+    it('should show Anonymous as selected when showOnlyAnonymous is true', () => {
+      render(<ParticipantBar {...defaultProps} showOnlyAnonymous={true} />);
 
       const anonBtn = screen.getByLabelText(/filter by anonymous/i);
       expect(anonBtn).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('should NOT show Anonymous as selected when showOnlyAnonymous is false', () => {
+      render(<ParticipantBar {...defaultProps} showOnlyAnonymous={false} />);
+
+      const anonBtn = screen.getByLabelText(/filter by anonymous/i);
+      expect(anonBtn).toHaveAttribute('aria-pressed', 'false');
     });
   });
 

@@ -20,6 +20,7 @@ export interface ParticipantBarProps {
   admins: string[];
   showAll: boolean;
   showAnonymous: boolean;
+  showOnlyAnonymous: boolean;
   selectedUsers: string[];
   onToggleAllUsers: () => void;
   onToggleAnonymous: () => void;
@@ -37,13 +38,16 @@ export const ParticipantBar = memo(function ParticipantBar({
   isCreator,
   admins,
   showAll,
-  showAnonymous,
+  showAnonymous: _showAnonymous,
+  showOnlyAnonymous,
   selectedUsers,
   onToggleAllUsers,
   onToggleAnonymous,
   onToggleUser,
   onPromoteToAdmin,
 }: ParticipantBarProps) {
+  // Note: _showAnonymous is kept for backward compatibility but showOnlyAnonymous is used for visual state
+  void _showAnonymous;
   // Note: _currentUserHash reserved for highlighting current user's avatar
   void _currentUserHash;
   return (
@@ -61,7 +65,7 @@ export const ParticipantBar = memo(function ParticipantBar({
           {/* Anonymous */}
           <ParticipantAvatar
             type="anonymous"
-            isSelected={showAnonymous}
+            isSelected={showOnlyAnonymous}
             onClick={onToggleAnonymous}
           />
         </div>

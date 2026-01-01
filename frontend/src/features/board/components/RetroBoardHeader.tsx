@@ -1,12 +1,15 @@
 /**
  * RetroBoardHeader Component
  * Displays board title, admin controls, and current user info.
+ * Memoized to prevent re-renders when sort mode changes (UTB-010).
  */
 
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import { useState } from 'react';
-import { Lock, Pencil, X } from 'lucide-react';
+import { memo, useState } from 'react';
+import { Lock, Pencil, X, Link } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +41,7 @@ export interface RetroBoardHeaderProps {
 // Component
 // ============================================================================
 
-export function RetroBoardHeader({
+export const RetroBoardHeader = memo(function RetroBoardHeader({
   boardName,
   isAdmin,
   isClosed,
@@ -96,6 +99,38 @@ export function RetroBoardHeader({
     }
   };
 
+  const handleCopyLink = async () => {
+    const url = window.location.href;
+
+    try {
+      // Modern clipboard API
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard!');
+    } catch {
+      // Fallback for older browsers
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        if (successful) {
+          toast.success('Link copied to clipboard!');
+        } else {
+          toast.error('Failed to copy link');
+        }
+      } catch {
+        toast.error('Failed to copy link to clipboard');
+      }
+    }
+  };
+
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
       {/* Left: Board Title */}
@@ -134,6 +169,24 @@ export function RetroBoardHeader({
             Close Board
           </Button>
         )}
+
+        {/* Copy Link Button - visible on both active and closed boards */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyLink}
+                aria-label="Copy board link"
+              >
+                <Link className="mr-1 h-4 w-4" />
+                Copy Link
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy board link</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Current User Card */}
         {currentUser && (
@@ -212,6 +265,6 @@ export function RetroBoardHeader({
       </Dialog>
     </header>
   );
-}
+});
 
 export default RetroBoardHeader;

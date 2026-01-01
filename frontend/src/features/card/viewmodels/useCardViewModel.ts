@@ -169,6 +169,8 @@ export function useCardViewModel(
   const moveCardStore = useCardStore((state) => state.moveCard);
   const incrementReactionCount = useCardStore((state) => state.incrementReactionCount);
   const decrementReactionCount = useCardStore((state) => state.decrementReactionCount);
+  const linkChildStore = useCardStore((state) => state.linkChild);
+  const unlinkChildStore = useCardStore((state) => state.unlinkChild);
   const setLoading = useCardStore((state) => state.setLoading);
   const setError = useCardStore((state) => state.setError);
 
@@ -211,8 +213,13 @@ export function useCardViewModel(
       byColumn.set(card.column_id, [...existing, card]);
     });
 
+    // Apply sorting to each column's cards
+    byColumn.forEach((columnCards, columnId) => {
+      byColumn.set(columnId, sortCards(columnCards, sortMode, sortDirection));
+    });
+
     return byColumn;
-  }, [cards]);
+  }, [cards, sortMode, sortDirection]);
 
   const sortedFilteredCards = useMemo(() => {
     const parentCards = cards.filter((card) => !card.parent_card_id);
@@ -327,14 +334,14 @@ export function useCardViewModel(
       checkReactionQuota().catch(() => {});
     };
 
-    const handleCardLinked = () => {
-      // Refresh cards to get updated aggregation counts
-      fetchCards();
+    const handleCardLinked = (event: { parent_card_id: string; child_card_id: string }) => {
+      // Update store with new link - aggregated count updates immediately
+      linkChildStore(event.parent_card_id, event.child_card_id);
     };
 
-    const handleCardUnlinked = () => {
-      // Refresh cards to get updated aggregation counts
-      fetchCards();
+    const handleCardUnlinked = (event: { parent_card_id: string; child_card_id: string }) => {
+      // Update store to remove link - aggregated count updates immediately
+      unlinkChildStore(event.parent_card_id, event.child_card_id);
     };
 
     // Subscribe to events
@@ -365,9 +372,10 @@ export function useCardViewModel(
     moveCardStore,
     incrementReactionCount,
     decrementReactionCount,
+    linkChildStore,
+    unlinkChildStore,
     checkCardQuota,
     checkReactionQuota,
-    fetchCards,
   ]);
 
   // ============================================================================
