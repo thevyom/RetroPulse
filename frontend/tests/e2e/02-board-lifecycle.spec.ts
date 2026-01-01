@@ -16,7 +16,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('board displays header with name', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Board header should be visible
@@ -25,7 +25,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('admin can rename board', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Click edit button
@@ -55,7 +55,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('can create cards in board', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     const content = `Lifecycle card ${Date.now()}`;
@@ -65,7 +65,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('admin can close board', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Check if close button exists (admin only)
@@ -82,7 +82,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('closed board shows lock icon', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     const closed = await isBoardClosed(page);
@@ -96,7 +96,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('closed board disables add buttons', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     const closed = await isBoardClosed(page);
@@ -113,7 +113,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('closed board cards remain visible', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Cards should still be visible even if board is closed
@@ -127,7 +127,7 @@ test.describe('Board Lifecycle', () => {
   });
 
   test('column rename persists', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Find column edit button
@@ -163,7 +163,7 @@ test.describe('Board Lifecycle', () => {
 
   test('closed board accessible via direct link', async ({ page }) => {
     // Navigate to a known closed board
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Board should load regardless of closed state

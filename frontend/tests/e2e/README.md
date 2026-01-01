@@ -123,8 +123,8 @@ test('two users see updates in real-time', async ({ browser }) => {
 
   try {
     // Both users join the same board
-    await user1Page.goto(`/board/${boardId}`);
-    await user2Page.goto(`/board/${boardId}`);
+    await user1Page.goto(`/boards/${boardId}`);
+    await user2Page.goto(`/boards/${boardId}`);
 
     // User 1 creates a card
     await createCard(user1Page, 'col-1', 'Hello from User 1');

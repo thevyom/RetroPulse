@@ -9,7 +9,11 @@ import type { Page, BrowserContext } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import type { TestBoardIds } from './global-setup';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ============================================================================
 // Types
@@ -160,7 +164,7 @@ export async function joinBoard(
   boardId: string,
   alias?: string
 ): Promise<{ alias: string }> {
-  await page.goto(`/board/${boardId}`);
+  await page.goto(`/boards/${boardId}`);
 
   // Wait for board to load
   await page.waitForSelector('[data-testid="board-header"]', { timeout: 15000 }).catch(() => {
@@ -189,24 +193,16 @@ export async function joinBoard(
  * Wait for board to be fully loaded
  */
 export async function waitForBoardLoad(page: Page, options: { timeout?: number } = {}): Promise<void> {
-  const { timeout = 30000 } = options;
+  const { timeout = 10000 } = options;
 
   // Wait for page to be stable first
   await page.waitForLoadState('domcontentloaded');
 
-  // Try multiple selectors for board content
-  await Promise.race([
-    page.waitForSelector('[data-testid^="column-"]', { timeout }),
-    page.waitForSelector('[data-testid="retro-column"]', { timeout }),
-    page.waitForSelector('.retro-column', { timeout }),
-    page.waitForSelector('[data-testid="board-container"]', { timeout }),
-  ]).catch(async () => {
-    // Fallback: wait for network idle
-    await page.waitForLoadState('networkidle', { timeout });
-  });
-
-  // Additional small delay for React hydration
-  await page.waitForTimeout(500);
+  // Wait for any column header to appear (indicates board is loaded)
+  await page
+    .getByRole('heading', { name: /What Went Well|To Improve|Action Items/i })
+    .first()
+    .waitFor({ state: 'visible', timeout });
 }
 
 // ============================================================================
@@ -224,16 +220,25 @@ export async function createCard(
 ): Promise<TestCard> {
   const { cardType = 'feedback', isAnonymous = false, timeout = 15000 } = options;
 
-  // Click add card button for the column - try multiple selectors
-  const addButton = page
-    .getByTestId(`add-card-${columnSelector}`)
-    .or(page.locator(`[data-column-id="${columnSelector}"] button[aria-label*="add"]`))
-    .or(page.locator(`[data-testid="column-${columnSelector}"] button`).filter({ hasText: '+' }))
-    .or(page.locator(`[data-testid="retro-column-${columnSelector}"] button`).first());
+  // Click add card button for the column - find by column heading then sibling button
+  // columnSelector can be a column ID like "col-1" or a column name like "What Went Well"
+  const columnNameMap: Record<string, string> = {
+    'col-1': 'What Went Well',
+    'col-2': 'To Improve',
+    'col-3': 'Action Items',
+    'went_well': 'What Went Well',
+    'to_improve': 'To Improve',
+    'action_item': 'Action Items',
+  };
+  const columnName = columnNameMap[columnSelector] || columnSelector;
+
+  // Find the column by heading and click its Add card button
+  const columnHeading = page.getByRole('heading', { name: columnName, exact: true });
+  const addButton = columnHeading.locator('..').getByRole('button', { name: 'Add card' });
 
   // Wait for add button to be clickable
-  await addButton.first().waitFor({ state: 'visible', timeout: 10000 });
-  await addButton.first().click();
+  await addButton.waitFor({ state: 'visible', timeout: 10000 });
+  await addButton.click();
 
   // Wait for dialog to open with longer timeout
   await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
@@ -276,15 +281,8 @@ export async function createCard(
   // Wait for dialog to close
   await page.waitForSelector('[role="dialog"]', { state: 'hidden', timeout: 5000 }).catch(() => {});
 
-  // Wait for card to appear with better selector
-  await page.waitForFunction(
-    (text) => {
-      const cards = document.querySelectorAll('[data-testid^="card-"], [data-testid="retro-card"]');
-      return Array.from(cards).some((card) => card.textContent?.includes(text));
-    },
-    content,
-    { timeout }
-  );
+  // Wait for card to appear - just check if the content text appears on the page
+  await page.getByText(content, { exact: false }).first().waitFor({ state: 'visible', timeout });
 
   return {
     id: '', // We'd need to extract this from the DOM
@@ -299,17 +297,13 @@ export async function createCard(
 export async function findCardByContent(page: Page, content: string, options: { timeout?: number } = {}) {
   const { timeout = 10000 } = options;
 
-  // Try multiple selectors
-  const card = page
-    .locator('[data-testid^="card-"]')
-    .filter({ hasText: content })
-    .or(page.locator('[data-testid="retro-card"]').filter({ hasText: content }))
-    .or(page.locator('.retro-card').filter({ hasText: content }));
+  // Find the card by looking for elements containing the text
+  const card = page.getByText(content, { exact: false }).first();
 
-  // Wait for at least one match
-  await card.first().waitFor({ state: 'visible', timeout }).catch(() => {});
+  // Wait for it to be visible
+  await card.waitFor({ state: 'visible', timeout }).catch(() => {});
 
-  return card.first();
+  return card;
 }
 
 /**
@@ -318,19 +312,26 @@ export async function findCardByContent(page: Page, content: string, options: { 
 export async function deleteCard(page: Page, content: string): Promise<void> {
   const card = await findCardByContent(page, content);
 
-  // Hover to show delete button
+  // Hover to show delete button (has opacity-0 initially, group-hover:opacity-100)
   await card.hover();
 
-  // Click delete button
-  const deleteButton = card
-    .getByTestId('delete-card')
-    .or(card.locator('button[aria-label*="delete"]'));
-  await deleteButton.click();
+  // Wait a bit for the CSS transition
+  await page.waitForTimeout(200);
 
-  // Confirm deletion if dialog appears
-  const confirmButton = page.getByRole('button', { name: /confirm|yes|delete/i });
-  if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await confirmButton.click();
+  // Click delete button - use accessible selector with exact aria-label
+  const deleteButton = card.getByRole('button', { name: 'Delete card' });
+
+  // Wait for button to become visible after hover
+  await deleteButton.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+
+  if (await deleteButton.isVisible()) {
+    await deleteButton.click();
+
+    // Confirm deletion in the dialog
+    const confirmButton = page.getByRole('button', { name: /^delete$/i });
+    if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await confirmButton.click();
+    }
   }
 
   // Wait for card to disappear
@@ -341,13 +342,20 @@ export async function deleteCard(page: Page, content: string): Promise<void> {
  * Add reaction to a card
  */
 export async function addReaction(page: Page, content: string): Promise<void> {
-  const card = await findCardByContent(page, content);
+  // Find the "Add reaction" button near the card content
+  // The card structure has the reaction button as a child of the card button container
+  const reactionButton = page.getByRole('button', { name: 'Add reaction' }).filter({
+    has: page.locator('..').getByText(content, { exact: false }),
+  });
 
-  const reactionButton = card
-    .getByTestId('reaction-button')
-    .or(card.locator('button[aria-label*="react"]'))
-    .or(card.locator('button').filter({ hasText: /👍|like|react/i }));
-  await reactionButton.click();
+  // If the above doesn't work, find the card text and go to parent to find the button
+  if (!(await reactionButton.count())) {
+    const cardText = page.getByText(content, { exact: false }).first();
+    const cardContainer = cardText.locator('..');
+    await cardContainer.getByRole('button', { name: 'Add reaction' }).click();
+  } else {
+    await reactionButton.first().click();
+  }
 }
 
 /**

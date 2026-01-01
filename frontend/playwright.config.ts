@@ -12,22 +12,22 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  fullyParallel: false, // Run sequentially to exit on first failure
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1, // 1 retry locally for flaky tests
-  workers: process.env.CI ? 1 : undefined,
+  retries: 0, // No retries for faster debugging
+  workers: 1, // Single worker to ensure sequential execution
   reporter: [['html'], ['list']],
-  timeout: 60 * 1000, // Increased from 30s to 60s
+  timeout: 30 * 1000, // 30 seconds per test
   expect: {
-    timeout: 15 * 1000, // Increased from 10s to 15s
+    timeout: 10 * 1000, // 10 seconds for expect assertions
   },
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    actionTimeout: 15 * 1000, // Increased from 10s to 15s
-    navigationTimeout: 30 * 1000, // Increased from 15s to 30s
+    actionTimeout: 10 * 1000, // 10 seconds for actions
+    navigationTimeout: 15 * 1000, // 15 seconds for navigation
   },
   projects: [
     {

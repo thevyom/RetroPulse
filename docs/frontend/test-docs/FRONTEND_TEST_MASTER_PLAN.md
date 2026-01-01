@@ -1,7 +1,7 @@
 # Frontend Test Master Plan
 
-**Document Version**: 2.0
-**Date**: 2025-12-28
+**Document Version**: 2.1
+**Date**: 2025-12-31
 **Architecture**: React MVVM + Vitest + Playwright
 **Status**: Active
 
@@ -19,8 +19,9 @@
 | Phase 5 | [E2E Tests](./TEST_PHASE_05_E2E.md) | Playwright, multi-user, tablet, a11y | ~35 |
 | Phase 6 | [Real-time Tests](./TEST_PHASE_06_REALTIME.md) | WebSocket events, sync, link/unlink | ~23 |
 | Phase 7 | [Drag-Drop Tests](./TEST_PHASE_07_DRAGDROP.md) | @dnd-kit, touch, keyboard, concurrent | ~23 |
+| Phase 8.1 | [HomePage Tests](./TEST_PHASE_08.1_HOMEPAGE.md) | HomePage, CreateBoardDialog, board creation flow | ~16 |
 
-**Total Estimated Tests**: ~321
+**Total Estimated Tests**: ~337
 
 ---
 
@@ -74,6 +75,7 @@ This test plan follows the MVVM architecture, ensuring clear separation of conce
 | E2E | User journeys + tablet | ~35 flows |
 | Real-time | Socket events | ~23 tests |
 | Drag-Drop | All interactions | ~23 tests |
+| HomePage | 85%+ | ~16 tests |
 
 ---
 
@@ -254,6 +256,7 @@ tests/
 | Phase 5: E2E | 🔲 NOT STARTED | 0/35 | 0% |
 | Phase 6: Real-time | 🔲 NOT STARTED | 0/23 | 0% |
 | Phase 7: Drag-Drop | 🔲 NOT STARTED | 0/23 | 0% |
+| Phase 8.1: HomePage | 🔲 NOT STARTED | 0/16 | 0% |
 
 ---
 

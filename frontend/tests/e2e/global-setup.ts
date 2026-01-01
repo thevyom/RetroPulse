@@ -9,6 +9,10 @@ import { FullConfig } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -55,6 +59,13 @@ async function checkHealth(url: string, name: string): Promise<boolean> {
  */
 async function createDemoBoard(name: string, sessionId: string): Promise<string | null> {
   try {
+    // Default columns for retrospective boards (id is required by API)
+    const defaultColumns = [
+      { id: 'col-1', name: 'What Went Well', type: 'feedback' },
+      { id: 'col-2', name: 'To Improve', type: 'feedback' },
+      { id: 'col-3', name: 'Action Items', type: 'action' },
+    ];
+
     const response = await fetch(`${BACKEND_URL}/v1/boards`, {
       method: 'POST',
       headers: {
@@ -62,6 +73,7 @@ async function createDemoBoard(name: string, sessionId: string): Promise<string 
       },
       body: JSON.stringify({
         name: `Demo Board - ${name}`,
+        columns: defaultColumns,
         cardLimit: name === 'quota' ? 2 : 10, // Quota board has limit of 2
         reactionLimit: name === 'quota' ? 2 : 5,
       }),

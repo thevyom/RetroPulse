@@ -13,7 +13,7 @@ test.describe('Basic Accessibility', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
   });
 
@@ -62,8 +62,9 @@ test.describe('Basic Accessibility', () => {
     await createCard(page, 'col-1', content);
 
     const card = await findCardByContent(page, content);
+    // Use accessible selector
     const dragHandle = card
-      .locator('[data-testid="drag-handle"]')
+      .getByRole('button', { name: /drag/i })
       .or(card.locator('[aria-label*="drag"]'))
       .or(card.locator('button').first());
 
@@ -79,14 +80,13 @@ test.describe('Basic Accessibility', () => {
   });
 
   test('buttons have accessible names', async ({ page }) => {
-    // Check add card button
-    const addButton = page
-      .getByTestId('add-card-col-1')
-      .or(page.locator('button').filter({ hasText: '+' }).first());
+    // Check add card button - use accessible selector
+    const columnHeading = page.getByRole('heading', { name: 'What Went Well', exact: true });
+    const addButton = columnHeading.locator('..').getByRole('button', { name: /add card/i });
 
-    if (await addButton.isVisible()) {
-      const ariaLabel = await addButton.getAttribute('aria-label');
-      const textContent = await addButton.textContent();
+    if (await addButton.first().isVisible()) {
+      const ariaLabel = await addButton.first().getAttribute('aria-label');
+      const textContent = await addButton.first().textContent();
 
       // Button should have accessible name
       expect(ariaLabel || textContent?.trim()).toBeTruthy();
@@ -94,15 +94,14 @@ test.describe('Basic Accessibility', () => {
   });
 
   test('dialogs trap focus', async ({ page }) => {
-    // Open a dialog
-    const addButton = page
-      .getByTestId('add-card-col-1')
-      .or(page.locator('button').filter({ hasText: '+' }).first());
+    // Open a dialog - use accessible selector
+    const columnHeading = page.getByRole('heading', { name: 'What Went Well', exact: true });
+    const addButton = columnHeading.locator('..').getByRole('button', { name: /add card/i });
 
-    if ((await addButton.isVisible()) && !(await addButton.isDisabled())) {
-      await addButton.click();
+    if ((await addButton.first().isVisible()) && !(await addButton.first().isDisabled())) {
+      await addButton.first().click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.getByRole('dialog');
       if (await dialog.isVisible()) {
         // Tab through dialog elements
         await page.keyboard.press('Tab');
@@ -141,15 +140,14 @@ test.describe('Basic Accessibility', () => {
   });
 
   test('form inputs have labels', async ({ page }) => {
-    // Open a dialog with form
-    const addButton = page
-      .getByTestId('add-card-col-1')
-      .or(page.locator('button').filter({ hasText: '+' }).first());
+    // Open a dialog with form - use accessible selector
+    const columnHeading = page.getByRole('heading', { name: 'What Went Well', exact: true });
+    const addButton = columnHeading.locator('..').getByRole('button', { name: /add card/i });
 
-    if ((await addButton.isVisible()) && !(await addButton.isDisabled())) {
-      await addButton.click();
+    if ((await addButton.first().isVisible()) && !(await addButton.first().isDisabled())) {
+      await addButton.first().click();
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.getByRole('dialog');
       if (await dialog.isVisible()) {
         // Find all inputs
         const inputs = dialog.locator('input, textarea');
@@ -186,9 +184,10 @@ test.describe('Basic Accessibility', () => {
     await createCard(page, 'col-1', content);
 
     const card = await findCardByContent(page, content);
+    // Use accessible selector
     const reactionButton = card
-      .locator('[data-testid="reaction-button"]')
-      .or(card.locator('button[aria-label*="react"]'));
+      .getByRole('button', { name: /react|like|vote/i })
+      .or(card.locator('[aria-label*="react"]'));
 
     if (await reactionButton.isVisible()) {
       // Reaction state should be indicated by more than just color

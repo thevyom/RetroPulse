@@ -16,7 +16,7 @@ test.describe('Admin Operations', () => {
   });
 
   test('creator has admin controls visible', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
     // Admin controls should be visible
@@ -49,26 +49,23 @@ test.describe('Admin Operations', () => {
 
     try {
       // Admin joins first (becomes creator/admin)
-      await adminPage.goto(`/board/${testBoardId}`);
+      await adminPage.goto(`/boards/${testBoardId}`);
       await waitForBoardLoad(adminPage);
 
       // Non-admin joins
-      await userPage.goto(`/board/${testBoardId}`);
+      await userPage.goto(`/boards/${testBoardId}`);
       await waitForBoardLoad(userPage);
 
-      // Non-admin should NOT see admin controls
+      // Non-admin should NOT see admin controls - use accessible selectors
       const closeButton = userPage
-        .getByTestId('close-board-button')
-        .or(userPage.getByRole('button', { name: /close board/i }));
-      const adminDropdown = userPage.getByTestId('admin-dropdown');
-      const editButton = userPage.getByTestId('edit-board-button');
+        .getByRole('button', { name: /close board/i });
+      const adminDropdown = userPage
+        .getByRole('button', { name: /admin|settings/i });
 
       const hasCloseButton = await closeButton.isVisible({ timeout: 2000 }).catch(() => false);
       const hasAdminDropdown = await adminDropdown.isVisible({ timeout: 2000 }).catch(() => false);
-      const hasEditButton = await editButton.isVisible({ timeout: 2000 }).catch(() => false);
 
       // Non-admin should not have admin controls
-      // Note: They might have edit button for their own alias
       expect(hasCloseButton).toBe(false);
       expect(hasAdminDropdown).toBe(false);
     } finally {
@@ -89,21 +86,22 @@ test.describe('Admin Operations', () => {
     const userPage = await userContext.newPage();
 
     try {
-      await adminPage.goto(`/board/${testBoardId}`);
-      await userPage.goto(`/board/${testBoardId}`);
+      await adminPage.goto(`/boards/${testBoardId}`);
+      await userPage.goto(`/boards/${testBoardId}`);
 
       await waitForBoardLoad(adminPage);
       await waitForBoardLoad(userPage);
 
-      // Admin opens dropdown
-      const adminDropdown = adminPage.getByTestId('admin-dropdown');
-      if (await adminDropdown.isVisible().catch(() => false)) {
-        await adminDropdown.click();
+      // Admin opens dropdown - use accessible selector
+      const adminDropdown = adminPage
+        .getByRole('button', { name: /admin|settings/i });
+      if (await adminDropdown.first().isVisible().catch(() => false)) {
+        await adminDropdown.first().click();
 
-        // Promote user
+        // Promote user - use accessible selector
         const promoteOption = adminPage
-          .getByTestId('promote-user')
-          .or(adminPage.getByRole('menuitem', { name: /promote/i }));
+          .getByRole('menuitem', { name: /promote/i })
+          .or(adminPage.getByText(/promote/i));
 
         if (await promoteOption.isVisible().catch(() => false)) {
           await promoteOption.click();
@@ -111,11 +109,11 @@ test.describe('Admin Operations', () => {
           // Wait for promotion to complete - admin badge should appear
           await waitForAdminBadge(adminPage);
 
-          // User should now have admin badge
-          const userAvatar = adminPage.locator(
-            '[data-testid^="participant-avatar"][data-is-admin="true"]'
-          );
-          const hasAdminBadge = await userAvatar.count();
+          // User should now have admin badge - use accessible selector
+          const adminBadge = adminPage
+            .getByRole('img', { name: /admin/i })
+            .or(adminPage.locator('[aria-label*="admin"]'));
+          const hasAdminBadge = await adminBadge.count();
           expect(hasAdminBadge).toBeGreaterThanOrEqual(1);
         }
       }
@@ -137,20 +135,21 @@ test.describe('Admin Operations', () => {
     const coAdminPage = await coAdminContext.newPage();
 
     try {
-      await creatorPage.goto(`/board/${testBoardId}`);
-      await coAdminPage.goto(`/board/${testBoardId}`);
+      await creatorPage.goto(`/boards/${testBoardId}`);
+      await coAdminPage.goto(`/boards/${testBoardId}`);
 
       await waitForBoardLoad(creatorPage);
       await waitForBoardLoad(coAdminPage);
 
-      // Creator promotes user to co-admin first
-      const adminDropdown = creatorPage.getByTestId('admin-dropdown');
-      if (await adminDropdown.isVisible().catch(() => false)) {
-        await adminDropdown.click();
+      // Creator promotes user to co-admin first - use accessible selector
+      const adminDropdown = creatorPage
+        .getByRole('button', { name: /admin|settings/i });
+      if (await adminDropdown.first().isVisible().catch(() => false)) {
+        await adminDropdown.first().click();
 
         const promoteOption = creatorPage.getByRole('menuitem', { name: /promote/i });
-        if (await promoteOption.isVisible().catch(() => false)) {
-          await promoteOption.click();
+        if (await promoteOption.first().isVisible().catch(() => false)) {
+          await promoteOption.first().click();
           await waitForAdminBadge(creatorPage);
         }
       }
@@ -159,8 +158,8 @@ test.describe('Admin Operations', () => {
       await coAdminPage.reload();
       await waitForBoardLoad(coAdminPage);
 
-      // Co-admin should be able to close board
-      const closeButton = coAdminPage.getByTestId('close-board-button');
+      // Co-admin should be able to close board - use accessible selector
+      const closeButton = coAdminPage.getByRole('button', { name: /close board/i });
       if (await closeButton.isVisible().catch(() => false)) {
         await closeBoard(coAdminPage);
 
@@ -177,61 +176,61 @@ test.describe('Admin Operations', () => {
   });
 
   test('admin can rename board and columns', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
-    // Rename board
-    const editBoardButton = page.getByTestId('edit-board-button');
-    if (await editBoardButton.isVisible().catch(() => false)) {
-      await editBoardButton.click();
+    // Rename board - use accessible selector
+    const editBoardButton = page.getByRole('button', { name: /edit/i });
+    if (await editBoardButton.first().isVisible().catch(() => false)) {
+      await editBoardButton.first().click();
 
       const boardInput = page
-        .getByTestId('board-name-input')
-        .or(page.locator('[role="dialog"] input'));
+        .getByRole('textbox', { name: /board name/i })
+        .or(page.getByRole('dialog').locator('input').first());
       const newBoardName = `Admin Board ${Date.now()}`;
       await boardInput.fill(newBoardName);
 
       const saveButton = page.getByRole('button', { name: /save/i });
       await saveButton.click();
 
-      await expect(page.locator('[data-testid="board-header"]')).toContainText(
+      await expect(page.getByRole('heading').first()).toContainText(
         newBoardName.slice(0, 10)
       );
     }
 
-    // Rename column
-    const editColumnButton = page.locator(
-      '[data-testid="column-col-1"] [data-testid="edit-column-button"]'
-    );
-    if (await editColumnButton.isVisible().catch(() => false)) {
-      await editColumnButton.click();
+    // Rename column - use accessible selector for column header
+    const columnHeading = page.getByRole('heading', { name: 'What Went Well', exact: true });
+    const editColumnButton = columnHeading.locator('..').getByRole('button', { name: /edit/i });
+    if (await editColumnButton.first().isVisible().catch(() => false)) {
+      await editColumnButton.first().click();
 
-      const columnInput = page.getByTestId('column-name-input');
+      const columnInput = page
+        .getByRole('textbox', { name: /column name/i })
+        .or(page.getByRole('dialog').locator('input').first());
       const newColumnName = `Renamed ${Date.now()}`;
       await columnInput.fill(newColumnName);
 
       const saveButton = page.getByRole('button', { name: /save/i });
       await saveButton.click();
 
-      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(
+      await expect(columnHeading).toContainText(
         newColumnName.slice(0, 8)
       );
     }
   });
 
   test('admin badge appears on admin avatars', async ({ page }) => {
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
-    // Look for admin badge on participant avatars
-    const adminAvatars = page.locator('[data-testid^="participant-avatar"][data-is-admin="true"]');
-    const adminBadge = page.locator('[data-testid="admin-badge"]').or(page.locator('.admin-badge'));
-
-    // Either there are admin avatars with data attribute or visible badges
-    const hasAdminAvatars = (await adminAvatars.count()) > 0;
-    const hasAdminBadge = await adminBadge.isVisible().catch(() => false);
+    // Look for admin badge on participant avatars - use accessible selectors
+    const adminBadge = page
+      .getByRole('img', { name: /admin/i })
+      .or(page.locator('[aria-label*="admin"]'))
+      .or(page.locator('.admin-badge'));
 
     // At least creator should have admin indicator
-    expect(hasAdminAvatars || hasAdminBadge).toBe(true);
+    const hasAdminBadge = (await adminBadge.count()) > 0;
+    expect(hasAdminBadge).toBe(true);
   });
 });

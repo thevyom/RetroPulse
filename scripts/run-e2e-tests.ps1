@@ -258,7 +258,50 @@ if (-not $SkipFrontendTests) {
 }
 
 # =============================================================================
-# Step 8: Generate DEV-TEST-REPORT.md
+# Step 8: Archive Playwright Test Results
+# =============================================================================
+Write-Step "Archiving Playwright test results..."
+
+$ArchiveDir = Join-Path $ProjectRoot "test-archives"
+if (-not (Test-Path $ArchiveDir)) {
+    New-Item -ItemType Directory -Path $ArchiveDir -Force | Out-Null
+}
+
+$Timestamp = Get-Date -Format 'yyyy-MM-dd-HHmm'
+$ArchiveName = "e2e-run-$Timestamp.7z"
+$ArchivePath = Join-Path $ArchiveDir $ArchiveName
+
+$PlaywrightReport = Join-Path $FrontendDir "playwright-report"
+$TestResults = Join-Path $FrontendDir "test-results"
+
+# Check if 7z is available
+$Has7z = Get-Command 7z -ErrorAction SilentlyContinue
+
+if ($Has7z) {
+    $ItemsToArchive = @()
+    if (Test-Path $PlaywrightReport) { $ItemsToArchive += $PlaywrightReport }
+    if (Test-Path $TestResults) { $ItemsToArchive += $TestResults }
+
+    if ($ItemsToArchive.Count -gt 0) {
+        & 7z a $ArchivePath $ItemsToArchive 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "Archived to $ArchivePath"
+            $ReportData.ArchivePath = $ArchivePath
+        } else {
+            Write-Info "Archive creation failed, skipping"
+            $ReportData.ArchivePath = "N/A"
+        }
+    } else {
+        Write-Info "No test results to archive"
+        $ReportData.ArchivePath = "N/A"
+    }
+} else {
+    Write-Info "7z not found, skipping archive (install 7-Zip to enable)"
+    $ReportData.ArchivePath = "N/A"
+}
+
+# =============================================================================
+# Step 9: Generate DEV-TEST-REPORT.md
 # =============================================================================
 Write-Step "Generating test report..."
 
@@ -288,6 +331,13 @@ $ReportContent = @"
 | Backend (Vitest) | $BackendStatus | $($ReportData.BackendTests.Passed) | $($ReportData.BackendTests.Failed) | $($ReportData.BackendTests.Duration) |
 | Frontend E2E (Playwright) | $FrontendStatus | $($ReportData.FrontendE2E.Passed) | $($ReportData.FrontendE2E.Failed) | $($ReportData.FrontendE2E.Duration) |
 
+## Test Archive
+
+| Property | Value |
+|----------|-------|
+| Archive Path | $($ReportData.ArchivePath) |
+| Contents | playwright-report/, test-results/ |
+
 ## Access URLs
 
 The following services are running and available for manual testing:
@@ -302,8 +352,21 @@ The following services are running and available for manual testing:
 
 ## Manual Testing Checklist
 
+### Home Page
+- [ ] Home page displays at root URL
+- [ ] Logo and title visible
+- [ ] Create New Board button works
+- [ ] Feature list displays correctly
+
+### Board Creation
+- [ ] Create board dialog opens
+- [ ] Board name input works
+- [ ] Default columns preview shown
+- [ ] Cancel button closes dialog
+- [ ] Create board and navigate to it
+- [ ] User becomes admin of new board
+
 ### Board Operations
-- [ ] Create a new retro board
 - [ ] Join an existing board via link
 - [ ] Close a board
 - [ ] Reopen a closed board
@@ -366,7 +429,7 @@ $ReportContent | Out-File -FilePath $ReportPath -Encoding UTF8
 Write-Success "Report saved to $ReportPath"
 
 # =============================================================================
-# Step 9: Summary
+# Step 10: Summary
 # =============================================================================
 Write-Header "Test Run Complete"
 

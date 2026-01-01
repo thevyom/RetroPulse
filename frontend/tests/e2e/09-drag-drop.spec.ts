@@ -29,7 +29,7 @@ test.describe('Drag-and-Drop Interactions', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
   });
 
@@ -127,8 +127,9 @@ test.describe('Drag-and-Drop Interactions', () => {
 
     // Child should have drag handle initially (before linking)
     const childCard = await findCardByContent(page, childContent);
+    // Use accessible selector
     const dragHandle = childCard
-      .locator('[data-testid="drag-handle"]')
+      .getByRole('button', { name: /drag/i })
       .or(childCard.locator('[aria-label*="drag"]'));
 
     // Verify drag handle is visible before linking
@@ -157,12 +158,12 @@ test.describe('Drag-and-Drop Interactions', () => {
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
 
-    // Click link icon to unlink
+    // Click link icon to unlink - use accessible selector
     const childCard = await findCardByContent(page, childContent);
     const linkIcon = childCard
-      .locator('[data-testid="link-icon"]')
+      .getByRole('button', { name: /link|unlink/i })
       .or(childCard.locator('[aria-label*="linked"]'));
-    await linkIcon.click();
+    await linkIcon.first().click();
 
     // Wait for unlink
     await waitForCardUnlinked(page, childContent);
@@ -206,17 +207,19 @@ test.describe('Drag-and-Drop Interactions', () => {
     await dragCardOntoCard(page, parentContent, childContent);
     await page.waitForLoadState('networkidle');
 
-    // Look for error message
+    // Look for error message - use accessible selector
     const errorMessage = page
-      .locator('[role="alert"]')
-      .or(page.locator('text=/circular|invalid/i'));
-    const hasError = await errorMessage.isVisible().catch(() => false);
+      .getByRole('alert')
+      .or(page.getByText(/circular|invalid/i));
+    const hasError = await errorMessage.first().isVisible().catch(() => false);
 
     // Either there's an error message, or the operation was silently blocked
     // Parent should NOT be linked (remain a parent, not a child)
     const parentCard = await findCardByContent(page, parentContent);
-    const parentLinkIcon = parentCard.locator('[data-testid="link-icon"]');
-    const parentIsLinked = await parentLinkIcon.isVisible().catch(() => false);
+    const parentLinkIcon = parentCard
+      .getByRole('button', { name: /link|unlink/i })
+      .or(parentCard.locator('[aria-label*="linked"]'));
+    const parentIsLinked = await parentLinkIcon.first().isVisible().catch(() => false);
 
     expect(parentIsLinked).toBe(false);
   });
@@ -242,8 +245,11 @@ test.describe('Drag-and-Drop Interactions', () => {
     // Look for error or verify the operation was blocked
     // Parent (which now has a child) should not become a child of grandparent
     const parentCard = await findCardByContent(page, parent);
-    const parentLinkIcon = parentCard.locator('[data-testid="link-icon"]');
-    const parentIsLinked = await parentLinkIcon.isVisible().catch(() => false);
+    // Use accessible selector
+    const parentLinkIcon = parentCard
+      .getByRole('button', { name: /link|unlink/i })
+      .or(parentCard.locator('[aria-label*="linked"]'));
+    const parentIsLinked = await parentLinkIcon.first().isVisible().catch(() => false);
 
     // Parent should not have a link icon (it's a parent, not a child)
     expect(parentIsLinked).toBe(false);

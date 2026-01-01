@@ -35,9 +35,9 @@ export interface CreateBoardDialogProps {
 // ============================================================================
 
 const DEFAULT_COLUMNS = [
-  { name: 'What Went Well', color: '#22c55e' },
-  { name: 'To Improve', color: '#f97316' },
-  { name: 'Action Items', color: '#3b82f6' },
+  { id: 'col-1', name: 'What Went Well', type: 'feedback', color: '#22c55e' },
+  { id: 'col-2', name: 'To Improve', type: 'feedback', color: '#f97316' },
+  { id: 'col-3', name: 'Action Items', type: 'action', color: '#3b82f6' },
 ];
 
 // ============================================================================

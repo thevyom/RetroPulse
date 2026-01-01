@@ -87,6 +87,7 @@ Located in `frontend/tests/e2e/`:
 
 | File | Coverage |
 |------|----------|
+| `board-creation.spec.ts` | Home page, board creation flow |
 | `accessibility-basic.spec.ts` | Keyboard navigation, ARIA |
 | `admin-operations.spec.ts` | Admin permissions |
 | `board-lifecycle.spec.ts` | Board CRUD operations |

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateBoardDialog } from './CreateBoardDialog';
+import Logo from '@/assets/logo.svg';
 
 // ============================================================================
 // Component
@@ -30,8 +31,11 @@ export function HomePage() {
       <div className="w-full max-w-[600px] text-center">
         {/* Logo and Title */}
         <div className="mb-6">
+          <div className="mb-4 flex justify-center">
+            <img src={Logo} alt="RetroPulse Logo" className="h-20 w-auto" data-testid="home-logo" />
+          </div>
           <h1 className="text-4xl font-bold text-foreground" data-testid="home-title">
-            🔄 RetroPulse
+            RetroPulse
           </h1>
           <p className="mt-2 text-lg text-muted-foreground" data-testid="home-tagline">
             Collaborative Retrospective Boards

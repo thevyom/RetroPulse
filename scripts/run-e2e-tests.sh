@@ -262,7 +262,45 @@ else
 fi
 
 # =============================================================================
-# Step 8: Generate DEV-TEST-REPORT.md
+# Step 8: Archive Playwright Test Results
+# =============================================================================
+step "Archiving Playwright test results..."
+
+ARCHIVE_DIR="$PROJECT_ROOT/test-archives"
+mkdir -p "$ARCHIVE_DIR"
+
+TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
+ARCHIVE_NAME="e2e-run-$TIMESTAMP.7z"
+ARCHIVE_PATH="$ARCHIVE_DIR/$ARCHIVE_NAME"
+
+PLAYWRIGHT_REPORT="$PROJECT_ROOT/frontend/playwright-report"
+TEST_RESULTS="$PROJECT_ROOT/frontend/test-results"
+
+# Check if 7z is available
+if command -v 7z &> /dev/null; then
+    ITEMS_TO_ARCHIVE=""
+    if [ -d "$PLAYWRIGHT_REPORT" ]; then ITEMS_TO_ARCHIVE="$PLAYWRIGHT_REPORT"; fi
+    if [ -d "$TEST_RESULTS" ]; then ITEMS_TO_ARCHIVE="$ITEMS_TO_ARCHIVE $TEST_RESULTS"; fi
+
+    if [ -n "$ITEMS_TO_ARCHIVE" ]; then
+        if 7z a "$ARCHIVE_PATH" $ITEMS_TO_ARCHIVE > /dev/null 2>&1; then
+            success "Archived to $ARCHIVE_PATH"
+            ARCHIVE_RESULT="$ARCHIVE_PATH"
+        else
+            info "Archive creation failed, skipping"
+            ARCHIVE_RESULT="N/A"
+        fi
+    else
+        info "No test results to archive"
+        ARCHIVE_RESULT="N/A"
+    fi
+else
+    info "7z not found, skipping archive (install p7zip to enable)"
+    ARCHIVE_RESULT="N/A"
+fi
+
+# =============================================================================
+# Step 9: Generate DEV-TEST-REPORT.md
 # =============================================================================
 step "Generating test report..."
 
@@ -309,6 +347,13 @@ cat > "$REPORT_PATH" << EOF
 | Backend (Vitest) | $BACKEND_EMOJI | $BACKEND_PASSED | $BACKEND_FAILED | $BACKEND_DURATION |
 | Frontend E2E (Playwright) | $FRONTEND_EMOJI | $FRONTEND_PASSED | $FRONTEND_FAILED | $FRONTEND_DURATION |
 
+## Test Archive
+
+| Property | Value |
+|----------|-------|
+| Archive Path | $ARCHIVE_RESULT |
+| Contents | playwright-report/, test-results/ |
+
 ## Access URLs
 
 The following services are running and available for manual testing:
@@ -323,8 +368,21 @@ The following services are running and available for manual testing:
 
 ## Manual Testing Checklist
 
+### Home Page
+- [ ] Home page displays at root URL
+- [ ] Logo and title visible
+- [ ] Create New Board button works
+- [ ] Feature list displays correctly
+
+### Board Creation
+- [ ] Create board dialog opens
+- [ ] Board name input works
+- [ ] Default columns preview shown
+- [ ] Cancel button closes dialog
+- [ ] Create board and navigate to it
+- [ ] User becomes admin of new board
+
 ### Board Operations
-- [ ] Create a new retro board
 - [ ] Join an existing board via link
 - [ ] Close a board
 - [ ] Reopen a closed board

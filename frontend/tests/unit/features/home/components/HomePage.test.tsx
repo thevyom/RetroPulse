@@ -31,7 +31,8 @@ describe('HomePage', () => {
 
     it('should display logo and title', () => {
       renderWithRouter(<HomePage />);
-      expect(screen.getByTestId('home-title')).toHaveTextContent('🔄 RetroPulse');
+      expect(screen.getByTestId('home-logo')).toBeInTheDocument();
+      expect(screen.getByTestId('home-title')).toHaveTextContent('RetroPulse');
     });
 
     it('should display tagline', () => {
@@ -93,7 +94,7 @@ describe('HomePage', () => {
     it('should have proper heading hierarchy', () => {
       renderWithRouter(<HomePage />);
       const h1 = screen.getByRole('heading', { level: 1 });
-      expect(h1).toHaveTextContent('🔄 RetroPulse');
+      expect(h1).toHaveTextContent('RetroPulse');
     });
 
     it('should have main landmark', () => {

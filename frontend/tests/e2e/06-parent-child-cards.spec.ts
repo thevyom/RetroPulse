@@ -26,7 +26,7 @@ test.describe('Parent-Child Card Relationships', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
-    await page.goto(`/board/${testBoardId}`);
+    await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
   });
 
@@ -58,18 +58,16 @@ test.describe('Parent-Child Card Relationships', () => {
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
 
-    // Unlink
+    // Unlink - use accessible selector
     const childCard = await findCardByContent(page, childContent);
     const linkIcon = childCard
-      .locator('[data-testid="link-icon"]')
+      .getByRole('button', { name: /link|unlink/i })
       .or(childCard.locator('[aria-label*="linked"]'));
-    await linkIcon.click();
+    await linkIcon.first().click();
 
     await waitForCardUnlinked(page, childContent);
 
-    // Verify unlinked - drag handle should be restored
-    const dragHandle = childCard.locator('[data-testid="drag-handle"]');
-    const hasDragHandle = await dragHandle.isVisible().catch(() => false);
+    // Verify unlinked
     const isStillLinked = await isCardLinked(page, childContent);
 
     expect(isStillLinked).toBe(false);
@@ -97,8 +95,10 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Parent should NOT become a child (it has children)
     const parentCard = await findCardByContent(page, parent);
-    const parentLinkIcon = parentCard.locator('[data-testid="link-icon"]');
-    const parentIsLinked = await parentLinkIcon.isVisible().catch(() => false);
+    const parentLinkIcon = parentCard
+      .getByRole('button', { name: /link|unlink/i })
+      .or(parentCard.locator('[aria-label*="linked"]'));
+    const parentIsLinked = await parentLinkIcon.first().isVisible().catch(() => false);
 
     expect(parentIsLinked).toBe(false);
   });
@@ -161,13 +161,13 @@ test.describe('Parent-Child Card Relationships', () => {
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
 
-    // Delete parent
+    // Delete parent - use accessible selector
     const parentCard = await findCardByContent(page, parentContent);
     await parentCard.hover();
     const deleteButton = parentCard
-      .locator('[data-testid="delete-card"]')
-      .or(parentCard.locator('button[aria-label*="delete"]'));
-    await deleteButton.click();
+      .getByRole('button', { name: /delete/i })
+      .or(parentCard.locator('[aria-label*="delete"]'));
+    await deleteButton.first().click();
 
     // Confirm deletion
     const confirmButton = page.getByRole('button', { name: /confirm|yes|delete/i });
