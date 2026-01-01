@@ -673,6 +673,89 @@ describe('Card API Integration Tests', () => {
       expect(response.status).toBe(400);
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
+
+    it('should be idempotent when linking same cards multiple times (linked_to)', async () => {
+      // This test documents that duplicate link attempts are intentionally idempotent.
+      // The implementation uses MongoDB's $addToSet which silently ignores duplicates.
+      const { boardId, cookies } = await createBoard();
+      await joinBoard(boardId, 'Alice', cookies);
+
+      const feedback = await request(app)
+        .post(`/v1/boards/${boardId}/cards`)
+        .set('Cookie', cookies)
+        .send({ column_id: 'col-1', content: 'Feedback', card_type: 'feedback' });
+
+      const action = await request(app)
+        .post(`/v1/boards/${boardId}/cards`)
+        .set('Cookie', cookies)
+        .send({ column_id: 'col-3', content: 'Action', card_type: 'action' });
+
+      const feedbackId = feedback.body.data.id;
+      const actionId = action.body.data.id;
+
+      // First link should succeed
+      const link1 = await request(app)
+        .post(`/v1/cards/${actionId}/link`)
+        .set('Cookie', cookies)
+        .send({ target_card_id: feedbackId, link_type: 'linked_to' });
+      expect(link1.status).toBe(201);
+
+      // Second identical link is idempotent - uses $addToSet, no duplicate added
+      const link2 = await request(app)
+        .post(`/v1/cards/${actionId}/link`)
+        .set('Cookie', cookies)
+        .send({ target_card_id: feedbackId, link_type: 'linked_to' });
+      expect(link2.status).toBe(201);
+
+      // Verify only one link exists (no duplicates)
+      const cardGet = await request(app)
+        .get(`/v1/cards/${actionId}`)
+        .set('Cookie', cookies);
+
+      expect(cardGet.body.data.linked_feedback_ids).toHaveLength(1);
+      expect(cardGet.body.data.linked_feedback_ids[0]).toBe(feedbackId);
+    });
+
+    it('should be idempotent when setting same parent multiple times (parent_of)', async () => {
+      // This test documents that re-linking with parent_of is idempotent.
+      // Setting the same parent again has no effect.
+      const { boardId, cookies } = await createBoard();
+      await joinBoard(boardId, 'Alice', cookies);
+
+      const parent = await request(app)
+        .post(`/v1/boards/${boardId}/cards`)
+        .set('Cookie', cookies)
+        .send({ column_id: 'col-1', content: 'Parent', card_type: 'feedback' });
+
+      const child = await request(app)
+        .post(`/v1/boards/${boardId}/cards`)
+        .set('Cookie', cookies)
+        .send({ column_id: 'col-1', content: 'Child', card_type: 'feedback' });
+
+      const parentId = parent.body.data.id;
+      const childId = child.body.data.id;
+
+      // First link
+      const link1 = await request(app)
+        .post(`/v1/cards/${parentId}/link`)
+        .set('Cookie', cookies)
+        .send({ target_card_id: childId, link_type: 'parent_of' });
+      expect(link1.status).toBe(201);
+
+      // Second identical link - idempotent, sets same parent again
+      const link2 = await request(app)
+        .post(`/v1/cards/${parentId}/link`)
+        .set('Cookie', cookies)
+        .send({ target_card_id: childId, link_type: 'parent_of' });
+      expect(link2.status).toBe(201);
+
+      // Verify parent is correctly set (not duplicated or broken)
+      const childGet = await request(app)
+        .get(`/v1/cards/${childId}`)
+        .set('Cookie', cookies);
+
+      expect(childGet.body.data.parent_card_id).toBe(parentId);
+    });
   });
 
   describe('DELETE /v1/cards/:id/link', () => {

@@ -910,7 +910,7 @@ describe('Admin Workflows E2E Tests', () => {
 
       // Verify card shows original alias
       const cardBefore = await request(app).get(`/v1/cards/${cardId}`);
-      expect(cardBefore.body.data.author_alias).toBe('OldAlias');
+      expect(cardBefore.body.data.created_by_alias).toBe('OldAlias');
 
       // Update alias (PATCH /users/alias)
       const aliasUpdateResponse = await request(app)
@@ -1214,14 +1214,20 @@ describe('Admin Workflows E2E Tests', () => {
         .send({ target_card_id: feedbackId, link_type: 'linked_to' });
       expect(link1Response.status).toBe(201);
 
-      // Second identical link should fail
+      // Second identical link is idempotent (uses $addToSet - no duplicate added)
       const link2Response = await request(app)
         .post(`/v1/cards/${actionId}/link`)
         .set('Cookie', userCookies)
         .send({ target_card_id: feedbackId, link_type: 'linked_to' });
 
-      // Should return conflict or validation error
-      expect([400, 409]).toContain(link2Response.status);
+      // Should succeed silently (idempotent behavior - MongoDB $addToSet)
+      expect(link2Response.status).toBe(201);
+
+      // Verify only one link exists (no duplicates)
+      const cardAfter = await request(app).get(`/v1/cards/${actionId}`);
+      const linkedIds = cardAfter.body.data.linked_feedback_ids;
+      expect(linkedIds.length).toBe(1);
+      expect(linkedIds[0]).toBe(feedbackId);
     });
   });
 

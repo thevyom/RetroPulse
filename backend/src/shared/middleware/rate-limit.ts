@@ -20,10 +20,11 @@ function createRateLimitHandler(customMessage?: string) {
 
 /**
  * Common rate limiter options
+ * Enables both standard (RateLimit-*) and legacy (X-RateLimit-*) headers for client visibility
  */
 const commonOptions = {
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers (RFC 6585)
+  legacyHeaders: true, // Enable `X-RateLimit-*` headers for broader client compatibility
   skip: () => process.env.NODE_ENV === 'test',
   // Disable validation warnings - we handle IPv6 properly via trust proxy
   validate: { xForwardedForHeader: false },

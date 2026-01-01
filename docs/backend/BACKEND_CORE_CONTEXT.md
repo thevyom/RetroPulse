@@ -1,8 +1,8 @@
 # Backend Core Context - RetroPulse
 
 > Single-file reference for understanding the backend structure, patterns, and testing setup.
-> Focus: All domains (Board, User, Card, Reaction), real-time events, shared utilities, testing infrastructure.
-> **Last Updated**: 2025-12-28 | **Phases Complete**: 1-6 ✅
+> Focus: All domains (Board, User, Card, Reaction, Admin), real-time events, shared utilities, testing infrastructure.
+> **Last Updated**: 2025-12-31 | **Phases Complete**: 1-6 ✅ | **Admin Testing APIs**: ✅
 
 ---
 
@@ -63,17 +63,25 @@ interface ApiError {
 }
 ```
 
-### Error Codes (`src/shared/types/api.ts:38-53`)
+### Error Codes (`src/shared/types/api.ts:38-57`)
 
 ```typescript
 const ErrorCodes = {
-  VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN,
-  CARD_LIMIT_REACHED, REACTION_LIMIT_REACHED,
+  VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND,
+  CARD_LIMIT_REACHED, REACTION_LIMIT_REACHED, RATE_LIMIT_EXCEEDED,
   BOARD_NOT_FOUND, CARD_NOT_FOUND, COLUMN_NOT_FOUND, USER_NOT_FOUND,
-  REACTION_NOT_FOUND,  // Added in Phase 5
+  REACTION_NOT_FOUND,
   BOARD_CLOSED, CIRCULAR_RELATIONSHIP,
+  CHILD_CANNOT_BE_PARENT, PARENT_CANNOT_BE_CHILD,  // Card linking validation
   DATABASE_ERROR, INTERNAL_ERROR,
 } as const;
+
+// Centralized HTTP status mapping
+const ErrorCodeToStatusCode: Record<ErrorCode, number> = {
+  VALIDATION_ERROR: 400, UNAUTHORIZED: 401, FORBIDDEN: 403,
+  NOT_FOUND: 404, RATE_LIMIT_EXCEEDED: 429, BOARD_CLOSED: 409,
+  // ... all error codes mapped to appropriate HTTP status
+};
 ```
 
 ### Zod Validation Schemas (`src/shared/validation/schemas.ts`)
@@ -88,6 +96,7 @@ const ErrorCodes = {
 | `createBoardSchema` | Board creation | name (1-200), columns (1-10) |
 | `createCardSchema` | Card creation | content (1-5000), card_type enum |
 | `linkTypeSchema` | Card linking | `'parent_of' | 'linked_to'` |
+| `seedTestDataSchema` | Admin test seeding | num_users, num_cards, create_relationships |
 
 **Pattern**: Schemas export inferred DTO types:
 ```typescript
@@ -99,9 +108,22 @@ export type CreateBoardDTO = z.infer<typeof createBoardSchema>;
 | Middleware | Purpose |
 |------------|---------|
 | `authMiddleware` | Extract cookie → SHA-256 hash → attach `hashedCookieId` |
+| `adminAuthMiddleware` | Validate `X-Admin-Secret` header (timing-safe comparison) |
 | `errorHandler` | Global error → `ApiResponse` format |
 | `notFoundHandler` | 404 responses |
 | `requestLogger` | Winston request/response logging |
+| `standardRateLimiter` | 100 req/min per IP (all `/v1` routes) |
+| `adminRateLimiter` | 10 req/min per IP (admin test routes) |
+| `strictRateLimiter` | 5 req/min per IP (sensitive operations) |
+
+**Rate Limiting** (`src/shared/middleware/rate-limit.ts`):
+```typescript
+// All rate limiters skip in test environment
+skip: () => process.env.NODE_ENV === 'test'
+
+// Response format on limit exceeded
+{ success: false, error: { code: 'RATE_LIMIT_EXCEEDED', message: '...' } }
+```
 
 ### Response Helpers (`src/shared/utils/response.ts`)
 
@@ -427,9 +449,79 @@ constructor(
 
 ---
 
+## 🧪 Admin Domain – Testing APIs
+
+### Purpose
+
+Protected endpoints for testing and development. Secured by `X-Admin-Secret` header with timing-safe comparison.
+
+### Entity Types (`src/domains/admin/types.ts`)
+
+```typescript
+interface ClearBoardResult {
+  cards_deleted: number;
+  reactions_deleted: number;
+  sessions_deleted: number;
+}
+
+interface ResetBoardResult extends ClearBoardResult {
+  board_reopened: boolean;
+}
+
+interface SeedTestDataInput {
+  num_users: number;           // 1-100
+  num_cards: number;           // 1-500
+  num_action_cards: number;    // 0-50
+  num_reactions: number;       // 0-1000
+  create_relationships: boolean;
+}
+
+interface SeedTestDataResult {
+  users_created: number;
+  cards_created: number;
+  action_cards_created: number;
+  reactions_created: number;
+  relationships_created: number;
+  user_aliases: string[];
+}
+```
+
+### Service Methods (`admin.service.ts`)
+
+| Method | Purpose |
+|--------|---------|
+| `clearBoard(boardId)` | Delete all cards, reactions, sessions (keep board) |
+| `resetBoard(boardId)` | Clear + reopen if closed |
+| `seedTestData(boardId, input)` | Generate test users, cards, reactions, relationships |
+
+**Test Data Generation**:
+```typescript
+// Predictable test aliases: "HappyPenguin1", "QuickTiger2", etc.
+const alias = `${ADJECTIVES[i % 10]}${NOUNS[i % 10]}${i + 1}`;
+
+// Consistent cookie hashes for testing
+const cookieHash = sha256(`test-user-${index}-seed-data`);
+```
+
+### Routes (`/v1/boards/:id/test/*`)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/clear` | POST | Clear board data |
+| `/reset` | POST | Reset board (clear + reopen) |
+| `/seed` | POST | Seed test data |
+
+**Security**: All routes protected by `adminAuthMiddleware` + `adminRateLimiter` (10 req/min).
+
+---
+
 ## 🔗 Route Wiring (`src/gateway/app.ts`)
 
 ```typescript
+// Middleware stack
+app.use('/v1', standardRateLimiter);  // 100 req/min
+app.use('/v1', authMiddleware);        // Cookie → hashedCookieId
+
 // Domain route registration order (matters for Express matching)
 app.use('/v1/boards', createBoardRoutes(boardController));
 app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));  // mergeParams
@@ -437,6 +529,9 @@ app.use('/v1/boards/:boardId', createBoardCardRoutes(cardController));
 app.use('/v1/cards', createCardRoutes(cardController));
 app.use('/v1/cards/:id/reactions', createCardReactionRoutes(reactionController));
 app.use('/v1/boards/:id/reactions', createBoardReactionRoutes(reactionController));
+
+// Admin test routes (stricter rate limiting)
+app.use('/v1/boards/:id/test', adminRateLimiter, createAdminRoutes(adminController));
 ```
 
 ---
@@ -835,6 +930,29 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 | API fields | snake_case | `card_limit_per_user` |
 | Error codes | SCREAMING_SNAKE | `BOARD_NOT_FOUND` |
 
+### 9. Cascade Delete Pattern
+
+```typescript
+// BoardService uses dependency injection to avoid circular imports
+interface CascadeDeleteDependencies {
+  getCardIdsByBoard: (boardId: string) => Promise<string[]>;
+  deleteReactionsByCards: (cardIds: string[], session?) => Promise<number>;
+  deleteCardsByBoard: (boardId: string, session?) => Promise<number>;
+  deleteSessionsByBoard: (boardId: string, session?) => Promise<number>;
+  deleteBoardById: (boardId: string, session?) => Promise<boolean>;
+  getMongoClient?: () => MongoClient;  // For transaction support
+}
+
+// Wired in app.ts after all services are initialized
+boardService.setCascadeDeleteDependencies({
+  getCardIdsByBoard: (id) => cardRepository.getCardIdsByBoard(id),
+  deleteReactionsByCards: (ids, s) => reactionRepository.deleteByCards(ids, s),
+  // ...
+});
+```
+
+Delete order: reactions → cards → sessions → board (with optional transaction)
+
 ---
 
 ## 📌 Quick Reference – Important Files & What Lives Where
@@ -852,6 +970,8 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 | `src/shared/logger/logger.ts` | Winston configuration |
 | `src/shared/utils/hash.ts` | `hashCookieId()` - SHA-256 |
 | `src/shared/utils/response.ts` | `sendSuccess()`, `sendError()` |
+| `src/shared/middleware/rate-limit.ts` | Rate limiters (standard, admin, strict) |
+| `src/shared/middleware/admin-auth.ts` | `X-Admin-Secret` header validation |
 
 ### Gateway
 
@@ -906,6 +1026,14 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 | `reaction.controller.ts` | `ReactionController` class |
 | `reaction.routes.ts` | `createCardReactionRoutes`, `createBoardReactionRoutes` |
 
+**Admin** (`src/domains/admin/`):
+| File | Contains |
+|------|----------|
+| `types.ts` | `ClearBoardResult`, `ResetBoardResult`, `SeedTestDataInput`, `SeedTestDataResult` |
+| `admin.service.ts` | `AdminService` class (~317 lines) - clear, reset, seed operations |
+| `admin.controller.ts` | `AdminController` class |
+| `admin.routes.ts` | `/test/clear`, `/test/reset`, `/test/seed` routes |
+
 ### Test Files
 
 | File | Contains |
@@ -913,16 +1041,26 @@ Request → authMiddleware → extract cookie → SHA-256 hash → req.hashedCoo
 | `tests/utils/test-db.ts` | MongoDB memory server lifecycle |
 | `tests/utils/test-app.ts` | Express app factory for tests |
 | `tests/unit/domains/board/*.test.ts` | Unit tests (mocked deps) |
-| `tests/integration/board.test.ts` | API integration tests |
+| `tests/unit/domains/admin/*.test.ts` | Admin service unit tests |
+| `tests/unit/shared/middleware/rate-limit.test.ts` | Rate limiter tests |
+| `tests/unit/shared/middleware/error-handler.test.ts` | Error handler tests |
+| `tests/integration/board.test.ts` | Board API integration tests |
+| `tests/integration/admin.test.ts` | Admin API integration tests |
+| `tests/e2e/board-lifecycle.test.ts` | Full board lifecycle E2E |
+| `tests/e2e/admin-workflows.test.ts` | Admin workflow E2E |
+| `tests/e2e/websocket.test.ts` | WebSocket connection E2E |
+| `tests/e2e/anonymous-privacy.test.ts` | Anonymous card privacy E2E |
+| `tests/e2e/concurrent-users.test.ts` | Multi-user concurrency E2E |
 
 ---
 
 ## 🚩 Open Questions / Inconsistencies / Notes
 
-### 1. Cascade Delete Implementation Status
-- `CardService.deleteCardsForBoard()` and `ReactionService.deleteReactionsForCards()` exist
-- `BoardService.deleteBoard()` still has TODO comment - needs wiring to call these
-- User sessions cascade via `UserSessionRepository.deleteByBoard()`
+### 1. Cascade Delete Implementation ✅ RESOLVED
+- Full cascade delete implemented in `BoardService.deleteBoard()`
+- Order: reactions → cards → sessions → board
+- Transaction support with `CascadeDeleteDependencies` interface
+- Fallback without transaction for test environments (mongodb-memory-server)
 
 ### 2. `is_admin` Computed in Multiple Places
 - `UserSessionService` computes from `board.admins`

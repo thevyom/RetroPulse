@@ -46,6 +46,8 @@ describe('AdminService', () => {
 
     mockCollection = {
       updateOne: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
+      insertMany: vi.fn().mockResolvedValue({ insertedCount: 1 }),
+      bulkWrite: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
     };
 
     mockDb = {
@@ -194,11 +196,6 @@ describe('AdminService', () => {
 
     it('should seed test data into a board', async () => {
       vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
-      vi.mocked(mockUserSessionRepository.upsert!).mockResolvedValue({} as any);
-      vi.mocked(mockCardRepository.create!).mockResolvedValue(mockCardDoc);
-      vi.mocked(mockReactionRepository.upsert!).mockResolvedValue({ document: {} as any, isNew: true });
-      vi.mocked(mockCardRepository.findById!).mockResolvedValue(mockCardDoc);
-      vi.mocked(mockCardRepository.incrementDirectReactionCount!).mockResolvedValue(null);
 
       const input = {
         num_users: 2,
@@ -215,8 +212,8 @@ describe('AdminService', () => {
       expect(result.action_cards_created).toBe(1);
       expect(result.reactions_created).toBe(2);
       expect(result.user_aliases).toHaveLength(2);
-      expect(mockUserSessionRepository.upsert).toHaveBeenCalledTimes(2);
-      expect(mockCardRepository.create).toHaveBeenCalledTimes(4); // 3 feedback + 1 action
+      // With batch mode, we use insertMany directly on collections
+      expect(mockCollection.insertMany).toHaveBeenCalled();
     });
 
     it('should throw BOARD_NOT_FOUND if board does not exist', async () => {
@@ -254,11 +251,6 @@ describe('AdminService', () => {
 
     it('should create relationships when requested', async () => {
       vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
-      vi.mocked(mockUserSessionRepository.upsert!).mockResolvedValue({} as any);
-      vi.mocked(mockCardRepository.create!).mockResolvedValue(mockCardDoc);
-      vi.mocked(mockCardRepository.setParentCard!).mockResolvedValue(null);
-      vi.mocked(mockCardRepository.addLinkedFeedback!).mockResolvedValue(null);
-      vi.mocked(mockReactionRepository.upsert!).mockResolvedValue({ document: {} as any, isNew: false });
 
       const input = {
         num_users: 2,
@@ -271,35 +263,30 @@ describe('AdminService', () => {
       const result = await service.seedTestData(boardId.toHexString(), input);
 
       expect(result.relationships_created).toBeGreaterThan(0);
-      expect(mockCardRepository.setParentCard).toHaveBeenCalled();
-      expect(mockCardRepository.addLinkedFeedback).toHaveBeenCalled();
+      // With batch mode, relationships are created via bulkWrite
+      expect(mockCollection.bulkWrite).toHaveBeenCalled();
     });
 
-    it('should handle duplicate reactions gracefully', async () => {
+    it('should deduplicate reactions (one per user per card)', async () => {
       vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
-      vi.mocked(mockUserSessionRepository.upsert!).mockResolvedValue({} as any);
-      vi.mocked(mockCardRepository.create!).mockResolvedValue(mockCardDoc);
-      vi.mocked(mockReactionRepository.upsert!).mockRejectedValue(new Error('Duplicate'));
 
       const input = {
         num_users: 1,
         num_cards: 1,
         num_action_cards: 0,
-        num_reactions: 5,
+        num_reactions: 5, // Request 5, but only 1 unique (same user+card)
         create_relationships: false,
       };
 
       const result = await service.seedTestData(boardId.toHexString(), input);
 
-      // Should not throw, just skip failed reactions
-      expect(result.reactions_created).toBe(0);
+      // With batch mode, duplicates are filtered before insert
+      // Only 1 unique user+card pair, so only 1 reaction created
+      expect(result.reactions_created).toBe(1);
     });
 
     it('should generate unique aliases', async () => {
       vi.mocked(mockBoardRepository.findById!).mockResolvedValue(mockBoardDoc);
-      vi.mocked(mockUserSessionRepository.upsert!).mockResolvedValue({} as any);
-      vi.mocked(mockCardRepository.create!).mockResolvedValue(mockCardDoc);
-      vi.mocked(mockReactionRepository.upsert!).mockResolvedValue({ document: {} as any, isNew: false });
 
       const input = {
         num_users: 5,

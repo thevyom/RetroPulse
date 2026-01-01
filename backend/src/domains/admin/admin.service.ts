@@ -151,7 +151,8 @@ export class AdminService {
   }
 
   /**
-   * Seed test data into a board
+   * Seed test data into a board using batch inserts for better performance.
+   * Uses MongoDB insertMany for bulk operations instead of individual inserts.
    */
   async seedTestData(boardId: string, input: SeedTestDataInput): Promise<SeedTestDataResult> {
     // Verify board exists and is active
@@ -163,78 +164,115 @@ export class AdminService {
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Cannot seed data into closed board', 400);
     }
 
-    const userAliases: string[] = [];
-    const createdCardIds: string[] = [];
-    const feedbackCardIds: string[] = [];
-    let relationshipsCreated = 0;
-
-    // Create user sessions
-    for (let i = 0; i < input.num_users; i++) {
-      const alias = generateTestAlias(i);
-      const cookieHash = generateCookieHash(i);
-
-      await this.userSessionRepository.upsert(boardId, cookieHash, alias);
-      userAliases.push(alias);
-    }
-
-    // Get column IDs from board
     const columnIds = board.columns.map(col => col.id);
     if (columnIds.length === 0) {
       throw new ApiError(ErrorCodes.VALIDATION_ERROR, 'Board has no columns', 400);
     }
 
-    // Create feedback cards
+    const boardObjectId = new ObjectId(boardId);
+    const userAliases: string[] = [];
+    const now = new Date();
+
+    // Generate user data
+    const userSessionDocs = [];
+    for (let i = 0; i < input.num_users; i++) {
+      const alias = generateTestAlias(i);
+      const cookieHash = generateCookieHash(i);
+      userAliases.push(alias);
+      userSessionDocs.push({
+        _id: new ObjectId(),
+        board_id: boardObjectId,
+        cookie_hash: cookieHash,
+        alias,
+        last_active_at: now,
+        created_at: now,
+      });
+    }
+
+    // Batch insert user sessions
+    if (userSessionDocs.length > 0) {
+      await this.db.collection('user_sessions').insertMany(userSessionDocs, { ordered: false });
+    }
+
+    // Generate feedback cards
+    const feedbackCardDocs = [];
+    const feedbackCardIds: ObjectId[] = [];
     for (let i = 0; i < input.num_cards; i++) {
       const userIndex = i % input.num_users;
       const columnIndex = i % columnIds.length;
       const cookieHash = generateCookieHash(userIndex);
       const alias = userAliases[userIndex]!;
       const columnId = columnIds[columnIndex]!;
+      const isAnonymous = i % 5 === 0;
+      const cardId = new ObjectId();
+      feedbackCardIds.push(cardId);
 
-      const card = await this.cardRepository.create(
-        boardId,
-        {
-          column_id: columnId,
-          content: generateCardContent(i),
-          card_type: 'feedback',
-          is_anonymous: i % 5 === 0, // Every 5th card is anonymous
-        },
-        cookieHash,
-        alias
-      );
-
-      createdCardIds.push(card._id.toHexString());
-      feedbackCardIds.push(card._id.toHexString());
+      feedbackCardDocs.push({
+        _id: cardId,
+        board_id: boardObjectId,
+        column_id: columnId,
+        content: generateCardContent(i),
+        card_type: 'feedback',
+        is_anonymous: isAnonymous,
+        created_by_hash: cookieHash,
+        created_by_alias: isAnonymous ? null : alias,
+        created_at: now,
+        updated_at: null,
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 0,
+        parent_card_id: null,
+        linked_feedback_ids: [],
+      });
     }
 
-    // Create action cards
-    const actionCardIds: string[] = [];
+    // Batch insert feedback cards
+    if (feedbackCardDocs.length > 0) {
+      await this.db.collection('cards').insertMany(feedbackCardDocs, { ordered: false });
+    }
+
+    // Generate action cards
+    const actionCardDocs = [];
+    const actionCardIds: ObjectId[] = [];
     for (let i = 0; i < input.num_action_cards; i++) {
       const userIndex = i % input.num_users;
-      const columnIndex = (i + 1) % columnIds.length; // Different column distribution
+      const columnIndex = (i + 1) % columnIds.length;
       const cookieHash = generateCookieHash(userIndex);
       const alias = userAliases[userIndex]!;
       const columnId = columnIds[columnIndex]!;
+      const cardId = new ObjectId();
+      actionCardIds.push(cardId);
 
-      const card = await this.cardRepository.create(
-        boardId,
-        {
-          column_id: columnId,
-          content: generateActionContent(i),
-          card_type: 'action',
-          is_anonymous: false,
-        },
-        cookieHash,
-        alias
-      );
-
-      createdCardIds.push(card._id.toHexString());
-      actionCardIds.push(card._id.toHexString());
+      actionCardDocs.push({
+        _id: cardId,
+        board_id: boardObjectId,
+        column_id: columnId,
+        content: generateActionContent(i),
+        card_type: 'action',
+        is_anonymous: false,
+        created_by_hash: cookieHash,
+        created_by_alias: alias,
+        created_at: now,
+        updated_at: null,
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 0,
+        parent_card_id: null,
+        linked_feedback_ids: [],
+      });
     }
 
-    // Create relationships if requested
+    // Batch insert action cards
+    if (actionCardDocs.length > 0) {
+      await this.db.collection('cards').insertMany(actionCardDocs, { ordered: false });
+    }
+
+    const allCardIds = [...feedbackCardIds, ...actionCardIds];
+
+    // Create relationships if requested using bulkWrite
+    let relationshipsCreated = 0;
     if (input.create_relationships && feedbackCardIds.length >= 2 && actionCardIds.length > 0) {
-      // Create some parent-child relationships between feedback cards
+      const bulkOps = [];
+
+      // Create parent-child relationships between feedback cards
       const numParentChild = Math.min(Math.floor(feedbackCardIds.length / 3), 10);
       for (let i = 0; i < numParentChild; i++) {
         const parentIndex = i;
@@ -242,7 +280,12 @@ export class AdminService {
         if (parentIndex !== childIndex) {
           const childId = feedbackCardIds[childIndex]!;
           const parentId = feedbackCardIds[parentIndex]!;
-          await this.cardRepository.setParentCard(childId, parentId);
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: childId },
+              update: { $set: { parent_card_id: parentId } },
+            },
+          });
           relationshipsCreated++;
         }
       }
@@ -254,49 +297,75 @@ export class AdminService {
         const feedbackIndex = i % feedbackCardIds.length;
         const actionId = actionCardIds[actionIndex]!;
         const feedbackId = feedbackCardIds[feedbackIndex]!;
-        await this.cardRepository.addLinkedFeedback(actionId, feedbackId);
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: actionId },
+            update: { $addToSet: { linked_feedback_ids: feedbackId } },
+          },
+        });
         relationshipsCreated++;
       }
-    }
 
-    // Create reactions
-    let reactionsCreated = 0;
-    for (let i = 0; i < input.num_reactions && createdCardIds.length > 0; i++) {
-      const userIndex = i % input.num_users;
-      const cardIndex = i % createdCardIds.length;
-      const cookieHash = generateCookieHash(userIndex);
-      const alias = userAliases[userIndex]!;
-      const cardId = createdCardIds[cardIndex]!;
-
-      try {
-        const result = await this.reactionRepository.upsert(
-          cardId,
-          cookieHash,
-          alias,
-          'thumbs_up'
-        );
-
-        if (result.isNew) {
-          reactionsCreated++;
-
-          // Update card reaction counts
-          await this.cardRepository.incrementDirectReactionCount(cardId, 1);
-
-          // If card has parent, update aggregated count
-          const card = await this.cardRepository.findById(cardId);
-          if (card?.parent_card_id) {
-            await this.cardRepository.incrementAggregatedReactionCount(
-              card.parent_card_id.toHexString(),
-              1
-            );
-          }
-        }
-      } catch {
-        // Ignore duplicate reactions (one per user per card)
+      if (bulkOps.length > 0) {
+        await this.db.collection('cards').bulkWrite(bulkOps, { ordered: false });
       }
     }
 
-    logger.info('Test data seeded', {
+    // Create reactions using batch insert
+    let reactionsCreated = 0;
+    if (input.num_reactions > 0 && allCardIds.length > 0) {
+      const reactionDocs = [];
+      const seenPairs = new Set<string>();
+      const cardReactionCounts = new Map<string, number>();
+
+      for (let i = 0; i < input.num_reactions; i++) {
+        const userIndex = i % input.num_users;
+        const cardIndex = i % allCardIds.length;
+        const cookieHash = generateCookieHash(userIndex);
+        const alias = userAliases[userIndex]!;
+        const cardId = allCardIds[cardIndex]!;
+        const pairKey = `${cardId.toHexString()}-${cookieHash}`;
+
+        // Skip duplicates (one reaction per user per card)
+        if (seenPairs.has(pairKey)) continue;
+        seenPairs.add(pairKey);
+
+        reactionDocs.push({
+          _id: new ObjectId(),
+          card_id: cardId,
+          user_cookie_hash: cookieHash,
+          user_alias: alias,
+          reaction_type: 'thumbs_up',
+          created_at: now,
+        });
+
+        // Track reaction counts per card
+        const cardIdStr = cardId.toHexString();
+        cardReactionCounts.set(cardIdStr, (cardReactionCounts.get(cardIdStr) || 0) + 1);
+        reactionsCreated++;
+      }
+
+      // Batch insert reactions
+      if (reactionDocs.length > 0) {
+        await this.db.collection('reactions').insertMany(reactionDocs, { ordered: false });
+
+        // Batch update card reaction counts
+        const countUpdateOps = [];
+        for (const [cardIdStr, count] of cardReactionCounts) {
+          countUpdateOps.push({
+            updateOne: {
+              filter: { _id: new ObjectId(cardIdStr) },
+              update: { $inc: { direct_reaction_count: count, aggregated_reaction_count: count } },
+            },
+          });
+        }
+        if (countUpdateOps.length > 0) {
+          await this.db.collection('cards').bulkWrite(countUpdateOps, { ordered: false });
+        }
+      }
+    }
+
+    logger.info('Test data seeded (batch mode)', {
       boardId,
       usersCreated: input.num_users,
       cardsCreated: input.num_cards,
