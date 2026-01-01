@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# E2E test artifacts
+tests/e2e/.test-boards.json
+playwright-report/
+test-results/
+coverage/
+*.7z

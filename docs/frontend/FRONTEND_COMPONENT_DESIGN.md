@@ -1,6 +1,6 @@
 # Front-End Component Design - Collaborative Retro Board
-**Document Version**: 2.0
-**Date**: 2025-12-25
+**Document Version**: 2.1
+**Date**: 2025-12-31
 **Architecture**: React MVVM Pattern
 **Status**: Design Review
 
@@ -137,8 +137,11 @@ graph TD
     App[App.tsx<br/>Router Setup + ErrorBoundary]
 
     App --> ErrorBoundary[ErrorBoundary<br/>Error Handling Wrapper]
+    ErrorBoundary --> HomePage[HomePage<br/>Landing + Create Board]
     ErrorBoundary --> RetroBoardPage[RetroBoardPage<br/>Main Container]
     ErrorBoundary -.Error State.-> ErrorFallback[ErrorFallback UI<br/>Retry + Support]
+
+    HomePage --> CreateBoardDialog[CreateBoardDialog<br/>Board Creation Form]
 
     RetroBoardPage --> LoadingIndicator[LoadingIndicator<br/>Skeleton/Spinner]
     RetroBoardPage --> Header[RetroBoardHeader<br/>Board Title + Controls]
@@ -182,6 +185,108 @@ graph TD
 ---
 
 ## 4. View Components
+
+### 4.0 HomePage (Landing Page)
+
+**Purpose**: Entry point for the application, allows users to create new boards
+
+```mermaid
+graph TB
+    subgraph "HomePage Layout"
+        Logo[Logo + Title<br/>RetroPulse]
+        Tagline[Tagline<br/>Collaborative Retrospective Boards]
+        Description[Description Text<br/>Brief platform intro]
+        CreateBtn[Create New Board Button<br/>Primary CTA]
+        Features[Feature List<br/>4 bullet points]
+    end
+
+    CreateBtn --> Dialog[CreateBoardDialog<br/>Modal Form]
+    Dialog --> Navigate[Navigate to /boards/:id]
+```
+
+**Props**: None (top-level route component)
+
+**State Dependencies**:
+- `isCreating` - Whether board creation is in progress
+- `error` - Error state from board creation
+
+**Responsibilities**:
+1. **Display Welcome Content**: Logo, tagline, description
+2. **Provide Create Board CTA**: Prominent button to start board creation
+3. **Show Feature Highlights**: Brief list of platform capabilities
+4. **Handle Board Creation Flow**: Open dialog, submit to API, navigate on success
+
+**Does NOT Handle**:
+- Board data loading (that's RetroBoardPage)
+- User session management (handled by cookie on board join)
+
+**Visual Design** (from UI/UX Spec):
+- Centered content container (max-width 600px)
+- Vertically centered on viewport
+- Primary CTA button: 280px wide, 48px tall
+- Responsive: Stacks on mobile
+
+**Routes**:
+- `/` → HomePage
+- `/boards/:boardId` → RetroBoardPage
+
+---
+
+### 4.0.1 CreateBoardDialog
+
+**Purpose**: Modal form for creating a new board
+
+```mermaid
+graph TB
+    subgraph "Dialog Content"
+        NameInput[Board Name Input<br/>Required]
+        ColumnsSection[Column Configuration<br/>Default or Custom]
+        LimitsSection[Optional Limits<br/>Cards + Reactions]
+        SubmitBtn[Create Board Button]
+    end
+
+    SubmitBtn --> API[POST /v1/boards]
+    API --> Success[Navigate to /boards/:newId]
+```
+
+**Props**:
+```typescript
+{
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onBoardCreated: (boardId: string) => void
+}
+```
+
+**Form Fields**:
+1. **Board Name** (required): Text input, 1-200 chars
+2. **Columns** (optional): Use default template or customize
+   - Default: "What Went Well", "To Improve", "Action Items"
+3. **Card Limit** (optional): Number input, null = unlimited
+4. **Reaction Limit** (optional): Number input, null = unlimited
+
+**Validation**:
+- Board name: Required, 1-200 characters
+- Column names: 1-100 characters each
+- Limits: Positive integers or empty
+
+**API Call**:
+```typescript
+POST /v1/boards
+{
+  name: string
+  columns: { name: string }[]
+  card_limit_per_user?: number
+  reaction_limit_per_user?: number
+}
+```
+
+**Success Flow**:
+1. API returns `{ id: "abc123", ... }`
+2. Close dialog
+3. Navigate to `/boards/abc123`
+
+---
 
 ### 4.1 RetroBoardPage (Container)
 
@@ -1780,6 +1885,12 @@ All front-end component requirements are fully supported by the backend API.
 11. ✅ Added ErrorBoundary component for production error handling
 12. ✅ Added LoadingIndicator components (skeleton, spinner, progress)
 13. ✅ Added FormValidation utilities (alias, card content, board name, column name)
+
+**Changes from v2.1 (Phase 8.1 - Home Page)**:
+14. ✅ Added HomePage component (landing page at `/`)
+15. ✅ Added CreateBoardDialog component (board creation flow)
+16. ✅ Updated routing: `/` → HomePage, `/boards/:id` → RetroBoardPage
+17. ✅ Added useCreateBoardViewModel hook for board creation logic
 
 **Deferred to Post-MVP**:
 - Network connectivity detection and offline handling

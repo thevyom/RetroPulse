@@ -1,7 +1,7 @@
 # Frontend Master Task List - RetroPulse
 
 > **Single source of truth** for all frontend implementation phases and tasks.
-> Last Updated: 2025-12-31 | Total Phases: 9 | Completed: 8/9
+> Last Updated: 2025-12-31 | Total Phases: 10 | Completed: 8/10
 
 ---
 
@@ -26,6 +26,7 @@ FRONTEND_PHASE_05_VIEW_COMPONENTS.md
 │   ├── FRONTEND_PHASE_06_INTEGRATION_REALTIME.md
 │   ├── FRONTEND_PHASE_07_E2E_TESTING.md
 │   ├── FRONTEND_PHASE_08_POLISH_PRODUCTION.md
+│   ├── FRONTEND_PHASE_08.1_HOME_PAGE.md
 │   └── FRONTEND_PHASE_09_DOCUMENTATION.md
 ├── test-docs/
 │   ├── FRONTEND_TEST_MASTER_PLAN.md  ← Test strategy overview
@@ -63,32 +64,34 @@ FRONTEND_PHASE_05_VIEW_COMPONENTS.md
 | 6 | [Integration & Real-time](./FRONTEND_PHASE_06_INTEGRATION_REALTIME.md) | ✅ Done | 4/4 | Medium | [Tests](../code-review/TEST_PHASE_06_IntegrationRealtime.md) | Socket.io events, drag-and-drop |
 | 7 | [E2E Testing](./FRONTEND_PHASE_07_E2E_TESTING.md) | ✅ Done | 10/10 | Medium | [Tests](../code-review/CR_PHASE_07_E2ETesting.md) | MSW mocks, Playwright tests |
 | 8 | [Polish & Production](./FRONTEND_PHASE_08_POLISH_PRODUCTION.md) | ✅ Done | 14/14 + fixes | Medium | [Tests](../code-review/TEST_PHASE_08_PolishProduction.md) | Error handling, performance, a11y |
+| 8.1 | [Home Page](./FRONTEND_PHASE_08.1_HOME_PAGE.md) | 🔲 Not Started | 0/8 | High | - | Landing page, create board flow |
 | 9 | [Documentation](./FRONTEND_PHASE_09_DOCUMENTATION.md) | 🔲 Not Started | 0/4 | Low | - | JSDoc, README, CONTRIBUTING |
 
-**Overall Progress**: 82/84 tasks complete (98%)
+**Overall Progress**: 82/92 tasks complete (89%)
 
 ---
 
-## 🎯 Current Focus: Phase 9 - Documentation
+## 🎯 Current Focus: Phase 8.1 - Home Page
 
 **Phase 8 Completed:** Polish & Production Readiness with 699 tests passing (93% coverage).
 
-**Completed in Phase 8:**
-- All Phase 7 PE concerns addressed (34 waitForTimeout calls replaced, UUID isolation, global teardown)
-- ErrorBoundary integrated at App level
-- Toast notifications via sonner library
-- React.memo on all key components (RetroCard, RetroColumn, ParticipantAvatar, ParticipantBar)
-- Column/card background colors per column type (pastel theme)
-- Aggregated reaction count labels for parent cards
-- Responsive columns with min-width flex layout
-- CI/CD pipeline with health check loop
-- Pre-commit hooks with typecheck
+**Why Phase 8.1?** First-time users landing on `/` currently see "Board not found" error. The home page provides a proper entry point with the ability to create new boards.
 
-**Next tasks to implement (Phase 9):**
-1. JSDoc documentation for all public APIs
-2. README.md updates for frontend
-3. CONTRIBUTING.md guide
-4. Component Storybook (optional)
+**Next tasks to implement (Phase 8.1):**
+1. HomePage component (landing page at `/`)
+2. CreateBoardDialog component (board creation form)
+3. useCreateBoardViewModel hook
+4. BoardAPI.createBoard method
+5. Update App.tsx routing
+6. Unit tests for HomePage and CreateBoardDialog
+7. E2E test for create board flow
+
+[→ View Phase 8.1 Details](./FRONTEND_PHASE_08.1_HOME_PAGE.md)
+
+**After Phase 8.1 (Phase 9):**
+- JSDoc documentation for all public APIs
+- README.md updates for frontend
+- CONTRIBUTING.md guide
 
 [→ View Phase 9 Details](./FRONTEND_PHASE_09_DOCUMENTATION.md)
 
@@ -108,7 +111,8 @@ FRONTEND_PHASE_05_VIEW_COMPONENTS.md
 | Drag-Drop Integration | - | 21 | - | ✅ |
 | MSW Integration | - | 38 (10 skipped) | - | ✅ |
 | E2E Flows | - | - | 47 | ✅ |
-| **Total** | **699** | **46** | **47** | **792 tests** |
+| HomePage (Phase 8.1) | ~15 | - | 1 | 🔲 |
+| **Total** | **~714** | **46** | **48** | **~808 tests** |
 
 Target: 80%+ code coverage
 **Current Coverage:** 93.70% lines, 83.03% branches, 93.35% functions, 93.13% statements
@@ -188,7 +192,7 @@ Target: 80%+ code coverage
 
 The frontend is considered complete when:
 
-1. ✅ All 84 tasks completed and merged (82/84 - 98%)
+1. 🔲 All 92 tasks completed and merged (82/92 - 89%)
 2. ✅ Unit test coverage >80% (699 tests passing, 93% coverage)
 3. ✅ All integration test suites pass (46 tests)
 4. ✅ All E2E scenarios pass (47 tests)
@@ -196,7 +200,8 @@ The frontend is considered complete when:
 6. ✅ Drag-and-drop fully functional (@dnd-kit integrated)
 7. ✅ Accessibility audit passed (ARIA labels, keyboard shortcuts)
 8. ✅ Production build optimized (ErrorBoundary, toast notifications, memoization)
-9. 🔲 Documentation complete (Phase 9)
+9. 🔲 Home page with create board flow (Phase 8.1)
+10. 🔲 Documentation complete (Phase 9)
 
 ---
 

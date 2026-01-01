@@ -23,3 +23,7 @@ export type {
 // Participant feature
 export { useParticipantViewModel } from './participant/viewmodels';
 export type { UseParticipantViewModelResult } from './participant/viewmodels';
+
+// Home feature
+export { useCreateBoardViewModel } from './home/viewmodels';
+export type { UseCreateBoardViewModelReturn } from './home/viewmodels';

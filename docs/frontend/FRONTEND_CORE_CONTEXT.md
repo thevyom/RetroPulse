@@ -1,8 +1,8 @@
 # Frontend Core Context - RetroPulse
 
-**Generated:** 2025-12-31
-**Phase:** 1-8 Complete (Project Setup → Polish & Production)
-**Status:** Production-ready with performance optimizations, accessibility, and CI/CD pipeline
+**Generated:** 2026-01-01
+**Phase:** 1-8.1 Complete (Project Setup → Home Page)
+**Status:** Production-ready with Home Page landing experience and board creation flow
 
 ---
 
@@ -25,6 +25,9 @@
 frontend/
 ├── src/
 │   ├── features/           # Feature modules (MVVM)
+│   │   ├── home/
+│   │   │   ├── viewmodels/ # useCreateBoardViewModel
+│   │   │   └── components/ # HomePage, CreateBoardDialog
 │   │   ├── board/
 │   │   │   ├── viewmodels/ # useBoardViewModel
 │   │   │   └── components/ # RetroBoardPage, RetroBoardHeader, SortBar
@@ -156,6 +159,7 @@ interface UserSession {
 
 | Hook | Location | Responsibilities |
 |------|----------|------------------|
+| `useCreateBoardViewModel` | `features/home/viewmodels/` | Board creation form state, validation, API call |
 | `useBoardViewModel` | `features/board/viewmodels/` | Board CRUD, admin checks, socket events |
 | `useCardViewModel` | `features/card/viewmodels/` | Card CRUD, reactions, filtering, sorting |
 | `useDragDropViewModel` | `features/card/viewmodels/` | Drag validation, drop results |
@@ -176,6 +180,17 @@ interface UserSession {
 | `BoardAPI` | `models/api/BoardAPI.ts` | getBoard, createBoard, joinBoard, updateName, close, addAdmin |
 | `CardAPI` | `models/api/CardAPI.ts` | getCards, create, update, move, delete, link, unlink |
 | `ReactionAPI` | `models/api/ReactionAPI.ts` | addReaction, removeReaction, getQuota |
+
+### Home Page (Phase 8.1)
+
+| Component | Location | Responsibilities |
+|-----------|----------|------------------|
+| `HomePage` | `features/home/components/` | Landing page with branding, CTA button, feature list |
+| `CreateBoardDialog` | `features/home/components/` | Modal for board creation with form validation |
+
+**Routing:**
+- `/` → HomePage (landing)
+- `/boards/:boardId` → RetroBoardPage
 
 ### View Components (Phase 5)
 
@@ -347,6 +362,7 @@ interface UserSession {
 ### By Feature
 | Feature | Key Files |
 |---------|-----------|
+| Home | `features/home/components/HomePage.tsx`, `features/home/components/CreateBoardDialog.tsx`, `features/home/viewmodels/useCreateBoardViewModel.ts` |
 | Board | `features/board/viewmodels/useBoardViewModel.ts`, `features/board/components/RetroBoardPage.tsx`, `models/stores/boardStore.ts` |
 | Card | `features/card/viewmodels/*.ts`, `features/card/components/RetroColumn.tsx`, `features/card/components/RetroCard.tsx` |
 | Participant | `features/participant/viewmodels/*.ts`, `features/participant/components/ParticipantBar.tsx` |
@@ -368,6 +384,7 @@ interface UserSession {
 | 6 | Integration & Real-time | ✅ Complete | 661 |
 | 7 | E2E Testing | ✅ Complete | 699 |
 | 8 | Polish & Production | ✅ Complete | 699 |
+| 8.1 | Home Page | ✅ Complete | 761 |
 | 9 | Final Review | 🔲 Pending | - |
 
 ---

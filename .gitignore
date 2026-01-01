@@ -1,0 +1,15 @@
+# Test Archives (for S3 upload)
+test-archives/
+
+# Temporary files
+*.tmp
+nul
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
