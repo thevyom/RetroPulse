@@ -1,4 +1,45 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3" modified="2025-12-31">
+  <diagram name="Home Page" id="home-page">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="800" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="hp-0" />
+        <mxCell id="hp-1" parent="hp-0" />
+        <mxCell id="hp-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" parent="hp-1" vertex="1">
+          <mxGeometry x="100" y="50" width="600" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-logo" value="🔄 RetroPulse" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;fontStyle=1;fontColor=#82b366;" parent="hp-1" vertex="1">
+          <mxGeometry x="200" y="100" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-tagline" value="Collaborative Retrospective Boards" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontColor=#666666;" parent="hp-1" vertex="1">
+          <mxGeometry x="200" y="160" width="400" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-desc" value="Run effective team retrospectives with anonymous&#xa;feedback, reactions, and action items." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#999999;" parent="hp-1" vertex="1">
+          <mxGeometry x="200" y="200" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-create-btn" value="+ Create New Board" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82b366;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;fontColor=#ffffff;" parent="hp-1" vertex="1">
+          <mxGeometry x="260" y="280" width="280" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-features" value="Features:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#333333;" parent="hp-1" vertex="1">
+          <mxGeometry x="260" y="360" width="100" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-feat1" value="✓ Anonymous or attributed feedback" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;" parent="hp-1" vertex="1">
+          <mxGeometry x="260" y="390" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-feat2" value="✓ Real-time collaboration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;" parent="hp-1" vertex="1">
+          <mxGeometry x="260" y="415" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-feat3" value="✓ Drag-and-drop card organization" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;" parent="hp-1" vertex="1">
+          <mxGeometry x="260" y="440" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-feat4" value="✓ Reaction-based prioritization" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;" parent="hp-1" vertex="1">
+          <mxGeometry x="260" y="465" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hp-note" value="Note: This is the entry point when users visit the root URL" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2;fontColor=#999999;" parent="hp-1" vertex="1">
+          <mxGeometry x="200" y="510" width="400" height="25" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
   <diagram name="Sprint Retro Board" id="sprint-retro">
     <mxGraphModel dx="1678" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
       <root>

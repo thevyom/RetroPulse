@@ -1,8 +1,8 @@
 # UI/UX Design Specification - Collaborative Retro Board
 
-**Document Version**: 1.0
-**Date**: 2025-12-24
-**PRD Version**: 1.3
+**Document Version**: 1.1
+**Date**: 2025-12-31
+**PRD Version**: 1.4
 **Status**: Draft - Based on Wireframe-1-drawio.xml
 
 ---
@@ -26,6 +26,77 @@ This document defines the user interface and user experience design for the Coll
 ---
 
 ## 3. Layout Structure
+
+### 3.0 Home Page / Landing Page
+
+The home page is the entry point for the application when users first visit the root URL.
+
+**Layout**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│                     🔄 RetroPulse                                │
+│                                                                  │
+│           Collaborative Retrospective Boards                     │
+│                                                                  │
+│     Run effective team retrospectives with anonymous             │
+│     feedback, reactions, and action items.                       │
+│                                                                  │
+│              ┌─────────────────────────┐                        │
+│              │   + Create New Board    │                        │
+│              └─────────────────────────┘                        │
+│                                                                  │
+│     Features:                                                    │
+│     ✓ Anonymous or attributed feedback                          │
+│     ✓ Real-time collaboration                                   │
+│     ✓ Drag-and-drop card organization                          │
+│     ✓ Reaction-based prioritization                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Dimensions**:
+- Centered content container: max-width 600px
+- Vertical centering on viewport
+- Responsive padding (40px desktop, 20px mobile)
+
+**Elements**:
+
+1. **Logo/Title**:
+   - Text: "🔄 RetroPulse" (or application name)
+   - Font: 32px bold
+   - Color: Primary brand color
+
+2. **Tagline**:
+   - Text: "Collaborative Retrospective Boards"
+   - Font: 18px regular
+   - Color: Muted foreground
+
+3. **Description**:
+   - Brief 1-2 sentence description of the platform
+   - Font: 14px regular
+   - Color: Secondary text
+
+4. **Create Board Button**:
+   - Text: "+ Create New Board"
+   - Style: Primary button, large (min-height 48px)
+   - Width: 280px centered
+   - Background: Primary color
+   - Hover: Darken 10%
+   - Click: Navigate to board creation dialog or page
+
+5. **Feature List** (optional):
+   - 4-6 bullet points highlighting key features
+   - Icon + short text per feature
+   - Color: Muted text
+
+**Behavior**:
+- Root URL (`/`) displays this home page
+- No automatic redirect to `/boards/demo` or any specific board
+- "Create New Board" button opens board creation flow
+- Responsive: Stacks vertically on mobile
+
+---
 
 ### 3.1 Board Layout (Full Screen)
 
@@ -825,6 +896,7 @@ interface BoardStore {
 
 | Wireframe Element | Implemented | Notes |
 |-------------------|-------------|-------|
+| Home page / landing page | ✅ | Entry point with Create Board button |
 | Board title with edit | ✅ | Individual edit icon per element |
 | Close button (admin only) | ✅ | Red button, confirmation dialog |
 | Lock indicator when closed | ✅ | 🔒 shown when state = closed |
@@ -869,6 +941,7 @@ interface BoardStore {
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-12-24 | VK AI | Initial UI/UX spec based on Wireframe-1-drawio.xml |
+| 1.1 | 2025-12-31 | VK AI | Added Home Page / Landing Page section (Section 3.0) |
 
 ---
 

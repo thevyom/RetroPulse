@@ -2,8 +2,8 @@
 
 ## Document Information
 - **Product Name**: Collaborative Retro Board (working title)
-- **Version**: 1.3
-- **Last Updated**: 2025-12-24
+- **Version**: 1.4
+- **Last Updated**: 2025-12-31
 - **Status**: Draft
 - **Platform**: Web-based application
 
@@ -44,6 +44,26 @@ These metrics will be tracked after launch to measure product adoption and usage
 ## Functional Requirements
 
 ### 1. Board Management
+
+#### 1.0 Home Page / Landing Page
+**Priority**: P0 (Must Have)
+
+**Requirements**:
+- FR-1.0.1: System SHALL provide a home page / landing page as the entry point for the application
+- FR-1.0.2: Home page SHALL display a welcome message introducing the platform
+- FR-1.0.3: Home page SHALL provide a prominent "Create New Board" button/action
+- FR-1.0.4: Clicking "Create New Board" SHALL initiate the board creation workflow (FR-1.1)
+- FR-1.0.5: Home page SHALL be accessible at the root URL of the application
+- FR-1.0.6: Users accessing the root URL SHALL see the home page instead of being redirected to a specific board
+
+**Acceptance Criteria**:
+- First-time users landing on the root URL see a welcoming home page
+- Home page clearly communicates the purpose of the platform
+- "Create New Board" button is prominently displayed and easily discoverable
+- Clicking the button navigates user to board creation flow
+- No automatic redirect to non-existent or demo boards
+
+---
 
 #### 1.1 Board Creation
 **Priority**: P0 (Must Have)
@@ -530,8 +550,8 @@ These metrics will be tracked after launch to measure product adoption and usage
 **Preconditions**: User has access to the web platform
 
 **Steps**:
-1. User accesses the platform via web browser
-2. User initiates board creation
+1. User accesses the platform home page via web browser
+2. User clicks "Create New Board" button on the home page
 3. User enters board name
 4. User selects column structure (default template or custom)
 5. User optionally configures card creation limit per user (default: unlimited)
@@ -742,6 +762,7 @@ The following key UX and technical decisions have been made for the MVP:
 
 ### P0 - Must Have (MVP)
 - Web-based platform accessible via modern browsers
+- Home page / landing page with "Create New Board" entry point
 - Board creation with customizable columns and default templates
 - Board and column renaming by admins
 - Configurable card and reaction limits per user
@@ -799,27 +820,28 @@ The following key UX and technical decisions have been made for the MVP:
 ## Success Criteria
 
 The MVP will be considered successful when:
-1. Users can create and share retro boards via web browser with customizable columns and limits
-2. Board admins can rename board and column names after creation
-3. Users can create an alias and join boards via shareable links
-4. Users can contribute feedback cards anonymously or with attribution
-5. Users can give, modify, and remove thumbs up reactions with full attribution visibility
-6. Users can create parent-child card relationships by dragging one card onto another
-7. Parent cards display aggregated reaction count (own + children's reactions)
-8. Child cards can be unlinked from parents by any user
-9. Parent-child relationships work across columns
-10. Users can sort cards by popularity (using aggregated counts for parents) or recency
-11. Users can toggle between ascending and descending sort order
-12. Users can filter cards by creator using filter pills (All Users, Anonymous, specific users)
-13. Filter correctly hides children when specific user or Anonymous filter is selected
-14. Users can move cards across columns while preserving parent-child relationships
-15. Users can create action items linked to feedback cards
-16. Board admins can designate co-admins and close boards to read-only state
-17. All data persists reliably across sessions and browser refreshes
-18. Multiple users (at least 20) can collaborate on the same board simultaneously with real-time updates
-19. Concurrent editing conflicts are prevented without data loss
-20. Board remains performant with at least 100 cards
-21. System respects configured card and reaction limits per user
+1. Users can access the home page and create new retro boards via "Create New Board" button
+2. Users can create and share retro boards via web browser with customizable columns and limits
+3. Board admins can rename board and column names after creation
+4. Users can create an alias and join boards via shareable links
+5. Users can contribute feedback cards anonymously or with attribution
+6. Users can give, modify, and remove thumbs up reactions with full attribution visibility
+7. Users can create parent-child card relationships by dragging one card onto another
+8. Parent cards display aggregated reaction count (own + children's reactions)
+9. Child cards can be unlinked from parents by any user
+10. Parent-child relationships work across columns
+11. Users can sort cards by popularity (using aggregated counts for parents) or recency
+12. Users can toggle between ascending and descending sort order
+13. Users can filter cards by creator using filter pills (All Users, Anonymous, specific users)
+14. Filter correctly hides children when specific user or Anonymous filter is selected
+15. Users can move cards across columns while preserving parent-child relationships
+16. Users can create action items linked to feedback cards
+17. Board admins can designate co-admins and close boards to read-only state
+18. All data persists reliably across sessions and browser refreshes
+19. Multiple users (at least 20) can collaborate on the same board simultaneously with real-time updates
+20. Concurrent editing conflicts are prevented without data loss
+21. Board remains performant with at least 100 cards
+22. System respects configured card and reaction limits per user
 
 ## Appendix
 
