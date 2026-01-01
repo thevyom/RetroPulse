@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs (we build in Docker)
+dist/
+build/
+
+# Test files
+coverage/
+tests/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+playwright-report/
+test-results/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Environment files (injected at runtime)
+.env
+.env.*
+!.env.example
+
+# Documentation
+*.md
+docs/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

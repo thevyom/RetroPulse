@@ -55,17 +55,40 @@ services:
       PORT: 3000
       MONGODB_URL: mongodb://admin:${MONGO_PASSWORD:-retropassword}@mongodb:27017
       MONGODB_DATABASE: retroboard
-      COOKIE_SECRET: ${COOKIE_SECRET:-dev-cookie-secret}
-      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:-dev-admin-secret}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      COOKIE_SECRET: ${COOKIE_SECRET:-dev-cookie-secret-32chars}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:-dev-admin-secret-16chars}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
       APP_URL: ${APP_URL:-http://localhost:3000}
     depends_on:
       mongodb:
         condition: service_healthy
     networks:
       - retropulse-network
-    volumes:
-      - ./backend/src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - production
+
+  # Frontend Web Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: retropulse-frontend
+    ports:
+      - "8080:8080"
+    environment:
+      API_URL: ${API_URL:-http://localhost:3000}
+      WS_URL: ${WS_URL:-http://localhost:3000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - retropulse-network
     profiles:
       - production
 
