@@ -34,10 +34,26 @@ export interface UseBoardViewModelResult {
 }
 
 // ============================================================================
+// Options
+// ============================================================================
+
+export interface UseBoardViewModelOptions {
+  /**
+   * Automatically fetch board on mount. Default: true
+   * Set to false in tests to control when data fetching occurs.
+   */
+  autoFetch?: boolean;
+}
+
+// ============================================================================
 // Hook Implementation
 // ============================================================================
 
-export function useBoardViewModel(boardId: string): UseBoardViewModelResult {
+export function useBoardViewModel(
+  boardId: string,
+  options: UseBoardViewModelOptions = {}
+): UseBoardViewModelResult {
+  const { autoFetch = true } = options;
   // Store state
   const board = useBoardStore((state) => state.board);
   const storeIsLoading = useBoardStore((state) => state.isLoading);
@@ -94,11 +110,13 @@ export function useBoardViewModel(boardId: string): UseBoardViewModelResult {
     }
   }, [boardId, setBoard, setLoading, setError]);
 
-  // Load board on mount
+  // Load board on mount (unless autoFetch is disabled)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
-    void fetchBoard();
-  }, [fetchBoard]);
+    if (autoFetch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
+      void fetchBoard();
+    }
+  }, [autoFetch, fetchBoard]);
 
   // ============================================================================
   // Socket Event Handlers

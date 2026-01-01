@@ -1081,4 +1081,20 @@ playwright.config.ts
 
 ---
 
+## 📋 Deferred Tests from Previous Phases
+
+> **Note:** Detailed test implementations for deferred items are documented in [FRONTEND_PHASE_07_E2E_TESTING.md](../phases/FRONTEND_PHASE_07_E2E_TESTING.md) sections 22.6 and 22.7.
+
+| Source Phase | Test | Reason Deferred |
+|--------------|------|-----------------|
+| Phase 5 | Tooltip timing (Radix UI) | JSDOM timing unreliable |
+| Phase 5 | AdminDropdown promote flow | Requires multi-user E2E |
+| Phase 6 | Actual drag gestures | Requires browser pointer events |
+| Phase 6 | Multi-client WebSocket sync | Requires real socket.io |
+| Phase 6 | Network failure handling | Requires browser network interception |
+| Phase 3 | API error handling | Full error display requires UI |
+| Phase 3 | Socket event queueing | Requires network simulation |
+
+---
+
 [← Back to Master Test Plan](./FRONTEND_TEST_MASTER_PLAN.md) | [Previous: Phase 4](./TEST_PHASE_04_INTEGRATION.md) | [Next: Phase 6 →](./TEST_PHASE_06_REALTIME.md)

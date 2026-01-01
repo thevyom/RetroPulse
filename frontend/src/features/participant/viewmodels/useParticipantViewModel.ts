@@ -18,6 +18,18 @@ import { validateAlias } from '../../../shared/validation';
 const HEARTBEAT_INTERVAL = 60000; // 60 seconds
 
 // ============================================================================
+// Options
+// ============================================================================
+
+export interface UseParticipantViewModelOptions {
+  /**
+   * Automatically fetch participants on mount. Default: true
+   * Set to false in tests to control when data fetching occurs.
+   */
+  autoFetch?: boolean;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -55,7 +67,11 @@ export interface UseParticipantViewModelResult {
 // Hook Implementation
 // ============================================================================
 
-export function useParticipantViewModel(boardId: string): UseParticipantViewModelResult {
+export function useParticipantViewModel(
+  boardId: string,
+  options: UseParticipantViewModelOptions = {}
+): UseParticipantViewModelResult {
+  const { autoFetch = true } = options;
   // Store state
   const currentUser = useUserStore((state) => state.currentUser);
   const activeUsers = useUserStore((state) => state.activeUsers);
@@ -126,12 +142,14 @@ export function useParticipantViewModel(boardId: string): UseParticipantViewMode
     }
   }, [boardId, setCurrentUser]);
 
-  // Load active users on mount
+  // Load active users on mount (unless autoFetch is disabled)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
-    void fetchActiveUsers();
-    void fetchCurrentUserSession();
-  }, [fetchActiveUsers, fetchCurrentUserSession]);
+    if (autoFetch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
+      void fetchActiveUsers();
+      void fetchCurrentUserSession();
+    }
+  }, [autoFetch, fetchActiveUsers, fetchCurrentUserSession]);
 
   // ============================================================================
   // Heartbeat
@@ -159,8 +177,9 @@ export function useParticipantViewModel(boardId: string): UseParticipantViewMode
   }, [sendHeartbeat]);
 
   // Set up heartbeat interval - only depends on boardId to avoid unnecessary restarts
+  // Disabled when autoFetch is false (test mode)
   useEffect(() => {
-    if (!boardId) return;
+    if (!boardId || !autoFetch) return;
 
     // Start heartbeat interval using ref to always get latest callback
     heartbeatIntervalRef.current = setInterval(() => {
@@ -174,7 +193,7 @@ export function useParticipantViewModel(boardId: string): UseParticipantViewMode
         heartbeatIntervalRef.current = null;
       }
     };
-  }, [boardId]);
+  }, [boardId, autoFetch]);
 
   // ============================================================================
   // Socket Event Handlers

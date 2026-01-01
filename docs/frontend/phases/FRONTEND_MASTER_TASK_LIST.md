@@ -1,7 +1,7 @@
 # Frontend Master Task List - RetroPulse
 
 > **Single source of truth** for all frontend implementation phases and tasks.
-> Last Updated: 2025-12-31 | Total Phases: 9 | Completed: 6/9
+> Last Updated: 2025-12-31 | Total Phases: 9 | Completed: 7/9
 
 ---
 
@@ -61,34 +61,32 @@ FRONTEND_PHASE_05_VIEW_COMPONENTS.md
 | 4 | [ViewModel Layer](./FRONTEND_PHASE_04_VIEWMODEL_LAYER.md) | ✅ Done | 10/10 | High | [Tests](../code-review/TEST_PHASE_04_ViewModelLayer.md) | Business logic hooks (MVVM) |
 | 5 | [View Components](./FRONTEND_PHASE_05_VIEW_COMPONENTS.md) | ✅ Done | 18/18 | High | [Tests](../code-review/TEST_PHASE_05_ViewComponents.md) | UI components (React + shadcn/ui) |
 | 6 | [Integration & Real-time](./FRONTEND_PHASE_06_INTEGRATION_REALTIME.md) | ✅ Done | 4/4 | Medium | [Tests](../code-review/TEST_PHASE_06_IntegrationRealtime.md) | Socket.io events, drag-and-drop |
-| 7 | [E2E Testing](./FRONTEND_PHASE_07_E2E_TESTING.md) | 🔲 Not Started | 0/10 | Medium | [Tests](../test-docs/TEST_PHASE_05_E2E.md) | MSW mocks, Playwright tests |
+| 7 | [E2E Testing](./FRONTEND_PHASE_07_E2E_TESTING.md) | ✅ Done | 10/10 | Medium | [Tests](../code-review/CR_PHASE_07_E2ETesting.md) | MSW mocks, Playwright tests |
 | 8 | [Polish & Production](./FRONTEND_PHASE_08_POLISH_PRODUCTION.md) | 🔲 Not Started | 0/8 | Medium | - | Error handling, performance, a11y |
 | 9 | [Documentation](./FRONTEND_PHASE_09_DOCUMENTATION.md) | 🔲 Not Started | 0/4 | Low | - | JSDoc, README, CONTRIBUTING |
 
-**Overall Progress**: 58/80 tasks complete (73%)
+**Overall Progress**: 68/80 tasks complete (85%)
 
 ---
 
-## 🎯 Current Focus: Phase 7 - E2E Testing
+## 🎯 Current Focus: Phase 8 - Polish & Production
 
-**Phase 6 Completed:** Integration & Real-time with 661 total tests passing (90.26% coverage).
+**Phase 7 Completed:** E2E Testing with 671 tests passing (93% line coverage, 82% branch coverage).
 
-**Completed in Phase 5-6:**
-- All View Components (RetroBoardPage, Header, ParticipantBar, RetroColumn, RetroCard)
-- @dnd-kit integration with visual feedback (ring highlights)
-- WebSocket connection management in RetroBoardPage
-- useDraggable/useDroppable in cards and columns
-- 36 integration tests for real-time events and drag-drop
+**Completed in Phase 7:**
+- MSW handlers for all API endpoints (BoardAPI, CardAPI, ReactionAPI)
+- Integration tests for card creation, parent-child linking, quotas
+- Playwright E2E helpers and configuration
+- 11 E2E test suites covering: retro sessions, quotas, anonymous cards, drag-drop, board lifecycle, parent-child cards, sorting/filtering, admin operations, tablet viewport, accessibility
 
-**Next tasks to implement (Phase 7):**
-1. Set up Playwright testing framework
-2. Configure MSW for API mocking
-3. Write E2E tests for board creation flow
-4. Write E2E tests for card CRUD operations
-5. Write E2E tests for real-time sync between clients
-6. Write E2E tests for drag-and-drop interactions
+**Next tasks to implement (Phase 8):**
+1. Error boundary and toast notifications
+2. Loading states and skeleton screens
+3. Performance optimization (lazy loading, memoization)
+4. Accessibility audit and fixes
+5. Production build optimization
 
-[→ View Phase 7 Details](./FRONTEND_PHASE_07_E2E_TESTING.md)
+[→ View Phase 8 Details](./FRONTEND_PHASE_08_POLISH_PRODUCTION.md)
 
 ---
 
@@ -104,11 +102,12 @@ FRONTEND_PHASE_05_VIEW_COMPONENTS.md
 | View Components | 95 | - | - | ✅ |
 | Real-time Integration | - | 15 | - | ✅ |
 | Drag-Drop Integration | - | 21 | - | ✅ |
-| E2E Flows | - | - | ~35 | 🔲 |
-| **Total** | **661 actual** | **36** | **~35** | **661+ tests** |
+| MSW Integration | - | 38 (10 skipped) | - | ✅ |
+| E2E Flows | - | - | 47 | ✅ |
+| **Total** | **671** | **46** | **47** | **764 tests** |
 
 Target: 80%+ code coverage
-**Current Coverage:** 90.26% statements, 78.92% branches, 90.52% functions
+**Current Coverage:** 93.09% lines, 82.25% branches, 93.35% functions, 93.67% statements
 
 **Test Architecture Decisions** (see [Test Master Plan](../test-docs/FRONTEND_TEST_MASTER_PLAN.md)):
 - Safari testing: Not required for MVP
@@ -185,10 +184,10 @@ Target: 80%+ code coverage
 
 The frontend is considered complete when:
 
-1. 🔲 All 80 tasks completed and merged (58/80 - 73%)
-2. ✅ Unit test coverage >80% (661 tests passing, 90.26% coverage)
-3. ✅ All integration test suites pass (36 tests)
-4. 🔲 All E2E scenarios pass
+1. 🔲 All 80 tasks completed and merged (68/80 - 85%)
+2. ✅ Unit test coverage >80% (671 tests passing, 93% coverage)
+3. ✅ All integration test suites pass (46 tests)
+4. ✅ All E2E scenarios pass (47 tests)
 5. ✅ Real-time sync working (WebSocket integration complete)
 6. ✅ Drag-and-drop fully functional (@dnd-kit integrated)
 7. 🔲 Accessibility audit passed
@@ -259,9 +258,9 @@ Before starting work, read these documents:
 | Phase 4 (ViewModel Layer) | ✅ Complete |
 | Phase 5 (View Components) | ✅ Complete |
 | Phase 6 (Integration & Real-time) | ✅ Complete |
-| Phase 7 (E2E Testing) | 1 week |
+| Phase 7 (E2E Testing) | ✅ Complete |
 | Phase 8-9 (Polish & Docs) | 3-5 days |
-| **Remaining** | **1-2 weeks** |
+| **Remaining** | **3-5 days** |
 
 ---
 

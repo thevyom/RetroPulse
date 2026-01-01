@@ -138,10 +138,26 @@ function filterCards(cards: Card[], filters: FilterState): Card[] {
 }
 
 // ============================================================================
+// Options
+// ============================================================================
+
+export interface UseCardViewModelOptions {
+  /**
+   * Automatically fetch cards on mount. Default: true
+   * Set to false in tests to control when data fetching occurs.
+   */
+  autoFetch?: boolean;
+}
+
+// ============================================================================
 // Hook Implementation
 // ============================================================================
 
-export function useCardViewModel(boardId: string): UseCardViewModelResult {
+export function useCardViewModel(
+  boardId: string,
+  options: UseCardViewModelOptions = {}
+): UseCardViewModelResult {
+  const { autoFetch = true } = options;
   // Store state
   const cardsMap = useCardStore((state) => state.cards);
   const storeIsLoading = useCardStore((state) => state.isLoading);
@@ -251,15 +267,17 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
     return quota;
   }, [boardId]);
 
-  // Load cards on mount
+  // Load cards on mount (unless autoFetch is disabled)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
-    void fetchCards();
-  }, [fetchCards]);
+    if (autoFetch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
+      void fetchCards();
+    }
+  }, [autoFetch, fetchCards]);
 
-  // Load quotas on mount - failures are non-critical
+  // Load quotas on mount - failures are non-critical (unless autoFetch is disabled)
   useEffect(() => {
-    if (boardId) {
+    if (boardId && autoFetch) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
       checkCardQuota().catch(() => {
         /* Silent fail - quotas are optional */
@@ -268,7 +286,7 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
         /* Silent fail - quotas are optional */
       });
     }
-  }, [boardId, checkCardQuota, checkReactionQuota]);
+  }, [boardId, autoFetch, checkCardQuota, checkReactionQuota]);
 
   // ============================================================================
   // Socket Event Handlers

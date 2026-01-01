@@ -2,7 +2,7 @@
 
 **Status**: 🔲 NOT STARTED
 **Priority**: Medium
-**Tasks**: 0/10 complete
+**Tasks**: 0/14 complete
 **Dependencies**: Phase 7 complete
 
 [← Back to Master Task List](../FRONTEND_MASTER_TASK_LIST.md)
@@ -16,6 +16,116 @@ Harden the application for production use. This includes comprehensive error han
 ---
 
 ## 📋 Task Breakdown
+
+### 22. Phase 7 Carryover Items (from PE Review)
+
+> These items were identified during Phase 7 Principal Engineer review and deferred to Phase 8.
+
+#### 22.1 Replace Fixed Timeouts in E2E Tests
+
+- [ ] Replace `waitForTimeout(1000)` with proper assertions (~15 locations)
+- [ ] Replace `waitForTimeout(500)` with state-based waits (~10 locations)
+- [ ] Replace `waitForTimeout(100)` with visibility checks
+
+**Pattern to use:**
+```typescript
+// Instead of:
+await page.waitForTimeout(1000);
+
+// Use:
+await expect(page.locator('[data-testid="expected-element"]')).toBeVisible();
+// or
+await page.waitForSelector('text="Expected Text"');
+```
+
+**Files to update:**
+- `tests/e2e/retro-session.spec.ts`
+- `tests/e2e/drag-drop.spec.ts`
+- `tests/e2e/parent-child-cards.spec.ts`
+- `tests/e2e/card-quota.spec.ts`
+- `tests/e2e/sorting-filtering.spec.ts`
+- `tests/e2e/admin-operations.spec.ts`
+- `tests/e2e/tablet-viewport.spec.ts`
+- `tests/e2e/board-lifecycle.spec.ts`
+
+**Reference**: CR_PHASE_07_E2ETesting.md - Critical Finding #4
+
+---
+
+#### 22.2 Create E2E Test Documentation
+
+- [ ] Create `frontend/tests/e2e/README.md`
+- [ ] Document prerequisites (backend on 3001, frontend on 5173)
+- [ ] Document commands to run E2E tests
+- [ ] Add troubleshooting section
+- [ ] Document environment variables
+
+**README Template:**
+```markdown
+# E2E Tests
+
+## Prerequisites
+1. Backend running on port 3001
+2. Frontend dev server on port 5173
+
+## Running Tests
+\`\`\`bash
+# Start backend (terminal 1)
+cd backend && npm run dev
+
+# Start frontend (terminal 2)
+cd frontend && npm run dev
+
+# Run E2E tests (terminal 3)
+cd frontend && npm run test:e2e
+\`\`\`
+
+## Troubleshooting
+- If tests skip, check backend health at http://localhost:3001/health
+- Global setup auto-detects backend availability
+```
+
+**Reference**: CR_PHASE_07_E2ETesting.md - Critical Finding #2
+
+---
+
+#### 22.3 Use UUID for E2E Test Board Isolation
+
+- [ ] Add uuid dependency if not present
+- [ ] Update `helpers.ts` to use UUID for board IDs
+- [ ] Update `global-setup.ts` to generate UUID-based board ID
+- [ ] Verify parallel test isolation works
+
+**Pattern:**
+```typescript
+import { v4 as uuidv4 } from 'uuid';
+const testBoardId = `e2e-${uuidv4()}`;
+```
+
+**Reference**: CR_PHASE_07_E2ETesting.md - Gap Analysis
+
+---
+
+#### 22.4 Implement Global Teardown for E2E Tests
+
+- [ ] Create `frontend/tests/e2e/global-teardown.ts`
+- [ ] Call `/v1/boards/{boardId}/test/clear` endpoint
+- [ ] Clean up test data created during test run
+- [ ] Enable in `playwright.config.ts`
+
+**Reference**: CR_PHASE_07_E2ETesting.md - Critical Finding #3
+
+---
+
+#### 22.5 Performance Optimizations (Carried from Phase 5-6)
+
+- [ ] Memoize card filtering in `RetroBoardPage.tsx`
+- [ ] Add column type enum instead of string-based detection
+- [ ] Add toast notifications instead of `console.error` in drag handlers
+
+**Reference**: CR_PHASE_05_ViewComponents.md, CR_PHASE_06_IntegrationRealtime.md
+
+---
 
 ### 23. Error Handling & Edge Cases
 
@@ -404,14 +514,23 @@ package.json                   (lint-staged config)
 | Test Suite | Tests | Focus |
 |------------|-------|-------|
 | Error scenarios | ~5 | HTTP errors, rollback |
+| E2E timeout fixes | ~25 | Replace fixed waits |
 | Performance | - | Manual profiling |
 | Accessibility | - | Automated a11y tests |
-| **Total** | **~5** | |
+| **Total** | **~30** | |
 
 ---
 
 ## ✅ Acceptance Criteria
 
+### Phase 7 Carryover
+- [ ] E2E tests use proper waits instead of fixed timeouts
+- [ ] E2E README documentation exists
+- [ ] UUID-based test board isolation implemented
+- [ ] Global teardown cleans test data
+- [ ] Card filtering memoized
+
+### Phase 8 Core
 - [ ] All API errors handled gracefully
 - [ ] Optimistic updates work with rollback
 - [ ] No unnecessary re-renders (React DevTools check)

@@ -1,8 +1,8 @@
 # Frontend Core Context - RetroPulse
 
 **Generated:** 2025-12-31
-**Phase:** 1-6 Complete (Project Setup → Integration & Real-time)
-**Status:** MVVM architecture with real-time sync and drag-drop integrated. Ready for E2E Testing (Phase 7)
+**Phase:** 1-7 Complete (Project Setup → E2E Testing)
+**Status:** Full test coverage with MSW integration tests and Playwright E2E. Ready for Polish (Phase 8)
 
 ---
 
@@ -230,15 +230,15 @@ interface UserSession {
 | Socket | 15+ | `tests/unit/models/socket/` |
 | ViewModels | 160+ | `tests/unit/features/*/viewmodels/` |
 | View Components | 95 | `tests/unit/features/*/components/` |
-| Integration | 36 | `tests/integration/` |
-| E2E | 2 | `tests/e2e/` |
-| **Total** | **661** | **26 files** |
+| Integration (MSW) | 74 | `tests/integration/` |
+| E2E (Playwright) | 47 | `tests/e2e/` |
+| **Total** | **699** | **32 files** |
 
-### Coverage Metrics (Phase 6)
-- **Statements:** 90.26%
-- **Branches:** 78.92%
-- **Functions:** 90.52%
-- **Lines:** 90.84%
+### Coverage Metrics (Phase 7)
+- **Statements:** 93.13%
+- **Branches:** 83.03%
+- **Functions:** 93.35%
+- **Lines:** 93.70%
 
 ### Test Patterns
 - **Mocking:** `vi.mock()` for API/socket, store mocks via factory
@@ -246,6 +246,31 @@ interface UserSession {
 - **Components:** `render` + `screen` + `userEvent` for UI testing
 - **Assertions:** `@testing-library/jest-dom` matchers
 - **Coverage:** Excluded: `index.ts`, `*.config.*`, `main.tsx`, `client.ts`
+
+### MSW Integration (Phase 7)
+
+| File | Purpose |
+|------|---------|
+| `tests/mocks/handlers.ts` | API request handlers with mock factories |
+| `tests/mocks/server.ts` | MSW server setup for tests |
+
+**Mock Factories:** `createMockBoard()`, `createMockCard()`, `setMockCardQuota()`, `resetMockData()`
+
+### E2E Test Suites (Playwright)
+
+| Suite | Tests | Focus |
+|-------|-------|-------|
+| `retro-session.spec.ts` | 4 | Multi-user real-time sessions |
+| `card-quota.spec.ts` | 4 | Quota enforcement flows |
+| `drag-drop.spec.ts` | 10 | Drag-and-drop interactions |
+| `board-lifecycle.spec.ts` | 5 | Board creation, sharing, closing |
+| `parent-child-cards.spec.ts` | 4 | Card linking validation |
+| `sorting-filtering.spec.ts` | 5 | Filter and sort UI |
+| `admin-operations.spec.ts` | 4 | Admin feature testing |
+| `tablet-viewport.spec.ts` | 3 | Touch/tablet testing |
+| `accessibility-basic.spec.ts` | 5 | Keyboard navigation, ARIA |
+
+**Helper:** `tests/e2e/helpers.ts` - Board/card creation, navigation utilities
 
 ---
 
@@ -322,7 +347,7 @@ interface UserSession {
 | 4 | ViewModel Layer | ✅ Complete | 471 |
 | 5 | View Components | ✅ Complete | 625 |
 | 6 | Integration & Real-time | ✅ Complete | 661 |
-| 7 | E2E Testing | 🔲 Pending | - |
+| 7 | E2E Testing | ✅ Complete | 699 |
 | 8 | Polish & Accessibility | 🔲 Pending | - |
 | 9 | Production Ready | 🔲 Pending | - |
 
@@ -344,6 +369,11 @@ interface UserSession {
 **Phase 6 (Integration):**
 - @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities (already in Phase 1)
 - socket.io-client (already in Phase 1)
+
+**Phase 7 (Testing):**
+- MSW 2.x for API mocking in integration tests
+- Playwright with chromium for E2E tests
+- `autoFetch: false` option added to ViewModels for testability
 
 ---
 
