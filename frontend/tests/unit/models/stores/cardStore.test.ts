@@ -240,7 +240,15 @@ describe('cardStore', () => {
       const parentWithChildRef = {
         ...mockCardWithChildren,
         children: [
-          { id: 'child-1', content: 'Child content', is_anonymous: false, created_by_alias: 'ChildUser', created_at: '2025-12-28T11:00:00Z', direct_reaction_count: 0, aggregated_reaction_count: 0 },
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'ChildUser',
+            created_at: '2025-12-28T11:00:00Z',
+            direct_reaction_count: 0,
+            aggregated_reaction_count: 0,
+          },
         ],
       };
 

@@ -66,6 +66,7 @@ export interface UseCardViewModelResult {
   // Reaction actions
   handleAddReaction: (cardId: string) => Promise<void>;
   handleRemoveReaction: (cardId: string) => Promise<void>;
+  hasUserReacted: (cardId: string) => boolean;
 
   // Sort/Filter actions
   setSortMode: (mode: SortMode) => void;
@@ -169,6 +170,8 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
     showAnonymous: true,
     selectedUsers: [],
   });
+  // Track user's reactions locally (persists for session only)
+  const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
 
   // Combined error
   const error = operationError || storeError;
@@ -689,6 +692,7 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
 
       // Optimistic update
       incrementReactionCount(cardId);
+      setUserReactions((prev) => new Set(prev).add(cardId));
 
       try {
         await ReactionAPI.addReaction(cardId, { reaction_type: 'thumbs_up' });
@@ -696,6 +700,11 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
       } catch (err) {
         // Rollback
         decrementReactionCount(cardId);
+        setUserReactions((prev) => {
+          const next = new Set(prev);
+          next.delete(cardId);
+          return next;
+        });
         const message = err instanceof Error ? err.message : 'Failed to add reaction';
         setOperationError(message);
         throw err;
@@ -716,6 +725,11 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
 
       // Optimistic update
       decrementReactionCount(cardId);
+      setUserReactions((prev) => {
+        const next = new Set(prev);
+        next.delete(cardId);
+        return next;
+      });
 
       try {
         await ReactionAPI.removeReaction(cardId);
@@ -723,12 +737,20 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
       } catch (err) {
         // Rollback
         incrementReactionCount(cardId);
+        setUserReactions((prev) => new Set(prev).add(cardId));
         const message = err instanceof Error ? err.message : 'Failed to remove reaction';
         setOperationError(message);
         throw err;
       }
     },
     [board?.state, incrementReactionCount, decrementReactionCount, checkReactionQuota]
+  );
+
+  const hasUserReacted = useCallback(
+    (cardId: string): boolean => {
+      return userReactions.has(cardId);
+    },
+    [userReactions]
   );
 
   // ============================================================================
@@ -823,6 +845,7 @@ export function useCardViewModel(boardId: string): UseCardViewModelResult {
     // Reaction actions
     handleAddReaction,
     handleRemoveReaction,
+    hasUserReacted,
 
     // Sort/Filter actions
     setSortMode: handleSetSortMode,
