@@ -5,13 +5,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard, closeBoard, isBoardClosed } from './helpers';
+import { waitForBoardLoad, createCard, closeBoard, isBoardClosed, getBoardId, isBackendReady } from './helpers';
 
 test.describe('Board Lifecycle', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-lifecycle';
+  // Use dedicated lifecycle board
+  const testBoardId = getBoardId('lifecycle');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
   });
 
   test('board displays header with name', async ({ page }) => {

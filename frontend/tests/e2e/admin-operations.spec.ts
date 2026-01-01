@@ -5,13 +5,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, closeBoard, isBoardClosed, waitForAdminBadge } from './helpers';
+import { waitForBoardLoad, closeBoard, isBoardClosed, waitForAdminBadge, getBoardId, isBackendReady } from './helpers';
 
 test.describe('Admin Operations', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-admin';
+  // Use default board for admin operations testing
+  const testBoardId = getBoardId('default');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
   });
 
   test('creator has admin controls visible', async ({ page }) => {
@@ -34,9 +35,9 @@ test.describe('Admin Operations', () => {
   });
 
   test('non-admin cannot see admin controls', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-no-admin';
+    const testBoardId = getBoardId('default');
 
     // Create admin context (creator)
     const adminContext = await browser.newContext();
@@ -77,9 +78,9 @@ test.describe('Admin Operations', () => {
   });
 
   test('admin can promote user via dropdown', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-promote';
+    const testBoardId = getBoardId('default');
 
     const adminContext = await browser.newContext();
     const userContext = await browser.newContext();
@@ -125,9 +126,9 @@ test.describe('Admin Operations', () => {
   });
 
   test('co-admin can close board', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-coadmin';
+    const testBoardId = getBoardId('default');
 
     const creatorContext = await browser.newContext();
     const coAdminContext = await browser.newContext();

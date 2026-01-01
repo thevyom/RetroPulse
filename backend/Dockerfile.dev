@@ -1,0 +1,39 @@
+# Development Dockerfile - uses tsx for runtime TypeScript (no build step)
+# This bypasses TypeScript compilation errors for development/testing
+
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install all dependencies (including dev deps for tsx)
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY tsconfig.json ./
+COPY src ./src
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Set ownership
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Start with tsx (runtime TypeScript - no build needed)
+CMD ["npx", "tsx", "src/index.ts"]

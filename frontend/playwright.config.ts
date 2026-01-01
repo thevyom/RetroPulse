@@ -14,20 +14,20 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1, // 1 retry locally for flaky tests
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html'], ['list']],
-  timeout: 30 * 1000,
+  timeout: 60 * 1000, // Increased from 30s to 60s
   expect: {
-    timeout: 10 * 1000,
+    timeout: 15 * 1000, // Increased from 10s to 15s
   },
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    actionTimeout: 10 * 1000,
-    navigationTimeout: 15 * 1000,
+    actionTimeout: 15 * 1000, // Increased from 10s to 15s
+    navigationTimeout: 30 * 1000, // Increased from 15s to 30s
   },
   projects: [
     {

@@ -16,13 +16,16 @@ import {
   waitForCardLinked,
   waitForCardUnlinked,
   waitForReactionCount,
+  getBoardId,
+  isBackendReady,
 } from './helpers';
 
 test.describe('Parent-Child Card Relationships', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-pc';
+  // Use default board for parent-child card tests
+  const testBoardId = getBoardId('default');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
   });

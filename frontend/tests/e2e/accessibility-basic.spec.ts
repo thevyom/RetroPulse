@@ -5,13 +5,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard, findCardByContent } from './helpers';
+import { waitForBoardLoad, createCard, findCardByContent, getBoardId, isBackendReady } from './helpers';
 
 test.describe('Basic Accessibility', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-a11y';
+  // Use dedicated a11y board for accessibility testing
+  const testBoardId = getBoardId('a11y');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
   });

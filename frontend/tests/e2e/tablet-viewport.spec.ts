@@ -11,16 +11,19 @@ import {
   findCardByContent,
   dragCardOntoCard,
   isCardLinked,
+  getBoardId,
+  isBackendReady,
 } from './helpers';
 
 test.describe('Tablet Viewport Tests', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-tablet';
+  // Use default board for tablet viewport tests
+  const testBoardId = getBoardId('default');
 
   // Use tablet viewport for all tests
   test.use({ viewport: { width: 768, height: 1024 } });
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
   });

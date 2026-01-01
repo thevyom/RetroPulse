@@ -5,14 +5,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard, findCardByContent, deleteCard } from './helpers';
+import { waitForBoardLoad, createCard, findCardByContent, deleteCard, getBoardId, isBackendReady } from './helpers';
 
 test.describe('Card Quota Enforcement', () => {
-  // Use a board with card limit = 2 for testing
-  const quotaBoardId = process.env.QUOTA_BOARD_ID || 'test-board-quota';
+  // Use dedicated quota board with card limit = 2
+  const quotaBoardId = getBoardId('quota');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
   });
 
   test('allows card creation when under limit', async ({ page }) => {
@@ -127,10 +127,11 @@ test.describe('Card Quota Enforcement', () => {
 });
 
 test.describe('Anonymous Cards', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-anon';
+  // Use dedicated anon board for testing
+  const testBoardId = getBoardId('anon');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
   });
 
   test('anonymous card hides creator info', async ({ page }) => {
@@ -206,9 +207,9 @@ test.describe('Anonymous Cards', () => {
   });
 
   test('other user cannot delete anonymous card', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-anon-multi';
+    const testBoardId = getBoardId('anon');
 
     // Create two contexts
     const creatorContext = await browser.newContext();

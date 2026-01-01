@@ -1,0 +1,107 @@
+version: '3.9'
+
+# =============================================================================
+# RetroPulse E2E Testing Environment
+# =============================================================================
+# Usage:
+#   docker-compose -f docker-compose.test.yml up -d
+#
+# Access URLs:
+#   - Frontend:      http://localhost:5173
+#   - Backend API:   http://localhost:3001
+#   - Mongo Express: http://localhost:8081
+#   - MongoDB:       localhost:27017
+#
+# To stop: docker-compose -f docker-compose.test.yml down
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # MongoDB Database (Test Instance)
+  # ---------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7.0
+    container_name: retropulse-test-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: testpassword
+      MONGO_INITDB_DATABASE: retroboard_test
+    volumes:
+      - test-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - test-network
+
+  # ---------------------------------------------------------------------------
+  # Mongo Express (Admin UI for debugging)
+  # ---------------------------------------------------------------------------
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: retropulse-test-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: testpassword
+      ME_CONFIG_MONGODB_URL: mongodb://admin:testpassword@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - test-network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Backend API Service
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: retropulse-test-backend
+    ports:
+      - "3001:3000"  # Map to 3001 for Playwright E2E tests
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      MONGODB_URL: mongodb://admin:testpassword@mongodb:27017
+      MONGODB_DATABASE: retroboard_test
+      COOKIE_SECRET: test-cookie-secret-32chars-here
+      ADMIN_SECRET_KEY: dev-admin-secret-16chars
+      FRONTEND_URL: http://localhost:5173
+      APP_URL: http://localhost:3001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - test-network
+    restart: unless-stopped
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  test-mongo-data:
+    name: retropulse-test-mongo-data
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  test-network:
+    name: retropulse-test-network
+    driver: bridge

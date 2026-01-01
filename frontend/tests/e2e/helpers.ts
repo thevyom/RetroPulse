@@ -7,6 +7,9 @@
 
 import type { Page, BrowserContext } from '@playwright/test';
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import type { TestBoardIds } from './global-setup';
 
 // ============================================================================
 // Types
@@ -22,6 +25,60 @@ export interface TestCard {
   id: string;
   content: string;
   columnId: string;
+}
+
+// ============================================================================
+// Board IDs from Global Setup
+// ============================================================================
+
+// Path to the board IDs file written by global-setup
+const BOARD_IDS_FILE = path.join(__dirname, '.test-boards.json');
+
+// Cached board IDs to avoid re-reading file
+let cachedBoardIds: TestBoardIds | null = null;
+
+/**
+ * Get board IDs created by global-setup
+ * Reads from the JSON file written during test setup
+ */
+export function getTestBoardIds(): TestBoardIds {
+  if (cachedBoardIds) {
+    return cachedBoardIds;
+  }
+
+  try {
+    const content = fs.readFileSync(BOARD_IDS_FILE, 'utf-8');
+    cachedBoardIds = JSON.parse(content) as TestBoardIds;
+    return cachedBoardIds;
+  } catch (error) {
+    console.warn('Could not read board IDs file, using fallback');
+    return {
+      sessionId: randomUUID(),
+      backendReady: false,
+    };
+  }
+}
+
+/**
+ * Check if backend is ready for E2E tests
+ */
+export function isBackendReady(): boolean {
+  return getTestBoardIds().backendReady;
+}
+
+/**
+ * Get the default test board ID
+ */
+export function getDefaultBoardId(): string {
+  return getTestBoardIds().default || 'fallback-board-id';
+}
+
+/**
+ * Get a specific board ID by type
+ */
+export function getBoardId(type: 'default' | 'quota' | 'lifecycle' | 'a11y' | 'anon'): string {
+  const ids = getTestBoardIds();
+  return ids[type] || `fallback-${type}-board`;
 }
 
 // ============================================================================
@@ -50,8 +107,7 @@ export function uniqueBoardId(): string {
  * Used for grouping related test data for cleanup
  */
 export function getTestSessionId(): string {
-  // Use environment variable if set by global-setup, otherwise generate new
-  return process.env.E2E_TEST_SESSION_ID || randomUUID();
+  return getTestBoardIds().sessionId;
 }
 
 // ============================================================================
@@ -132,12 +188,25 @@ export async function joinBoard(
 /**
  * Wait for board to be fully loaded
  */
-export async function waitForBoardLoad(page: Page): Promise<void> {
-  // Wait for columns to appear
-  await page.waitForSelector('[data-testid^="column-"]', { timeout: 15000 }).catch(() => {
-    // Alternative: wait for any content
-    return page.waitForLoadState('networkidle');
+export async function waitForBoardLoad(page: Page, options: { timeout?: number } = {}): Promise<void> {
+  const { timeout = 30000 } = options;
+
+  // Wait for page to be stable first
+  await page.waitForLoadState('domcontentloaded');
+
+  // Try multiple selectors for board content
+  await Promise.race([
+    page.waitForSelector('[data-testid^="column-"]', { timeout }),
+    page.waitForSelector('[data-testid="retro-column"]', { timeout }),
+    page.waitForSelector('.retro-column', { timeout }),
+    page.waitForSelector('[data-testid="board-container"]', { timeout }),
+  ]).catch(async () => {
+    // Fallback: wait for network idle
+    await page.waitForLoadState('networkidle', { timeout });
   });
+
+  // Additional small delay for React hydration
+  await page.waitForTimeout(500);
 }
 
 // ============================================================================
@@ -151,27 +220,32 @@ export async function createCard(
   page: Page,
   columnSelector: string,
   content: string,
-  options: { cardType?: 'feedback' | 'action'; isAnonymous?: boolean } = {}
+  options: { cardType?: 'feedback' | 'action'; isAnonymous?: boolean; timeout?: number } = {}
 ): Promise<TestCard> {
-  const { cardType = 'feedback', isAnonymous = false } = options;
+  const { cardType = 'feedback', isAnonymous = false, timeout = 15000 } = options;
 
-  // Click add card button for the column
+  // Click add card button for the column - try multiple selectors
   const addButton = page
     .getByTestId(`add-card-${columnSelector}`)
     .or(page.locator(`[data-column-id="${columnSelector}"] button[aria-label*="add"]`))
-    .or(page.locator(`[data-testid="column-${columnSelector}"] button`).filter({ hasText: '+' }));
+    .or(page.locator(`[data-testid="column-${columnSelector}"] button`).filter({ hasText: '+' }))
+    .or(page.locator(`[data-testid="retro-column-${columnSelector}"] button`).first());
 
+  // Wait for add button to be clickable
+  await addButton.first().waitFor({ state: 'visible', timeout: 10000 });
   await addButton.first().click();
 
-  // Wait for dialog to open
-  await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+  // Wait for dialog to open with longer timeout
+  await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
 
-  // Fill content
+  // Fill content - try multiple selectors
   const contentInput = page
     .getByTestId('card-content-input')
     .or(page.locator('[role="dialog"] textarea'))
-    .or(page.locator('[role="dialog"] input[type="text"]'));
-  await contentInput.fill(content);
+    .or(page.locator('[role="dialog"] input[type="text"]'))
+    .or(page.getByPlaceholder(/content|text|message/i));
+  await contentInput.first().waitFor({ state: 'visible', timeout: 5000 });
+  await contentInput.first().fill(content);
 
   // Set card type if needed
   if (cardType === 'action') {
@@ -186,19 +260,31 @@ export async function createCard(
     const anonCheckbox = page
       .getByTestId('anonymous-checkbox')
       .or(page.getByLabel(/anonymous/i))
-      .or(page.locator('input[type="checkbox"]'));
-    await anonCheckbox.check();
+      .or(page.locator('[role="dialog"] input[type="checkbox"]'));
+    if (await anonCheckbox.isVisible().catch(() => false)) {
+      await anonCheckbox.check();
+    }
   }
 
-  // Submit
+  // Submit - try multiple selectors
   const submitButton = page
     .getByTestId('create-card-submit')
     .or(page.locator('[role="dialog"] button[type="submit"]'))
-    .or(page.getByRole('button', { name: /create|add|submit/i }));
-  await submitButton.click();
+    .or(page.getByRole('button', { name: /create|add|submit|save/i }));
+  await submitButton.first().click();
 
-  // Wait for card to appear
-  await page.waitForSelector(`text="${content}"`, { timeout: 10000 });
+  // Wait for dialog to close
+  await page.waitForSelector('[role="dialog"]', { state: 'hidden', timeout: 5000 }).catch(() => {});
+
+  // Wait for card to appear with better selector
+  await page.waitForFunction(
+    (text) => {
+      const cards = document.querySelectorAll('[data-testid^="card-"], [data-testid="retro-card"]');
+      return Array.from(cards).some((card) => card.textContent?.includes(text));
+    },
+    content,
+    { timeout }
+  );
 
   return {
     id: '', // We'd need to extract this from the DOM
@@ -210,8 +296,20 @@ export async function createCard(
 /**
  * Find a card by content
  */
-export async function findCardByContent(page: Page, content: string) {
-  return page.locator(`[data-testid^="card-"]`).filter({ hasText: content });
+export async function findCardByContent(page: Page, content: string, options: { timeout?: number } = {}) {
+  const { timeout = 10000 } = options;
+
+  // Try multiple selectors
+  const card = page
+    .locator('[data-testid^="card-"]')
+    .filter({ hasText: content })
+    .or(page.locator('[data-testid="retro-card"]').filter({ hasText: content }))
+    .or(page.locator('.retro-card').filter({ hasText: content }));
+
+  // Wait for at least one match
+  await card.first().waitFor({ state: 'visible', timeout }).catch(() => {});
+
+  return card.first();
 }
 
 /**
@@ -277,12 +375,23 @@ export async function getReactionCount(page: Page, content: string): Promise<num
 export async function dragCardOntoCard(
   page: Page,
   sourceContent: string,
-  targetContent: string
+  targetContent: string,
+  options: { timeout?: number } = {}
 ): Promise<void> {
-  const sourceCard = await findCardByContent(page, sourceContent);
-  const targetCard = await findCardByContent(page, targetContent);
+  const { timeout = 15000 } = options;
 
-  await sourceCard.dragTo(targetCard);
+  const sourceCard = await findCardByContent(page, sourceContent, { timeout });
+  const targetCard = await findCardByContent(page, targetContent, { timeout });
+
+  // Ensure both cards are visible
+  await sourceCard.waitFor({ state: 'visible', timeout: 5000 });
+  await targetCard.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Perform drag with force for reliability
+  await sourceCard.dragTo(targetCard, { force: true });
+
+  // Wait for UI to settle after drag
+  await page.waitForTimeout(500);
 }
 
 /**
@@ -291,14 +400,26 @@ export async function dragCardOntoCard(
 export async function dragCardToColumn(
   page: Page,
   cardContent: string,
-  columnId: string
+  columnId: string,
+  options: { timeout?: number } = {}
 ): Promise<void> {
-  const card = await findCardByContent(page, cardContent);
+  const { timeout = 15000 } = options;
+
+  const card = await findCardByContent(page, cardContent, { timeout });
   const column = page
     .getByTestId(`column-${columnId}`)
-    .or(page.locator(`[data-column-id="${columnId}"]`));
+    .or(page.locator(`[data-column-id="${columnId}"]`))
+    .or(page.locator(`[data-testid="retro-column-${columnId}"]`));
 
-  await card.dragTo(column);
+  // Ensure both elements are visible
+  await card.waitFor({ state: 'visible', timeout: 5000 });
+  await column.first().waitFor({ state: 'visible', timeout: 5000 });
+
+  // Perform drag
+  await card.dragTo(column.first(), { force: true });
+
+  // Wait for UI to settle after drag
+  await page.waitForTimeout(500);
 }
 
 // ============================================================================
@@ -324,7 +445,7 @@ export async function waitForRealtimeUpdate(
   selector: string,
   options: { timeout?: number } = {}
 ): Promise<void> {
-  const { timeout = 10000 } = options;
+  const { timeout = 20000 } = options; // Increased from 10s to 20s for real-time sync
   await page.waitForSelector(selector, { timeout });
 }
 

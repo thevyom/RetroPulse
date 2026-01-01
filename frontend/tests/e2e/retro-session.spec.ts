@@ -21,17 +21,18 @@ import {
   waitForReactionCount,
   waitForParticipantCount,
   waitForBoardClosed,
+  getBoardId,
+  isBackendReady,
 } from './helpers';
 
 test.describe('Complete Retro Session', () => {
-  // Use a test board ID that exists in the backend
-  // In a real scenario, create a board via API before tests
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-e2e';
+  // Get board ID from global setup (reads from file)
+  const testBoardId = getBoardId('default');
 
   test.describe.configure({ mode: 'serial' });
 
   test('single user can join board and see content', async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
@@ -45,7 +46,7 @@ test.describe('Complete Retro Session', () => {
   });
 
   test('user can create a feedback card', async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
@@ -60,7 +61,7 @@ test.describe('Complete Retro Session', () => {
   });
 
   test('user can add reaction to card', async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
@@ -78,7 +79,7 @@ test.describe('Complete Retro Session', () => {
   });
 
   test('user can create anonymous card', async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
@@ -98,7 +99,7 @@ test.describe('Complete Retro Session', () => {
   });
 
   test('admin can close board', async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
     // This test assumes the user is admin
     await page.goto(`/board/${testBoardId}`);
@@ -113,7 +114,7 @@ test.describe('Complete Retro Session', () => {
   });
 
   test('closed board disables card creation', async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
@@ -137,9 +138,9 @@ test.describe('Complete Retro Session', () => {
 
 test.describe('Multi-User Real-time Sync', () => {
   test("two users see each other's cards in real-time", async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-multi';
+    const testBoardId = getBoardId('default');
 
     // Create two browser contexts (two users)
     const user1Context = await browser.newContext();
@@ -179,9 +180,9 @@ test.describe('Multi-User Real-time Sync', () => {
   });
 
   test('three users see each other in participant bar', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-participants';
+    const testBoardId = getBoardId('default');
 
     // Create three browser contexts
     const contexts = await Promise.all([
@@ -227,9 +228,9 @@ test.describe('Multi-User Real-time Sync', () => {
   });
 
   test('user sees board close in real-time', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-close';
+    const testBoardId = getBoardId('default');
 
     // Create two contexts
     const adminContext = await browser.newContext();

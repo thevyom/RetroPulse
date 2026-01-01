@@ -5,13 +5,14 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard } from './helpers';
+import { waitForBoardLoad, createCard, getBoardId, isBackendReady } from './helpers';
 
 test.describe('Sorting and Filtering', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-sort';
+  // Use default board for sorting/filtering tests
+  const testBoardId = getBoardId('default');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
   });
@@ -59,9 +60,9 @@ test.describe('Sorting and Filtering', () => {
   });
 
   test('filter by specific user shows only their cards', async ({ browser }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = process.env.TEST_BOARD_ID || 'test-board-filter';
+    const testBoardId = getBoardId('default');
 
     // Create two contexts (two users)
     const aliceContext = await browser.newContext();

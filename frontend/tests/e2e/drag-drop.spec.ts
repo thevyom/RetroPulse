@@ -19,13 +19,16 @@ import {
   isCardInColumn,
   waitForCardLinked,
   waitForCardUnlinked,
+  getBoardId,
+  isBackendReady,
 } from './helpers';
 
 test.describe('Drag-and-Drop Interactions', () => {
-  const testBoardId = process.env.TEST_BOARD_ID || 'test-board-dnd';
+  // Use default board for drag-drop tests
+  const testBoardId = getBoardId('default');
 
   test.beforeEach(async ({ page }) => {
-    test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
+    test.skip(!isBackendReady(), 'Backend not running');
     await page.goto(`/board/${testBoardId}`);
     await waitForBoardLoad(page);
   });
