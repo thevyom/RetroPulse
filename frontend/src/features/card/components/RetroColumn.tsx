@@ -1,10 +1,12 @@
 /**
  * RetroColumn Component
  * A column container for retro cards with add card functionality.
+ * Supports drag-and-drop via @dnd-kit.
  */
 
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { useState } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { Pencil, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +42,10 @@ export interface RetroColumnProps {
   currentUserHash: string;
   canReact: boolean;
   hasUserReacted: (cardId: string) => boolean;
+  // DnD props
+  isDragging?: boolean;
+  draggedCardId?: string | null;
+  isValidDropTarget?: (targetId: string, targetType: 'card' | 'column') => boolean;
   onCreateCard: (data: CreateCardDTO) => Promise<Card>;
   onDeleteCard: (cardId: string) => Promise<void>;
   onAddReaction: (cardId: string) => Promise<void>;
@@ -64,6 +70,9 @@ export function RetroColumn({
   currentUserHash,
   canReact,
   hasUserReacted,
+  isDragging = false,
+  draggedCardId = null,
+  isValidDropTarget,
   onCreateCard,
   onDeleteCard,
   onAddReaction,
@@ -84,6 +93,16 @@ export function RetroColumn({
   const [editError, setEditError] = useState<string | null>(null);
 
   const cardType = columnType === 'action_item' ? 'action' : 'feedback';
+
+  // Droppable hook for column as drop target
+  const { setNodeRef, isOver } = useDroppable({
+    id: columnId,
+    data: { type: 'column', columnId },
+    disabled: isClosed,
+  });
+
+  // Check if this column is a valid drop target
+  const isValidTarget = isDragging && isValidDropTarget?.(columnId, 'column');
 
   const handleOpenAddDialog = () => {
     setNewCardContent('');
@@ -151,7 +170,13 @@ export function RetroColumn({
 
   return (
     <div
-      className={cn('flex w-80 flex-shrink-0 flex-col rounded-lg border', 'bg-card')}
+      ref={setNodeRef}
+      className={cn(
+        'flex w-80 flex-shrink-0 flex-col rounded-lg border',
+        'bg-card transition-all duration-200',
+        isOver && isValidTarget && 'ring-2 ring-primary ring-offset-2',
+        isOver && !isValidTarget && 'ring-2 ring-destructive ring-offset-2'
+      )}
       style={{ borderTopColor: color, borderTopWidth: '3px' }}
     >
       {/* Column Header */}
@@ -208,6 +233,8 @@ export function RetroColumn({
             isClosed={isClosed}
             canReact={canReact}
             hasReacted={hasUserReacted(card.id)}
+            isDragging={isDragging && draggedCardId !== card.id}
+            isValidDropTarget={isValidDropTarget}
             onReact={() => onAddReaction(card.id)}
             onUnreact={() => onRemoveReaction(card.id)}
             onDelete={() => onDeleteCard(card.id)}

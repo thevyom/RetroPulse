@@ -1,9 +1,12 @@
 /**
  * RetroCard Component
- * Individual card with reactions, delete, and nested children support.
+ * Individual card with reactions, delete, nested children support, and drag-drop.
+ * Supports drag-and-drop via @dnd-kit.
  */
 
 import { useState } from 'react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Link2, ThumbsUp, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +31,9 @@ export interface RetroCardProps {
   isClosed: boolean;
   canReact: boolean;
   hasReacted: boolean;
+  // DnD props
+  isDragging?: boolean;
+  isValidDropTarget?: (targetId: string, targetType: 'card' | 'column') => boolean;
   onReact: () => Promise<void>;
   onUnreact: () => Promise<void>;
   onDelete: () => Promise<void>;
@@ -45,6 +51,8 @@ export function RetroCard({
   isClosed,
   canReact,
   hasReacted,
+  isDragging: externalIsDragging = false,
+  isValidDropTarget,
   onReact,
   onUnreact,
   onDelete,
@@ -57,6 +65,55 @@ export function RetroCard({
   const hasParent = !!card.parent_card_id;
   const hasChildren = card.children && card.children.length > 0;
   const reactionCount = card.aggregated_reaction_count;
+
+  // Draggable: Cards with parents cannot be dragged (already linked)
+  const canDrag = !hasParent && !isClosed;
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    transform,
+    isDragging: isThisCardDragging,
+  } = useDraggable({
+    id: card.id,
+    data: {
+      type: 'card',
+      cardId: card.id,
+      cardType: card.card_type,
+    },
+    disabled: !canDrag,
+  });
+
+  // Droppable: This card can receive drops from other cards
+  const {
+    setNodeRef: setDropRef,
+    isOver,
+  } = useDroppable({
+    id: `drop-${card.id}`,
+    data: {
+      type: 'card',
+      cardId: card.id,
+      cardType: card.card_type,
+    },
+    disabled: isClosed,
+  });
+
+  // Combine refs for both draggable and droppable on the same element
+  const setNodeRef = (node: HTMLDivElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+
+  // Transform style for dragging
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+        opacity: isThisCardDragging ? 0.5 : 1,
+      }
+    : undefined;
+
+  // Check if this card is a valid drop target
+  const isValidTarget = externalIsDragging && isValidDropTarget?.(card.id, 'card');
 
   const handleReactionClick = async () => {
     if (isClosed) return;
@@ -95,10 +152,16 @@ export function RetroCard({
   return (
     <TooltipProvider>
       <div
+        ref={setNodeRef}
+        style={style}
         className={cn(
-          'group rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md',
-          level > 0 && 'ml-4 border-l-2 border-l-primary/30'
+          'group rounded-lg border border-border bg-card p-3 shadow-sm transition-all duration-200 hover:shadow-md',
+          level > 0 && 'ml-4 border-l-2 border-l-primary/30',
+          isThisCardDragging && 'opacity-50 shadow-lg',
+          isOver && isValidTarget && 'ring-2 ring-primary ring-offset-2',
+          isOver && !isValidTarget && 'ring-2 ring-destructive ring-offset-2'
         )}
+        {...attributes}
       >
         {/* Card Header */}
         <div className="mb-2 flex items-start justify-between">
@@ -121,7 +184,11 @@ export function RetroCard({
               </Tooltip>
             ) : (
               <div
-                className="cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+                {...listeners}
+                className={cn(
+                  'text-muted-foreground opacity-0 group-hover:opacity-100',
+                  canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
+                )}
                 aria-label="Drag handle"
               >
                 <GripVertical className="h-4 w-4" />

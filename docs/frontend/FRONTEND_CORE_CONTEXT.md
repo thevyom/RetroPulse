@@ -1,8 +1,8 @@
 # Frontend Core Context - RetroPulse
 
 **Generated:** 2025-12-31
-**Phase:** 1-5 Complete (Project Setup → View Components)
-**Status:** MVVM architecture complete with View layer, ready for Real-time Integration (Phase 6)
+**Phase:** 1-6 Complete (Project Setup → Integration & Real-time)
+**Status:** MVVM architecture with real-time sync and drag-drop integrated. Ready for E2E Testing (Phase 7)
 
 ---
 
@@ -131,6 +131,10 @@ interface UserSession {
 
 ```
 ┌─────────────────────────────────────────────────────────┐
+│               Integration (Phase 6) ✅                   │
+│   DndContext + PointerSensor │ Socket.io connection     │
+│   Visual feedback (ring-primary/destructive)            │
+├─────────────────────────────────────────────────────────┤
 │                    View (Phase 5) ✅                     │
 │   RetroBoardPage, RetroColumn, RetroCard, SortBar       │
 │   ParticipantBar, AdminDropdown, MyUserCard             │
@@ -192,6 +196,20 @@ interface UserSession {
 - Board closed state disables mutations
 - ErrorBoundary wraps main content for resilience
 
+### Integration Layer (Phase 6)
+
+**Drag-and-Drop (@dnd-kit):**
+- `DndContext` wraps RetroBoardPage with PointerSensor (8px activation distance)
+- `useDraggable` on RetroCard for drag source
+- `useDroppable` on RetroColumn and RetroCard (parent-child grouping)
+- Visual feedback: `ring-2 ring-primary` (valid), `ring-destructive` (invalid)
+- Droppable ID prefix `drop-` stripped in handleDragOver for validation
+
+**Real-time (Socket.io):**
+- Connection managed in RetroBoardPage useEffect (boardId dependency only)
+- Stores updated directly on socket events (no ViewModel intermediary)
+- Events: card:created, card:updated, card:deleted, card:moved, reaction:added/removed
+
 ---
 
 ## ⚙️ Testing Infrastructure
@@ -212,14 +230,15 @@ interface UserSession {
 | Socket | 15+ | `tests/unit/models/socket/` |
 | ViewModels | 160+ | `tests/unit/features/*/viewmodels/` |
 | View Components | 95 | `tests/unit/features/*/components/` |
+| Integration | 36 | `tests/integration/` |
 | E2E | 2 | `tests/e2e/` |
-| **Total** | **625** | **25 files** |
+| **Total** | **661** | **26 files** |
 
-### Coverage Metrics (Phase 5)
-- **Statements:** 91.93%
-- **Branches:** 82.40%
-- **Functions:** 90.43%
-- **Lines:** 91.93%
+### Coverage Metrics (Phase 6)
+- **Statements:** 90.26%
+- **Branches:** 78.92%
+- **Functions:** 90.52%
+- **Lines:** 90.84%
 
 ### Test Patterns
 - **Mocking:** `vi.mock()` for API/socket, store mocks via factory
@@ -302,15 +321,16 @@ interface UserSession {
 | 3 | Model Layer | ✅ Complete | 337 |
 | 4 | ViewModel Layer | ✅ Complete | 471 |
 | 5 | View Components | ✅ Complete | 625 |
-| 6 | Real-time Integration | 🔲 Pending | - |
-| 7 | Drag-Drop UI | 🔲 Pending | - |
-| 8 | Polish & Testing | 🔲 Pending | - |
-| 9 | E2E Testing | 🔲 Pending | - |
+| 6 | Integration & Real-time | ✅ Complete | 661 |
+| 7 | E2E Testing | 🔲 Pending | - |
+| 8 | Polish & Accessibility | 🔲 Pending | - |
+| 9 | Production Ready | 🔲 Pending | - |
 
 ---
 
-## 🚩 Dependencies Added (Phase 5)
+## 🚩 Dependencies Summary
 
+**Phase 5 (View Components):**
 ```json
 {
   "react-router-dom": "^7.11.0",
@@ -320,6 +340,10 @@ interface UserSession {
   "@radix-ui/react-tooltip": "^1.2.8"
 }
 ```
+
+**Phase 6 (Integration):**
+- @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities (already in Phase 1)
+- socket.io-client (already in Phase 1)
 
 ---
 

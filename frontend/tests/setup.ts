@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import type { ReactNode } from 'react';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
@@ -7,6 +8,39 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+
+// Mock @dnd-kit/core
+vi.mock('@dnd-kit/core', async () => {
+  const actual = await vi.importActual('@dnd-kit/core');
+  return {
+    ...actual,
+    useDraggable: vi.fn(() => ({
+      attributes: {},
+      listeners: {},
+      setNodeRef: vi.fn(),
+      transform: null,
+      isDragging: false,
+    })),
+    useDroppable: vi.fn(() => ({
+      setNodeRef: vi.fn(),
+      isOver: false,
+    })),
+    DndContext: ({ children }: { children: ReactNode }) => children,
+    DragOverlay: ({ children }: { children: ReactNode }) => children,
+  };
+});
+
+// Mock @dnd-kit/utilities
+vi.mock('@dnd-kit/utilities', () => ({
+  CSS: {
+    Translate: {
+      toString: vi.fn(() => undefined),
+    },
+    Transform: {
+      toString: vi.fn(() => undefined),
+    },
+  },
+}));
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
