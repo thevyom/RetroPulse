@@ -3,6 +3,7 @@
  * Individual avatar for a participant with filter toggle functionality.
  */
 
+import { memo } from 'react';
 import { Crown, Ghost, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -38,7 +39,7 @@ function getInitials(alias: string): string {
 // Component
 // ============================================================================
 
-export function ParticipantAvatar({
+export const ParticipantAvatar = memo(function ParticipantAvatar({
   type,
   alias,
   isAdmin = false,
@@ -110,6 +111,6 @@ export function ParticipantAvatar({
       </TooltipContent>
     </Tooltip>
   );
-}
+});
 
 export default ParticipantAvatar;

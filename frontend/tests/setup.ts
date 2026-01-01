@@ -9,7 +9,6 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-
 // Mock @dnd-kit/core
 vi.mock('@dnd-kit/core', async () => {
   const actual = await vi.importActual('@dnd-kit/core');

@@ -4,7 +4,7 @@
  * Supports drag-and-drop via @dnd-kit.
  */
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Link2, ThumbsUp, Trash2, User } from 'lucide-react';
@@ -19,14 +19,23 @@ import {
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Card } from '@/models/types';
+import type { ColumnType } from './RetroColumn';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
 // Types
 // ============================================================================
 
+// Card background colors (darker shades than column, per UI spec)
+const cardBgColors: Record<ColumnType, string> = {
+  went_well: 'bg-green-200',    // Darker than column's green-50
+  to_improve: 'bg-amber-200',   // Darker than column's orange-50
+  action_item: 'bg-blue-200',   // Darker than column's blue-50
+};
+
 export interface RetroCardProps {
   card: Card;
+  columnType: ColumnType;
   isOwner: boolean;
   isClosed: boolean;
   canReact: boolean;
@@ -45,8 +54,9 @@ export interface RetroCardProps {
 // Component
 // ============================================================================
 
-export function RetroCard({
+export const RetroCard = memo(function RetroCard({
   card,
+  columnType,
   isOwner,
   isClosed,
   canReact,
@@ -85,10 +95,7 @@ export function RetroCard({
   });
 
   // Droppable: This card can receive drops from other cards
-  const {
-    setNodeRef: setDropRef,
-    isOver,
-  } = useDroppable({
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `drop-${card.id}`,
     data: {
       type: 'card',
@@ -155,7 +162,8 @@ export function RetroCard({
         ref={setNodeRef}
         style={style}
         className={cn(
-          'group rounded-lg border border-border bg-card p-3 shadow-sm transition-all duration-200 hover:shadow-md',
+          'group rounded-lg border border-border p-3 shadow-md transition-all duration-200 hover:shadow-lg',
+          cardBgColors[columnType],
           level > 0 && 'ml-4 border-l-2 border-l-primary/30',
           isThisCardDragging && 'opacity-50 shadow-lg',
           isOver && isValidTarget && 'ring-2 ring-primary ring-offset-2',
@@ -222,7 +230,12 @@ export function RetroCard({
                 >
                   <ThumbsUp className={cn('h-3 w-3', hasReacted && 'fill-current')} />
                   {reactionCount > 0 && (
-                    <span className="text-xs font-medium">{reactionCount}</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-xs font-medium">{reactionCount}</span>
+                      {hasChildren && (
+                        <span className="text-[10px] text-muted-foreground">(Agg)</span>
+                      )}
+                    </span>
                   )}
                 </Button>
               </TooltipTrigger>
@@ -314,6 +327,6 @@ export function RetroCard({
       </div>
     </TooltipProvider>
   );
-}
+});
 
 export default RetroCard;

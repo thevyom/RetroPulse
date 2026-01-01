@@ -5,12 +5,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import {
-  waitForBoardLoad,
-  createCard,
-  closeBoard,
-  isBoardClosed,
-} from './helpers';
+import { waitForBoardLoad, createCard, closeBoard, isBoardClosed } from './helpers';
 
 test.describe('Board Lifecycle', () => {
   const testBoardId = process.env.TEST_BOARD_ID || 'test-board-lifecycle';
@@ -52,9 +47,9 @@ test.describe('Board Lifecycle', () => {
       await saveButton.click();
 
       // Verify update
-      await expect(page.locator('[data-testid="board-header"]').or(page.locator('h1'))).toContainText(
-        newName.slice(0, 10)
-      );
+      await expect(
+        page.locator('[data-testid="board-header"]').or(page.locator('h1'))
+      ).toContainText(newName.slice(0, 10));
     }
   });
 
@@ -152,12 +147,16 @@ test.describe('Board Lifecycle', () => {
       await saveButton.click();
 
       // Verify update
-      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(newColumnName.slice(0, 8));
+      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(
+        newColumnName.slice(0, 8)
+      );
 
       // Refresh and verify persistence
       await page.reload();
       await waitForBoardLoad(page);
-      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(newColumnName.slice(0, 8));
+      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(
+        newColumnName.slice(0, 8)
+      );
     }
   });
 

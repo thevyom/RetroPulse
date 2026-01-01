@@ -48,7 +48,10 @@ test.describe('Basic Accessibility', () => {
     const hasRole = await card.getAttribute('role');
 
     // Either has aria-label or is an article/region with text content
-    const isAccessible = hasAriaLabel !== null || hasRole === 'article' || (await card.textContent())?.includes(content);
+    const isAccessible =
+      hasAriaLabel !== null ||
+      hasRole === 'article' ||
+      (await card.textContent())?.includes(content);
 
     expect(isAccessible).toBe(true);
   });
@@ -91,9 +94,11 @@ test.describe('Basic Accessibility', () => {
 
   test('dialogs trap focus', async ({ page }) => {
     // Open a dialog
-    const addButton = page.getByTestId('add-card-col-1').or(page.locator('button').filter({ hasText: '+' }).first());
+    const addButton = page
+      .getByTestId('add-card-col-1')
+      .or(page.locator('button').filter({ hasText: '+' }).first());
 
-    if (await addButton.isVisible() && !(await addButton.isDisabled())) {
+    if ((await addButton.isVisible()) && !(await addButton.isDisabled())) {
       await addButton.click();
 
       const dialog = page.locator('[role="dialog"]');
@@ -136,9 +141,11 @@ test.describe('Basic Accessibility', () => {
 
   test('form inputs have labels', async ({ page }) => {
     // Open a dialog with form
-    const addButton = page.getByTestId('add-card-col-1').or(page.locator('button').filter({ hasText: '+' }).first());
+    const addButton = page
+      .getByTestId('add-card-col-1')
+      .or(page.locator('button').filter({ hasText: '+' }).first());
 
-    if (await addButton.isVisible() && !(await addButton.isDisabled())) {
+    if ((await addButton.isVisible()) && !(await addButton.isDisabled())) {
       await addButton.click();
 
       const dialog = page.locator('[role="dialog"]');
@@ -162,7 +169,8 @@ test.describe('Basic Accessibility', () => {
           }
 
           // Input should have accessible label via one of these methods
-          const isLabeled = hasLabel || ariaLabel !== null || ariaLabelledBy !== null || placeholder !== null;
+          const isLabeled =
+            hasLabel || ariaLabel !== null || ariaLabelledBy !== null || placeholder !== null;
           expect(isLabeled).toBe(true);
         }
 

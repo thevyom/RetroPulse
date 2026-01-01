@@ -62,4 +62,6 @@ export default defineConfig({
   ],
   // Global setup verifies backend health and sets E2E_BACKEND_READY
   globalSetup: './tests/e2e/global-setup.ts',
+  // Global teardown cleans up test data created during tests
+  globalTeardown: './tests/e2e/global-teardown.ts',
 });

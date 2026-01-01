@@ -6,6 +6,7 @@
  */
 
 import type { Page, BrowserContext } from '@playwright/test';
+import { randomUUID } from 'crypto';
 
 // ============================================================================
 // Types
@@ -21,6 +22,36 @@ export interface TestCard {
   id: string;
   content: string;
   columnId: string;
+}
+
+// ============================================================================
+// UUID Generation for Test Isolation
+// ============================================================================
+
+/**
+ * Generate a unique board name with UUID for test isolation
+ * Format: e2e-{prefix}-{uuid-short}
+ */
+export function uniqueBoardName(prefix: string = 'test'): string {
+  const uuid = randomUUID().slice(0, 8);
+  return `e2e-${prefix}-${uuid}`;
+}
+
+/**
+ * Generate a unique board ID for test isolation
+ * Returns full UUID for API compatibility
+ */
+export function uniqueBoardId(): string {
+  return `e2e-${randomUUID()}`;
+}
+
+/**
+ * Generate a unique test session ID
+ * Used for grouping related test data for cleanup
+ */
+export function getTestSessionId(): string {
+  // Use environment variable if set by global-setup, otherwise generate new
+  return process.env.E2E_TEST_SESSION_ID || randomUUID();
 }
 
 // ============================================================================
@@ -193,7 +224,9 @@ export async function deleteCard(page: Page, content: string): Promise<void> {
   await card.hover();
 
   // Click delete button
-  const deleteButton = card.getByTestId('delete-card').or(card.locator('button[aria-label*="delete"]'));
+  const deleteButton = card
+    .getByTestId('delete-card')
+    .or(card.locator('button[aria-label*="delete"]'));
   await deleteButton.click();
 
   // Confirm deletion if dialog appears
@@ -261,7 +294,9 @@ export async function dragCardToColumn(
   columnId: string
 ): Promise<void> {
   const card = await findCardByContent(page, cardContent);
-  const column = page.getByTestId(`column-${columnId}`).or(page.locator(`[data-column-id="${columnId}"]`));
+  const column = page
+    .getByTestId(`column-${columnId}`)
+    .or(page.locator(`[data-column-id="${columnId}"]`));
 
   await card.dragTo(column);
 }
@@ -307,13 +342,17 @@ export async function closeBoard(page: Page): Promise<void> {
   await closeButton.click();
 
   // Confirm
-  const confirmButton = page.getByTestId('confirm-close').or(page.getByRole('button', { name: /confirm/i }));
+  const confirmButton = page
+    .getByTestId('confirm-close')
+    .or(page.getByRole('button', { name: /confirm/i }));
   await confirmButton.click();
 
   // Wait for closed state
-  await page.waitForSelector('[data-testid="board-closed-indicator"]', { timeout: 5000 }).catch(() => {
-    return page.waitForSelector('[aria-label*="closed"]', { timeout: 5000 });
-  });
+  await page
+    .waitForSelector('[data-testid="board-closed-indicator"]', { timeout: 5000 })
+    .catch(() => {
+      return page.waitForSelector('[aria-label*="closed"]', { timeout: 5000 });
+    });
 }
 
 /**
@@ -378,7 +417,9 @@ export async function isCardInColumn(
   cardContent: string,
   columnId: string
 ): Promise<boolean> {
-  const column = page.getByTestId(`column-${columnId}`).or(page.locator(`[data-column-id="${columnId}"]`));
+  const column = page
+    .getByTestId(`column-${columnId}`)
+    .or(page.locator(`[data-column-id="${columnId}"]`));
   const card = column.locator(`text="${cardContent}"`);
   return card.isVisible().catch(() => false);
 }
@@ -390,4 +431,107 @@ export async function isCardLinked(page: Page, cardContent: string): Promise<boo
   const card = await findCardByContent(page, cardContent);
   const linkIcon = card.getByTestId('link-icon').or(card.locator('[aria-label*="linked"]'));
   return linkIcon.isVisible().catch(() => false);
+}
+
+/**
+ * Wait for a card to become linked (has link icon)
+ */
+export async function waitForCardLinked(
+  page: Page,
+  cardContent: string,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+  const card = await findCardByContent(page, cardContent);
+  const linkIcon = card.getByTestId('link-icon').or(card.locator('[aria-label*="linked"]'));
+  await linkIcon.waitFor({ state: 'visible', timeout });
+}
+
+/**
+ * Wait for a card to become unlinked (link icon disappears)
+ */
+export async function waitForCardUnlinked(
+  page: Page,
+  cardContent: string,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+  const card = await findCardByContent(page, cardContent);
+  const linkIcon = card.getByTestId('link-icon').or(card.locator('[aria-label*="linked"]'));
+  await linkIcon.waitFor({ state: 'hidden', timeout });
+}
+
+/**
+ * Wait for reaction count to update
+ */
+export async function waitForReactionCount(
+  page: Page,
+  cardContent: string,
+  expectedCount: number,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+  // Note: We don't use the locator directly, but wait for DOM changes via waitForFunction
+  await findCardByContent(page, cardContent);
+
+  await page.waitForFunction(
+    async ({ content, expected }) => {
+      const cardEl = document.querySelector(`[data-testid^="card-"]:has-text("${content}")`);
+      if (!cardEl) return false;
+      const countEl =
+        cardEl.querySelector('[data-testid="reaction-count"]') ||
+        cardEl.querySelector('.reaction-count');
+      if (!countEl) return false;
+      return parseInt(countEl.textContent || '0', 10) >= expected;
+    },
+    { content: cardContent, expected: expectedCount },
+    { timeout }
+  );
+}
+
+/**
+ * Wait for participant count to reach expected value
+ */
+export async function waitForParticipantCount(
+  page: Page,
+  expectedCount: number,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+  await page.waitForFunction(
+    (expected) => {
+      const avatars = document.querySelectorAll('[data-testid^="participant-avatar"]');
+      return avatars.length >= expected;
+    },
+    expectedCount,
+    { timeout }
+  );
+}
+
+/**
+ * Wait for board closed state to appear
+ */
+export async function waitForBoardClosed(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+  const closedIndicator = page
+    .getByTestId('board-closed-indicator')
+    .or(page.locator('[aria-label*="closed"]'))
+    .or(page.locator('.lock-icon'));
+  await closedIndicator.waitFor({ state: 'visible', timeout });
+}
+
+/**
+ * Wait for admin badge to appear on participant
+ */
+export async function waitForAdminBadge(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+  await page.waitForSelector('[data-testid^="participant-avatar"][data-is-admin="true"]', {
+    timeout,
+  });
 }

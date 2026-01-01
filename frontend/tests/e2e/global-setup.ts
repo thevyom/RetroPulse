@@ -1,9 +1,11 @@
 /**
  * Playwright Global Setup
  * Verifies backend health before running E2E tests
+ * Generates unique session ID for test isolation
  */
 
 import { FullConfig } from '@playwright/test';
+import { randomUUID } from 'crypto';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -21,13 +23,20 @@ async function checkHealth(url: string, name: string): Promise<boolean> {
     console.warn(`⚠️ ${name} returned status ${response.status}`);
     return false;
   } catch (error) {
-    console.warn(`❌ ${name} not reachable at ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.warn(
+      `❌ ${name} not reachable at ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
     return false;
   }
 }
 
 async function globalSetup(config: FullConfig): Promise<void> {
   console.log('\n🔍 Checking E2E test prerequisites...\n');
+
+  // Generate unique session ID for this test run
+  const sessionId = randomUUID();
+  process.env.E2E_TEST_SESSION_ID = sessionId;
+  console.log(`📝 Test Session ID: ${sessionId}`);
 
   // Check backend health
   const backendReady = await checkHealth(BACKEND_URL, 'Backend');

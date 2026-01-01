@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, closeBoard, isBoardClosed } from './helpers';
+import { waitForBoardLoad, closeBoard, isBoardClosed, waitForAdminBadge } from './helpers';
 
 test.describe('Admin Operations', () => {
   const testBoardId = process.env.TEST_BOARD_ID || 'test-board-admin';
@@ -107,8 +107,8 @@ test.describe('Admin Operations', () => {
         if (await promoteOption.isVisible().catch(() => false)) {
           await promoteOption.click();
 
-          // Wait for promotion
-          await adminPage.waitForTimeout(1000);
+          // Wait for promotion to complete - admin badge should appear
+          await waitForAdminBadge(adminPage);
 
           // User should now have admin badge
           const userAvatar = adminPage.locator(
@@ -150,7 +150,7 @@ test.describe('Admin Operations', () => {
         const promoteOption = creatorPage.getByRole('menuitem', { name: /promote/i });
         if (await promoteOption.isVisible().catch(() => false)) {
           await promoteOption.click();
-          await creatorPage.waitForTimeout(1000);
+          await waitForAdminBadge(creatorPage);
         }
       }
 
@@ -184,14 +184,18 @@ test.describe('Admin Operations', () => {
     if (await editBoardButton.isVisible().catch(() => false)) {
       await editBoardButton.click();
 
-      const boardInput = page.getByTestId('board-name-input').or(page.locator('[role="dialog"] input'));
+      const boardInput = page
+        .getByTestId('board-name-input')
+        .or(page.locator('[role="dialog"] input'));
       const newBoardName = `Admin Board ${Date.now()}`;
       await boardInput.fill(newBoardName);
 
       const saveButton = page.getByRole('button', { name: /save/i });
       await saveButton.click();
 
-      await expect(page.locator('[data-testid="board-header"]')).toContainText(newBoardName.slice(0, 10));
+      await expect(page.locator('[data-testid="board-header"]')).toContainText(
+        newBoardName.slice(0, 10)
+      );
     }
 
     // Rename column
@@ -208,7 +212,9 @@ test.describe('Admin Operations', () => {
       const saveButton = page.getByRole('button', { name: /save/i });
       await saveButton.click();
 
-      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(newColumnName.slice(0, 8));
+      await expect(page.locator('[data-testid="column-col-1"]')).toContainText(
+        newColumnName.slice(0, 8)
+      );
     }
   });
 

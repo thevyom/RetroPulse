@@ -39,6 +39,13 @@ apiClient.interceptors.response.use(
       return Promise.reject(ApiRequestError.networkError(error.message || 'Network error'));
     }
 
+    // Handle rate limiting (429)
+    if (error.response.status === 429) {
+      const retryAfter = error.response.headers['retry-after'];
+      const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) : undefined;
+      return Promise.reject(ApiRequestError.rateLimited(retryAfterSeconds));
+    }
+
     // Handle API errors with structured error response
     const responseData = error.response.data;
     if (isApiErrorResponse(responseData)) {

@@ -50,7 +50,9 @@ test.describe('Card Quota Enforcement', () => {
     await waitForBoardLoad(page);
 
     // Try to click add button when at limit
-    const addButton = page.getByTestId('add-card-col-1').or(page.locator('button').filter({ hasText: '+' }).first());
+    const addButton = page
+      .getByTestId('add-card-col-1')
+      .or(page.locator('button').filter({ hasText: '+' }).first());
 
     // Check if button is disabled
     const isDisabled = await addButton.isDisabled().catch(() => false);
@@ -84,9 +86,9 @@ test.describe('Card Quota Enforcement', () => {
     const content = `Action item ${Date.now()}`;
 
     // Navigate to action column and create
-    const addButton = page.getByTestId('add-card-col-3').or(
-      page.locator('[data-testid="column-col-3"] button').filter({ hasText: '+' }).first()
-    );
+    const addButton = page
+      .getByTestId('add-card-col-3')
+      .or(page.locator('[data-testid="column-col-3"] button').filter({ hasText: '+' }).first());
 
     if (await addButton.isVisible().catch(() => false)) {
       await createCard(page, 'col-3', content, { cardType: 'action' });
@@ -106,7 +108,9 @@ test.describe('Card Quota Enforcement', () => {
     await createCard(page, 'col-1', content);
 
     // Get initial quota status
-    const addButton = page.getByTestId('add-card-col-1').or(page.locator('button').filter({ hasText: '+' }).first());
+    const addButton = page
+      .getByTestId('add-card-col-1')
+      .or(page.locator('button').filter({ hasText: '+' }).first());
     const wasDisabledBefore = await addButton.isDisabled().catch(() => false);
 
     // Delete the card
@@ -189,7 +193,9 @@ test.describe('Anonymous Cards', () => {
 
     // Delete button should be visible for the creator
     await card.hover();
-    const deleteButton = card.locator('[data-testid="delete-card"]').or(card.locator('button[aria-label*="delete"]'));
+    const deleteButton = card
+      .locator('[data-testid="delete-card"]')
+      .or(card.locator('button[aria-label*="delete"]'));
     await expect(deleteButton).toBeVisible();
 
     // Delete the card
@@ -231,12 +237,15 @@ test.describe('Anonymous Cards', () => {
       await card.hover();
 
       // Delete button should NOT be visible to other user
-      const deleteButton = card.locator('[data-testid="delete-card"]').or(card.locator('button[aria-label*="delete"]'));
-      await expect(deleteButton).not.toBeVisible({ timeout: 2000 }).catch(() => {
-        // If button exists, it might be disabled
-        return deleteButton.isDisabled().then(disabled => expect(disabled).toBe(true));
-      });
-
+      const deleteButton = card
+        .locator('[data-testid="delete-card"]')
+        .or(card.locator('button[aria-label*="delete"]'));
+      await expect(deleteButton)
+        .not.toBeVisible({ timeout: 2000 })
+        .catch(() => {
+          // If button exists, it might be disabled
+          return deleteButton.isDisabled().then((disabled) => expect(disabled).toBe(true));
+        });
     } finally {
       await creatorContext.close();
       await otherContext.close();

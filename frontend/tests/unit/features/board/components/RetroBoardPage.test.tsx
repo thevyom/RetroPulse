@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RetroBoardPage } from '@/features/board/components/RetroBoardPage';
@@ -249,9 +249,7 @@ describe('RetroBoardPage', () => {
       id: 'board-1',
       name: 'Test Board',
       state: 'active',
-      columns: [
-        { id: 'col-1', name: 'Went Well', color: '#22c55e' },
-      ],
+      columns: [{ id: 'col-1', name: 'Went Well', color: '#22c55e' }],
       admins: ['hash-1'],
       active_users: [],
       shareable_link: 'http://example.com/boards/board-1',
@@ -345,9 +343,7 @@ describe('RetroBoardPage', () => {
         id: 'board-1',
         name: 'Test Board',
         state: 'active',
-        columns: [
-          { id: 'col-1', name: 'Went Well', color: '#22c55e' },
-        ],
+        columns: [{ id: 'col-1', name: 'Went Well', color: '#22c55e' }],
         admins: ['hash-1'],
         active_users: [],
         shareable_link: 'http://example.com/boards/board-1',
@@ -370,9 +366,7 @@ describe('RetroBoardPage', () => {
         id: 'board-1',
         name: 'Test Board',
         state: 'active',
-        columns: [
-          { id: 'col-1', name: 'Went Well', color: '#22c55e' },
-        ],
+        columns: [{ id: 'col-1', name: 'Went Well', color: '#22c55e' }],
         admins: ['hash-1'],
         active_users: [],
         shareable_link: 'http://example.com/boards/board-1',

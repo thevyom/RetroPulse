@@ -3,6 +3,7 @@
  * Displays active users as avatars with filter functionality.
  */
 
+import { memo } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ParticipantAvatar } from './ParticipantAvatar';
 import { AdminDropdown } from './AdminDropdown';
@@ -30,7 +31,7 @@ export interface ParticipantBarProps {
 // Component
 // ============================================================================
 
-export function ParticipantBar({
+export const ParticipantBar = memo(function ParticipantBar({
   activeUsers,
   currentUserHash: _currentUserHash,
   isCreator,
@@ -47,9 +48,9 @@ export function ParticipantBar({
   void _currentUserHash;
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-3">
+      <nav className="flex items-center gap-3" role="toolbar" aria-label="Participant filters">
         {/* Special Avatars */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" role="group" aria-label="Filter options">
           {/* All Users */}
           <ParticipantAvatar
             type="all"
@@ -66,10 +67,10 @@ export function ParticipantBar({
         </div>
 
         {/* Separator */}
-        <div className="h-6 w-px bg-border" />
+        <div className="h-6 w-px bg-border" aria-hidden="true" />
 
         {/* User Avatars */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" role="group" aria-label="Active participants">
           {activeUsers.map((user) => (
             <ParticipantAvatar
               key={user.alias}
@@ -89,7 +90,7 @@ export function ParticipantBar({
         {/* Admin Dropdown (creator only) */}
         {isCreator && (
           <>
-            <div className="h-6 w-px bg-border" />
+            <div className="h-6 w-px bg-border" aria-hidden="true" />
             <AdminDropdown
               activeUsers={activeUsers}
               admins={admins}
@@ -97,9 +98,9 @@ export function ParticipantBar({
             />
           </>
         )}
-      </div>
+      </nav>
     </TooltipProvider>
   );
-}
+});
 
 export default ParticipantBar;

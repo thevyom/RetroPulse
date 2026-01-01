@@ -13,6 +13,9 @@ import {
   isCardLinked,
   addReaction,
   getReactionCount,
+  waitForCardLinked,
+  waitForCardUnlinked,
+  waitForReactionCount,
 } from './helpers';
 
 test.describe('Parent-Child Card Relationships', () => {
@@ -32,7 +35,7 @@ test.describe('Parent-Child Card Relationships', () => {
     await createCard(page, 'col-1', childContent);
 
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     const isLinked = await isCardLinked(page, childContent);
     expect(isLinked).toBe(true);
@@ -47,7 +50,7 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Link them
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
@@ -59,7 +62,7 @@ test.describe('Parent-Child Card Relationships', () => {
       .or(childCard.locator('[aria-label*="linked"]'));
     await linkIcon.click();
 
-    await page.waitForTimeout(1000);
+    await waitForCardUnlinked(page, childContent);
 
     // Verify unlinked - drag handle should be restored
     const dragHandle = childCard.locator('[data-testid="drag-handle"]');
@@ -80,14 +83,14 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Link child to parent
     await dragCardOntoCard(page, child, parent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, child);
 
     // Verify child is linked
     expect(await isCardLinked(page, child)).toBe(true);
 
     // Try to link parent to grandparent (would create 2-level)
     await dragCardOntoCard(page, parent, grandparent);
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Parent should NOT become a child (it has children)
     const parentCard = await findCardByContent(page, parent);
@@ -108,16 +111,16 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Link children to parent
     await dragCardOntoCard(page, child1Content, parentContent);
-    await page.waitForTimeout(500);
+    await waitForCardLinked(page, child1Content);
     await dragCardOntoCard(page, child2Content, parentContent);
-    await page.waitForTimeout(500);
+    await waitForCardLinked(page, child2Content);
 
     // React to children
     await addReaction(page, child1Content);
     await addReaction(page, child2Content);
 
-    // Wait for aggregation update
-    await page.waitForTimeout(1000);
+    // Wait for aggregation update on parent
+    await waitForReactionCount(page, parentContent, 2);
 
     // Parent should show aggregated count
     const parentCount = await getReactionCount(page, parentContent);
@@ -134,7 +137,7 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Link child to parent across columns
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Child should show link icon
     const isLinked = await isCardLinked(page, childContent);
@@ -150,7 +153,7 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Link them
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
@@ -169,8 +172,8 @@ test.describe('Parent-Child Card Relationships', () => {
       await confirmButton.click();
     }
 
-    // Wait for deletion
-    await page.waitForTimeout(1000);
+    // Wait for parent to be deleted and child to become unlinked
+    await page.waitForSelector(`text="${parentContent}"`, { state: 'hidden', timeout: 10000 });
 
     // Child should become standalone (drag handle restored)
     const childCard = await findCardByContent(page, childContent);
@@ -190,7 +193,7 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Link them
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Get positions
     const parentCard = await findCardByContent(page, parentContent);
@@ -215,7 +218,7 @@ test.describe('Parent-Child Card Relationships', () => {
 
     // Drag action onto feedback
     await dragCardOntoCard(page, actionContent, feedbackContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, actionContent);
 
     // Action should show link
     const isLinked = await isCardLinked(page, actionContent);

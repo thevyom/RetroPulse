@@ -221,11 +221,7 @@ describe('RetroColumn', () => {
       const user = userEvent.setup();
       const mockEditColumnTitle = vi.fn().mockResolvedValue(undefined);
       render(
-        <RetroColumn
-          {...defaultProps}
-          isAdmin={true}
-          onEditColumnTitle={mockEditColumnTitle}
-        />
+        <RetroColumn {...defaultProps} isAdmin={true} onEditColumnTitle={mockEditColumnTitle} />
       );
 
       await user.click(screen.getByLabelText(/edit column name/i));
@@ -283,11 +279,7 @@ describe('RetroColumn', () => {
       const user = userEvent.setup();
       const mockEditColumnTitle = vi.fn().mockRejectedValue(new Error('Failed to rename'));
       render(
-        <RetroColumn
-          {...defaultProps}
-          isAdmin={true}
-          onEditColumnTitle={mockEditColumnTitle}
-        />
+        <RetroColumn {...defaultProps} isAdmin={true} onEditColumnTitle={mockEditColumnTitle} />
       );
 
       await user.click(screen.getByLabelText(/edit column name/i));

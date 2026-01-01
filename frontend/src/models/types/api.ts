@@ -40,6 +40,8 @@ export type ApiErrorCode =
   | 'USER_NOT_FOUND'
   | 'BOARD_CLOSED'
   | 'CIRCULAR_RELATIONSHIP'
+  | 'CONFLICT'
+  | 'RATE_LIMITED'
   | 'DATABASE_ERROR'
   | 'NETWORK_ERROR'
   | 'UNKNOWN_ERROR';
@@ -76,6 +78,34 @@ export class ApiRequestError extends Error {
 
   static unknownError(message = 'An unknown error occurred'): ApiRequestError {
     return new ApiRequestError('UNKNOWN_ERROR', message);
+  }
+
+  static rateLimited(retryAfter?: number): ApiRequestError {
+    const message = retryAfter
+      ? `Rate limited. Try again in ${retryAfter} seconds`
+      : 'Rate limited. Please try again later';
+    return new ApiRequestError('RATE_LIMITED', message, 429, { retryAfter });
+  }
+
+  /**
+   * Check if this error is a rate limit error
+   */
+  isRateLimited(): boolean {
+    return this.code === 'RATE_LIMITED' || this.statusCode === 429;
+  }
+
+  /**
+   * Check if this error is a quota limit error
+   */
+  isQuotaLimited(): boolean {
+    return this.code === 'CARD_LIMIT_REACHED' || this.code === 'REACTION_LIMIT_REACHED';
+  }
+
+  /**
+   * Check if this error is recoverable (transient)
+   */
+  isRecoverable(): boolean {
+    return this.code === 'NETWORK_ERROR' || this.code === 'RATE_LIMITED';
   }
 }
 

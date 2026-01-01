@@ -17,6 +17,8 @@ import {
   dragCardToColumn,
   isCardLinked,
   isCardInColumn,
+  waitForCardLinked,
+  waitForCardUnlinked,
 } from './helpers';
 
 test.describe('Drag-and-Drop Interactions', () => {
@@ -40,12 +42,11 @@ test.describe('Drag-and-Drop Interactions', () => {
     // Drag to col-2
     await dragCardToColumn(page, content, 'col-2');
 
-    // Wait for move to complete
-    await page.waitForTimeout(1000);
-
-    // Verify card is now in col-2
-    const inCol2 = await isCardInColumn(page, content, 'col-2');
-    expect(inCol2).toBe(true);
+    // Wait for move to complete - verify card appears in col-2
+    await expect(async () => {
+      const inCol2 = await isCardInColumn(page, content, 'col-2');
+      expect(inCol2).toBe(true);
+    }).toPass({ timeout: 10000 });
   });
 
   test('drag feedback onto feedback creates parent-child', async ({ page }) => {
@@ -60,7 +61,7 @@ test.describe('Drag-and-Drop Interactions', () => {
     await dragCardOntoCard(page, childContent, parentContent);
 
     // Wait for link to be created
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Child should now show link icon
     const isLinked = await isCardLinked(page, childContent);
@@ -80,7 +81,7 @@ test.describe('Drag-and-Drop Interactions', () => {
     await dragCardOntoCard(page, actionContent, feedbackContent);
 
     // Wait for link to be created
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, actionContent);
 
     // Action should show it's linked
     const isLinked = await isCardLinked(page, actionContent);
@@ -97,7 +98,7 @@ test.describe('Drag-and-Drop Interactions', () => {
 
     // Link them
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Get bounding boxes
     const parentCard = await findCardByContent(page, parentContent);
@@ -123,7 +124,9 @@ test.describe('Drag-and-Drop Interactions', () => {
 
     // Child should have drag handle initially (before linking)
     const childCard = await findCardByContent(page, childContent);
-    const dragHandle = childCard.locator('[data-testid="drag-handle"]').or(childCard.locator('[aria-label*="drag"]'));
+    const dragHandle = childCard
+      .locator('[data-testid="drag-handle"]')
+      .or(childCard.locator('[aria-label*="drag"]'));
 
     // Verify drag handle is visible before linking
     const hadDragHandle = await dragHandle.isVisible().catch(() => false);
@@ -131,7 +134,7 @@ test.describe('Drag-and-Drop Interactions', () => {
 
     // Link the cards
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // After linking: link icon visible
     const isLinked = await isCardLinked(page, childContent);
@@ -146,18 +149,20 @@ test.describe('Drag-and-Drop Interactions', () => {
     await createCard(page, 'col-1', parentContent);
     await createCard(page, 'col-1', childContent);
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
 
     // Click link icon to unlink
     const childCard = await findCardByContent(page, childContent);
-    const linkIcon = childCard.locator('[data-testid="link-icon"]').or(childCard.locator('[aria-label*="linked"]'));
+    const linkIcon = childCard
+      .locator('[data-testid="link-icon"]')
+      .or(childCard.locator('[aria-label*="linked"]'));
     await linkIcon.click();
 
     // Wait for unlink
-    await page.waitForTimeout(1000);
+    await waitForCardUnlinked(page, childContent);
 
     // Should no longer be linked
     const stillLinked = await isCardLinked(page, childContent);
@@ -174,8 +179,8 @@ test.describe('Drag-and-Drop Interactions', () => {
     // Try to drag onto itself
     await card.dragTo(card);
 
-    // Wait a moment
-    await page.waitForTimeout(500);
+    // Brief wait for any potential state change, then verify
+    await page.waitForLoadState('networkidle');
 
     // Card should still be normal (not linked)
     const isLinked = await isCardLinked(page, content);
@@ -192,14 +197,16 @@ test.describe('Drag-and-Drop Interactions', () => {
 
     // Link child to parent
     await dragCardOntoCard(page, childContent, parentContent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, childContent);
 
     // Try to link parent to child (would create circle)
     await dragCardOntoCard(page, parentContent, childContent);
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Look for error message
-    const errorMessage = page.locator('[role="alert"]').or(page.locator('text=/circular|invalid/i'));
+    const errorMessage = page
+      .locator('[role="alert"]')
+      .or(page.locator('text=/circular|invalid/i'));
     const hasError = await errorMessage.isVisible().catch(() => false);
 
     // Either there's an error message, or the operation was silently blocked
@@ -223,11 +230,11 @@ test.describe('Drag-and-Drop Interactions', () => {
 
     // Link child to parent
     await dragCardOntoCard(page, child, parent);
-    await page.waitForTimeout(1000);
+    await waitForCardLinked(page, child);
 
     // Try to link parent to grandparent (would create 2-level hierarchy)
     await dragCardOntoCard(page, parent, grandparent);
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Look for error or verify the operation was blocked
     // Parent (which now has a child) should not become a child of grandparent
@@ -262,8 +269,12 @@ test.describe('Drag-and-Drop Interactions', () => {
 
       // Check for visual feedback (ring class)
       const hasRing = await targetCard.evaluate((el) => {
-        return el.classList.contains('ring-primary') || el.classList.contains('ring-2') ||
-               el.className.includes('ring') || getComputedStyle(el).outline !== 'none';
+        return (
+          el.classList.contains('ring-primary') ||
+          el.classList.contains('ring-2') ||
+          el.className.includes('ring') ||
+          getComputedStyle(el).outline !== 'none'
+        );
       });
 
       // Cleanup

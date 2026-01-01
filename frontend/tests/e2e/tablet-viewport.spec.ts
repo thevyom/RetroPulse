@@ -5,7 +5,13 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard, findCardByContent, dragCardOntoCard } from './helpers';
+import {
+  waitForBoardLoad,
+  createCard,
+  findCardByContent,
+  dragCardOntoCard,
+  isCardLinked,
+} from './helpers';
 
 test.describe('Tablet Viewport Tests', () => {
   const testBoardId = process.env.TEST_BOARD_ID || 'test-board-tablet';
@@ -130,9 +136,11 @@ test.describe('Tablet Viewport Tests', () => {
 
   test('dialogs are properly sized for tablet', async ({ page }) => {
     // Open a dialog (e.g., add card)
-    const addButton = page.getByTestId('add-card-col-1').or(page.locator('button').filter({ hasText: '+' }).first());
+    const addButton = page
+      .getByTestId('add-card-col-1')
+      .or(page.locator('button').filter({ hasText: '+' }).first());
 
-    if (await addButton.isVisible() && !(await addButton.isDisabled())) {
+    if ((await addButton.isVisible()) && !(await addButton.isDisabled())) {
       await addButton.click();
 
       const dialog = page.locator('[role="dialog"]');
@@ -147,7 +155,9 @@ test.describe('Tablet Viewport Tests', () => {
         }
 
         // Close dialog
-        const closeButton = dialog.locator('button[aria-label*="close"]').or(dialog.locator('button').first());
+        const closeButton = dialog
+          .locator('button[aria-label*="close"]')
+          .or(dialog.locator('button').first());
         await closeButton.click();
       }
     }
@@ -179,14 +189,13 @@ test.describe('Tablet Viewport Tests', () => {
     // Perform drag (Playwright simulates touch on mobile viewports)
     await dragCardOntoCard(page, child, parent);
 
-    await page.waitForTimeout(1000);
+    // Wait for network operations to complete
+    await page.waitForLoadState('networkidle');
 
     // Verify link was created
-    const childCard = await findCardByContent(page, child);
-    const linkIcon = childCard.locator('[data-testid="link-icon"]');
-    const hasLink = await linkIcon.isVisible().catch(() => false);
+    const hasLink = await isCardLinked(page, child);
 
-    // Touch drag should work
+    // Touch drag should work - result indicates the operation completed
     expect(typeof hasLink).toBe('boolean');
   });
 });

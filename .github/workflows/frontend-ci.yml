@@ -131,17 +131,27 @@ jobs:
 
       - name: Start backend
         working-directory: backend
-        run: |
-          npm run dev &
-          sleep 10
+        run: npm run dev &
         env:
           MONGODB_URI: mongodb://localhost:27017/retropulse_test
           NODE_ENV: test
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+
+      - name: Wait for backend health
+        run: |
+          for i in {1..30}; do
+            curl -s http://localhost:3001/health && exit 0
+            echo "Waiting for backend... ($i/30)"
+            sleep 1
+          done
+          echo "Backend failed to start"
+          exit 1
 
       - name: Run E2E tests
         run: npm run test:e2e
         env:
           CI: true
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

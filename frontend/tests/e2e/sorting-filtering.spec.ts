@@ -17,16 +17,14 @@ test.describe('Sorting and Filtering', () => {
   });
 
   test('sort by recency shows newest first (default)', async ({ page }) => {
-    // Create cards with slight delay between them
+    // Create cards sequentially - each card creation waits for visibility
     const card1 = `First ${Date.now()}`;
     await createCard(page, 'col-1', card1);
 
-    await page.waitForTimeout(100);
-    const card2 = `Second ${Date.now()}`;
+    const card2 = `Second ${Date.now() + 1}`;
     await createCard(page, 'col-1', card2);
 
-    await page.waitForTimeout(100);
-    const card3 = `Third ${Date.now()}`;
+    const card3 = `Third ${Date.now() + 2}`;
     await createCard(page, 'col-1', card3);
 
     // Default sort is recency (newest first)
@@ -87,8 +85,8 @@ test.describe('Sorting and Filtering', () => {
       await createCard(alice, 'col-1', aliceCard);
       await createCard(bob, 'col-1', bobCard);
 
-      // Wait for sync
-      await alice.waitForTimeout(1000);
+      // Wait for cards to sync across users
+      await expect(alice.locator(`text="${bobCard}"`)).toBeVisible({ timeout: 10000 });
 
       // Alice filters by Bob (click Bob's avatar in participant bar)
       const bobAvatar = alice
@@ -156,9 +154,7 @@ test.describe('Sorting and Filtering', () => {
 
   test('sort persists after refresh', async ({ page }) => {
     // Change sort mode
-    const sortDropdown = page
-      .getByTestId('sort-dropdown')
-      .or(page.locator('[aria-label*="sort"]'));
+    const sortDropdown = page.getByTestId('sort-dropdown').or(page.locator('[aria-label*="sort"]'));
 
     if (await sortDropdown.isVisible().catch(() => false)) {
       await sortDropdown.click();

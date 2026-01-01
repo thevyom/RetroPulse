@@ -4,8 +4,9 @@
  * Orchestrates all sub-components and provides data via ViewModels.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   DndContext,
   DragOverlay,
@@ -35,6 +36,21 @@ import { cn } from '@/lib/utils';
 
 interface BoardContentProps {
   boardId: string;
+}
+
+// Column type enum for better type safety
+type ColumnType = 'went_well' | 'to_improve' | 'action_item';
+
+// Infer column type from name (moved outside component to avoid recreation)
+function inferColumnType(columnName: string): ColumnType {
+  const name = columnName.toLowerCase();
+  if (name.includes('well') || name.includes('good') || name.includes('liked')) {
+    return 'went_well';
+  }
+  if (name.includes('improve') || name.includes('better') || name.includes('change')) {
+    return 'to_improve';
+  }
+  return 'action_item';
 }
 
 // ============================================================================
@@ -86,9 +102,7 @@ function BoardContent({ boardId }: BoardContentProps) {
       const rawId = over.id as string;
       const targetType = over.data.current?.type ?? 'column';
       // Strip 'drop-' prefix from card drop targets to get the actual card ID
-      const targetId = targetType === 'card' && rawId.startsWith('drop-')
-        ? rawId.slice(5)
-        : rawId;
+      const targetId = targetType === 'card' && rawId.startsWith('drop-') ? rawId.slice(5) : rawId;
       dragDropVM.handleDragOver(targetId, targetType);
     },
     [dragDropVM]
@@ -115,7 +129,10 @@ function BoardContent({ boardId }: BoardContentProps) {
                 break;
             }
           } catch (error) {
-            console.error('Drop action failed:', error);
+            // Show user-visible error notification
+            toast.error('Failed to move card', {
+              description: error instanceof Error ? error.message : 'Please try again',
+            });
           }
         }
       }
@@ -124,6 +141,34 @@ function BoardContent({ boardId }: BoardContentProps) {
     },
     [dragDropVM, cardVM]
   );
+
+  // Memoize filtered cards per column to avoid recalculating on every render
+  const filteredCardsByColumn = useMemo(() => {
+    const result = new Map<string, typeof cardVM.cards>();
+
+    boardVM.board?.columns.forEach((column) => {
+      const columnCards = cardVM.cardsByColumn.get(column.id) ?? [];
+      const filtered = columnCards.filter((card) => {
+        // Apply user filters
+        if (!participantVM.showAll && participantVM.selectedUsers.length > 0) {
+          if (card.is_anonymous) return false;
+          if (!participantVM.selectedUsers.includes(card.created_by_hash)) return false;
+        }
+        // Apply anonymous filter
+        if (!participantVM.showAnonymous && card.is_anonymous) return false;
+        return true;
+      });
+      result.set(column.id, filtered);
+    });
+
+    return result;
+  }, [
+    boardVM.board?.columns,
+    cardVM.cardsByColumn,
+    participantVM.showAll,
+    participantVM.selectedUsers,
+    participantVM.showAnonymous,
+  ]);
 
   // Loading state
   if (boardVM.isLoading) {
@@ -208,30 +253,14 @@ function BoardContent({ boardId }: BoardContentProps) {
       >
         <div className="flex flex-1 gap-4 overflow-x-auto p-4">
           {board.columns.map((column) => {
-            const columnCards = cardVM.cardsByColumn.get(column.id) ?? [];
-            // Apply sorting and filtering to column cards
-            const filteredCards = columnCards.filter((card) => {
-              // Apply user filters
-              if (!participantVM.showAll && participantVM.selectedUsers.length > 0) {
-                if (card.is_anonymous) return false;
-                if (!participantVM.selectedUsers.includes(card.created_by_hash)) return false;
-              }
-              // Apply anonymous filter
-              if (!participantVM.showAnonymous && card.is_anonymous) return false;
-              return true;
-            });
+            // Use memoized filtered cards
+            const filteredCards = filteredCardsByColumn.get(column.id) ?? [];
 
             return (
               <RetroColumn
                 key={column.id}
                 columnId={column.id}
-                columnType={
-                  column.name.toLowerCase().includes('well')
-                    ? 'went_well'
-                    : column.name.toLowerCase().includes('improve')
-                      ? 'to_improve'
-                      : 'action_item'
-                }
+                columnType={inferColumnType(column.name)}
                 title={column.name}
                 color={column.color}
                 cards={filteredCards}
@@ -243,7 +272,9 @@ function BoardContent({ boardId }: BoardContentProps) {
                 hasUserReacted={cardVM.hasUserReacted}
                 isDragging={dragDropVM.isDragging}
                 draggedCardId={dragDropVM.draggedItem?.id ?? null}
-                isValidDropTarget={(targetId, targetType) => dragDropVM.canDropOn(targetId, targetType)}
+                isValidDropTarget={(targetId, targetType) =>
+                  dragDropVM.canDropOn(targetId, targetType)
+                }
                 onCreateCard={cardVM.handleCreateCard}
                 onDeleteCard={cardVM.handleDeleteCard}
                 onAddReaction={cardVM.handleAddReaction}

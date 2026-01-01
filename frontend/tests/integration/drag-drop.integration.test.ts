@@ -308,7 +308,9 @@ describe('Drag-Drop Integration', () => {
       // Set up cards in store first
       act(() => {
         useCardStore.setState({
-          cards: new Map([['feedback-1', createMockCard({ id: 'feedback-1', card_type: 'feedback' })]]),
+          cards: new Map([
+            ['feedback-1', createMockCard({ id: 'feedback-1', card_type: 'feedback' })],
+          ]),
           isLoading: false,
           error: null,
         });
@@ -456,7 +458,10 @@ describe('Drag-Drop Integration', () => {
       useCardStore.setState({
         cards: new Map([
           ['parent', createMockCard({ id: 'parent', card_type: 'feedback' })],
-          ['child', createMockCard({ id: 'child', card_type: 'feedback', parent_card_id: 'parent' })],
+          [
+            'child',
+            createMockCard({ id: 'child', card_type: 'feedback', parent_card_id: 'parent' }),
+          ],
         ]),
         isLoading: false,
         error: null,
@@ -483,9 +488,7 @@ describe('Drag-Drop Integration', () => {
     it('maintains consistent state through drag lifecycle', () => {
       // Set up card in store
       useCardStore.setState({
-        cards: new Map([
-          ['card-a', createMockCard({ id: 'card-a', card_type: 'feedback' })],
-        ]),
+        cards: new Map([['card-a', createMockCard({ id: 'card-a', card_type: 'feedback' })]]),
         isLoading: false,
         error: null,
       });

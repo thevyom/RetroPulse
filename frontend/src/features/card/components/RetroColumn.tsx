@@ -5,7 +5,7 @@
  */
 
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Pencil, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,13 @@ import { cn } from '@/lib/utils';
 // ============================================================================
 
 export type ColumnType = 'went_well' | 'to_improve' | 'action_item';
+
+// Column background colors (pastel shades per spec)
+const columnBgColors: Record<ColumnType, string> = {
+  went_well: 'bg-green-50',    // #ecf9ec - light green
+  to_improve: 'bg-orange-50',  // #FFF7E8 - light orange
+  action_item: 'bg-blue-50',   // #dae8fc - light blue
+};
 
 export interface RetroColumnProps {
   columnId: string;
@@ -58,7 +65,7 @@ export interface RetroColumnProps {
 // Component
 // ============================================================================
 
-export function RetroColumn({
+export const RetroColumn = memo(function RetroColumn({
   columnId,
   columnType,
   title,
@@ -172,8 +179,9 @@ export function RetroColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-80 flex-shrink-0 flex-col rounded-lg border',
-        'bg-card transition-all duration-200',
+        'flex min-w-[320px] flex-1 flex-col rounded-lg border',
+        columnBgColors[columnType],
+        'transition-all duration-200',
         isOver && isValidTarget && 'ring-2 ring-primary ring-offset-2',
         isOver && !isValidTarget && 'ring-2 ring-destructive ring-offset-2'
       )}
@@ -229,6 +237,7 @@ export function RetroColumn({
           <RetroCard
             key={card.id}
             card={card}
+            columnType={columnType}
             isOwner={card.created_by_hash === currentUserHash}
             isClosed={isClosed}
             canReact={canReact}
@@ -340,6 +349,6 @@ export function RetroColumn({
       </Dialog>
     </div>
   );
-}
+});
 
 export default RetroColumn;

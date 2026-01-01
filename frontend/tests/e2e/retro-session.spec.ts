@@ -18,6 +18,9 @@ import {
   isBoardClosed,
   addReaction,
   getReactionCount,
+  waitForReactionCount,
+  waitForParticipantCount,
+  waitForBoardClosed,
 } from './helpers';
 
 test.describe('Complete Retro Session', () => {
@@ -119,7 +122,9 @@ test.describe('Complete Retro Session', () => {
     const closed = await isBoardClosed(page);
     if (closed) {
       // Add button should be disabled or not visible
-      const addButton = page.getByTestId('add-card-col-1').or(page.locator('button').filter({ hasText: '+' }));
+      const addButton = page
+        .getByTestId('add-card-col-1')
+        .or(page.locator('button').filter({ hasText: '+' }));
 
       // Either the button is not visible or it's disabled
       const isDisabled = await addButton.isDisabled().catch(() => true);
@@ -131,7 +136,7 @@ test.describe('Complete Retro Session', () => {
 });
 
 test.describe('Multi-User Real-time Sync', () => {
-  test('two users see each other\'s cards in real-time', async ({ browser }) => {
+  test("two users see each other's cards in real-time", async ({ browser }) => {
     test.skip(!process.env.E2E_BACKEND_READY, 'Backend not running');
 
     const testBoardId = process.env.TEST_BOARD_ID || 'test-board-multi';
@@ -162,11 +167,10 @@ test.describe('Multi-User Real-time Sync', () => {
       // User 2 adds a reaction
       await addReaction(user2Page, cardContent);
 
-      // User 1 should see the reaction count update
-      await user1Page.waitForTimeout(1000); // Give time for WebSocket update
+      // User 1 should see the reaction count update via WebSocket
+      await waitForReactionCount(user1Page, cardContent, 1);
       const countOnUser1 = await getReactionCount(user1Page, cardContent);
       expect(countOnUser1).toBeGreaterThanOrEqual(1);
-
     } finally {
       // Cleanup
       await user1Context.close();
@@ -186,7 +190,7 @@ test.describe('Multi-User Real-time Sync', () => {
       browser.newContext(),
     ]);
 
-    const pages = await Promise.all(contexts.map(ctx => ctx.newPage()));
+    const pages = await Promise.all(contexts.map((ctx) => ctx.newPage()));
 
     try {
       // All users join the board
@@ -197,25 +201,28 @@ test.describe('Multi-User Real-time Sync', () => {
         })
       );
 
-      // Wait for participant updates to propagate
-      await pages[0].waitForTimeout(2000);
+      // Wait for participant updates to propagate via WebSocket
+      await waitForParticipantCount(pages[0], 3);
 
       // Each user should see 3 participants (or avatars)
       for (const page of pages) {
-        const participantBar = page.getByTestId('participant-bar').or(page.locator('[data-testid^="participant"]'));
+        const participantBar = page
+          .getByTestId('participant-bar')
+          .or(page.locator('[data-testid^="participant"]'));
         await expect(participantBar).toBeVisible();
 
         // Count avatar elements
-        const avatars = page.locator('[data-testid^="participant-avatar"]').or(page.locator('.avatar'));
+        const avatars = page
+          .locator('[data-testid^="participant-avatar"]')
+          .or(page.locator('.avatar'));
         const count = await avatars.count();
 
         // Should have at least 3 participants (might have special avatars too)
         expect(count).toBeGreaterThanOrEqual(3);
       }
-
     } finally {
       // Cleanup
-      await Promise.all(contexts.map(ctx => ctx.close()));
+      await Promise.all(contexts.map((ctx) => ctx.close()));
     }
   });
 
@@ -242,11 +249,10 @@ test.describe('Multi-User Real-time Sync', () => {
       // Admin closes board
       await closeBoard(adminPage);
 
-      // User should see closed state
-      await userPage.waitForTimeout(2000); // Wait for WebSocket update
+      // User should see closed state via WebSocket
+      await waitForBoardClosed(userPage);
       const closed = await isBoardClosed(userPage);
       expect(closed).toBe(true);
-
     } finally {
       await adminContext.close();
       await userContext.close();

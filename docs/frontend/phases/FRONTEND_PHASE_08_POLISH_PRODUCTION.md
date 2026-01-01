@@ -1,8 +1,8 @@
 # Phase 8: Polish & Production Readiness
 
-**Status**: 🔲 NOT STARTED
+**Status**: ✅ COMPLETE
 **Priority**: Medium
-**Tasks**: 0/14 complete
+**Tasks**: 14/14 complete + 12 QA/PE fixes
 **Dependencies**: Phase 7 complete
 
 [← Back to Master Task List](../FRONTEND_MASTER_TASK_LIST.md)
@@ -524,19 +524,31 @@ package.json                   (lint-staged config)
 ## ✅ Acceptance Criteria
 
 ### Phase 7 Carryover
-- [ ] E2E tests use proper waits instead of fixed timeouts
-- [ ] E2E README documentation exists
-- [ ] UUID-based test board isolation implemented
-- [ ] Global teardown cleans test data
-- [ ] Card filtering memoized
+- [x] E2E tests use proper waits instead of fixed timeouts
+- [x] E2E README documentation exists
+- [x] UUID-based test board isolation implemented
+- [x] Global teardown cleans test data
+- [x] Card filtering memoized
 
 ### Phase 8 Core
-- [ ] All API errors handled gracefully
-- [ ] Optimistic updates work with rollback
-- [ ] No unnecessary re-renders (React DevTools check)
-- [ ] All interactive elements have ARIA labels
-- [ ] CI pipeline runs on every PR
-- [ ] Pre-commit hooks prevent bad commits
+- [x] All API errors handled gracefully
+- [x] Optimistic updates work with rollback
+- [x] No unnecessary re-renders (React DevTools check)
+- [x] All interactive elements have ARIA labels
+- [x] CI pipeline runs on every PR
+- [x] Pre-commit hooks prevent bad commits
+
+### QA/PE/UX Review Fixes (Post Phase 8)
+- [x] ErrorBoundary integrated at App level (PE Critical)
+- [x] Toast notifications added via sonner (PE + UX)
+- [x] Column background colors (pastel per column type)
+- [x] Card background colors (darker shades per column type)
+- [x] Aggregated reaction count label for parent cards
+- [x] Responsive columns with min-width flex
+- [x] React.memo on ParticipantAvatar and ParticipantBar
+- [x] Typecheck added to pre-commit hook
+- [x] Global-teardown admin secret security fix
+- [x] CI backend startup race condition fix with health check
 
 ---
 

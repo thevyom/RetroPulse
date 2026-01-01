@@ -1,8 +1,8 @@
 # Frontend Core Context - RetroPulse
 
 **Generated:** 2025-12-31
-**Phase:** 1-7 Complete (Project Setup → E2E Testing)
-**Status:** Full test coverage with MSW integration tests and Playwright E2E. Ready for Polish (Phase 8)
+**Phase:** 1-8 Complete (Project Setup → Polish & Production)
+**Status:** Production-ready with performance optimizations, accessibility, and CI/CD pipeline
 
 ---
 
@@ -43,6 +43,7 @@ frontend/
 │   │   └── types/          # TypeScript types
 │   ├── shared/             # Cross-cutting utilities
 │   │   ├── components/     # ErrorBoundary, LoadingIndicator
+│   │   ├── hooks/          # useKeyboardShortcuts
 │   │   ├── validation/     # Input validators
 │   │   └── utils/          # cardRelationships
 │   ├── components/ui/      # shadcn/ui (8 components)
@@ -210,6 +211,24 @@ interface UserSession {
 - Stores updated directly on socket events (no ViewModel intermediary)
 - Events: card:created, card:updated, card:deleted, card:moved, reaction:added/removed
 
+### Polish Layer (Phase 8)
+
+**Performance Optimizations:**
+- `React.memo` on RetroCard, RetroColumn, ParticipantAvatar
+- `useMemo` for expensive computations in ViewModels
+- Typed API errors with `ApiError` interface and rate limiting detection
+
+**Accessibility:**
+- `useKeyboardShortcuts` hook for keyboard navigation
+- Default shortcuts: `n` (new card), `?` (help), `Escape` (close dialogs), `1-3` (focus columns)
+- ARIA labels on interactive elements
+
+**E2E Test Improvements:**
+- Replaced 34 `waitForTimeout` calls with proper wait assertions
+- UUID-based test isolation for parallel execution
+- Global teardown for E2E cleanup
+- `tests/e2e/README.md` documentation
+
 ---
 
 ## ⚙️ Testing Infrastructure
@@ -348,8 +367,8 @@ interface UserSession {
 | 5 | View Components | ✅ Complete | 625 |
 | 6 | Integration & Real-time | ✅ Complete | 661 |
 | 7 | E2E Testing | ✅ Complete | 699 |
-| 8 | Polish & Accessibility | 🔲 Pending | - |
-| 9 | Production Ready | 🔲 Pending | - |
+| 8 | Polish & Production | ✅ Complete | 699 |
+| 9 | Final Review | 🔲 Pending | - |
 
 ---
 
@@ -374,6 +393,11 @@ interface UserSession {
 - MSW 2.x for API mocking in integration tests
 - Playwright with chromium for E2E tests
 - `autoFetch: false` option added to ViewModels for testability
+
+**Phase 8 (Polish):**
+- Husky 9.x + lint-staged for pre-commit hooks (lint + typecheck)
+- GitHub Actions CI with health-check wait loop for E2E
+- `sonner` for toast notifications
 
 ---
 

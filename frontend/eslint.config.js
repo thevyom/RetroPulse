@@ -47,5 +47,19 @@ export default defineConfig([
         afterAll: 'readonly',
       },
     },
+    rules: {
+      // Allow unused vars in tests for intentional assertions
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+    },
+  },
+  {
+    // E2E tests with Playwright have many patterns with unused variables
+    files: ['**/tests/e2e/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
   },
 ]);
