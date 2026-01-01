@@ -1,8 +1,8 @@
 # Frontend Core Context - RetroPulse
 
 **Generated:** 2025-12-31
-**Phase:** 1-4 Complete (Project Setup → ViewModel Layer)
-**Status:** MVVM foundation complete, ready for View layer (Phase 5)
+**Phase:** 1-5 Complete (Project Setup → View Components)
+**Status:** MVVM architecture complete with View layer, ready for Real-time Integration (Phase 6)
 
 ---
 
@@ -12,6 +12,7 @@
 |--------|---------|
 | Stack | React 19 + TypeScript 5.9 + Vite 7 |
 | UI | shadcn/ui + Tailwind CSS v4 + Lucide icons |
+| Routing | React Router DOM 7.11 |
 | State | Zustand 5 (global) + React hooks (local) |
 | Real-time | Socket.io-client 4.8 |
 | Drag-Drop | @dnd-kit/core + sortable |
@@ -23,10 +24,18 @@
 ```
 frontend/
 ├── src/
-│   ├── features/           # Feature modules (MVVM ViewModels)
-│   │   ├── board/viewmodels/
-│   │   ├── card/viewmodels/
-│   │   └── participant/viewmodels/
+│   ├── features/           # Feature modules (MVVM)
+│   │   ├── board/
+│   │   │   ├── viewmodels/ # useBoardViewModel
+│   │   │   └── components/ # RetroBoardPage, RetroBoardHeader, SortBar
+│   │   ├── card/
+│   │   │   ├── viewmodels/ # useCardViewModel, useDragDropViewModel
+│   │   │   └── components/ # RetroColumn, RetroCard
+│   │   ├── participant/
+│   │   │   ├── viewmodels/ # useParticipantViewModel
+│   │   │   └── components/ # ParticipantBar, ParticipantAvatar, AdminDropdown
+│   │   └── user/
+│   │       └── components/ # MyUserCard
 │   ├── models/             # Data layer
 │   │   ├── api/            # REST API services
 │   │   ├── socket/         # WebSocket service
@@ -36,7 +45,7 @@ frontend/
 │   │   ├── components/     # ErrorBoundary, LoadingIndicator
 │   │   ├── validation/     # Input validators
 │   │   └── utils/          # cardRelationships
-│   ├── components/ui/      # shadcn/ui components
+│   ├── components/ui/      # shadcn/ui (8 components)
 │   └── lib/                # cn() utility
 └── tests/
     ├── unit/               # Vitest tests
@@ -101,6 +110,19 @@ interface UserSession {
 | `LoadingIndicator` | `shared/components/LoadingIndicator.tsx` | spinner/skeleton/pulse variants |
 | `Skeleton` | `components/ui/skeleton.tsx` | Loading placeholder |
 
+### shadcn/ui Components
+
+| Component | Radix UI Primitive | Purpose |
+|-----------|-------------------|---------|
+| `Button` | Slot | Primary action buttons with variants |
+| `Avatar` | @radix-ui/react-avatar | User profile images with fallback |
+| `Card` | - | Card container with header/content/footer |
+| `Dialog` | @radix-ui/react-dialog | Modal dialogs for forms |
+| `DropdownMenu` | @radix-ui/react-dropdown-menu | Admin actions, sort options |
+| `Input` | - | Form text inputs |
+| `Tooltip` | @radix-ui/react-tooltip | Hover info overlays |
+| `Skeleton` | - | Loading placeholders |
+
 ---
 
 ## 📋 MVVM Architecture
@@ -109,8 +131,9 @@ interface UserSession {
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     View (Phase 5)                       │
-│           React components, UI rendering                 │
+│                    View (Phase 5) ✅                     │
+│   RetroBoardPage, RetroColumn, RetroCard, SortBar       │
+│   ParticipantBar, AdminDropdown, MyUserCard             │
 ├─────────────────────────────────────────────────────────┤
 │                  ViewModel (Phase 4) ✅                  │
 │   useBoardViewModel, useCardViewModel, useDragDropVM    │
@@ -149,6 +172,26 @@ interface UserSession {
 | `CardAPI` | `models/api/CardAPI.ts` | getCards, create, update, move, delete, link, unlink |
 | `ReactionAPI` | `models/api/ReactionAPI.ts` | addReaction, removeReaction, getQuota |
 
+### View Components (Phase 5)
+
+| Component | Location | Responsibilities |
+|-----------|----------|------------------|
+| `RetroBoardPage` | `features/board/components/` | Main container, orchestrates ViewModels, ErrorBoundary wrapper |
+| `RetroBoardHeader` | `features/board/components/` | Board title editing, admin controls, close board button |
+| `SortBar` | `features/board/components/` | Sort mode dropdown (newest/oldest/votes), direction toggle |
+| `RetroColumn` | `features/card/components/` | Column container, add card dialog, column title editing |
+| `RetroCard` | `features/card/components/` | Card display, reactions, delete, child cards indicator |
+| `ParticipantBar` | `features/participant/components/` | Active users list, toggle filtering by participant |
+| `ParticipantAvatar` | `features/participant/components/` | User avatar with tooltip showing alias |
+| `AdminDropdown` | `features/participant/components/` | Promote user to admin menu |
+| `MyUserCard` | `features/user/components/` | Current user display with alias editing |
+
+**Component Patterns:**
+- Props receive callbacks from ViewModels, no direct store access
+- Validation before API calls using shared validators
+- Board closed state disables mutations
+- ErrorBoundary wraps main content for resilience
+
 ---
 
 ## ⚙️ Testing Infrastructure
@@ -163,17 +206,25 @@ interface UserSession {
 | Layer | Tests | Files |
 |-------|-------|-------|
 | Validation | 63 | `tests/unit/shared/validation/` |
-| Components | 53 | `tests/unit/shared/components/` |
+| Shared Components | 53 | `tests/unit/shared/components/` |
 | API Services | 60+ | `tests/unit/models/api/` |
 | Stores | 60+ | `tests/unit/models/stores/` |
 | Socket | 15+ | `tests/unit/models/socket/` |
-| ViewModels | 160+ | `tests/unit/features/` |
+| ViewModels | 160+ | `tests/unit/features/*/viewmodels/` |
+| View Components | 95 | `tests/unit/features/*/components/` |
 | E2E | 2 | `tests/e2e/` |
-| **Total** | **471** | **18 files** |
+| **Total** | **625** | **25 files** |
+
+### Coverage Metrics (Phase 5)
+- **Statements:** 91.93%
+- **Branches:** 82.40%
+- **Functions:** 90.43%
+- **Lines:** 91.93%
 
 ### Test Patterns
 - **Mocking:** `vi.mock()` for API/socket, store mocks via factory
 - **Hooks:** `renderHook` from `@testing-library/react`
+- **Components:** `render` + `screen` + `userEvent` for UI testing
 - **Assertions:** `@testing-library/jest-dom` matchers
 - **Coverage:** Excluded: `index.ts`, `*.config.*`, `main.tsx`, `client.ts`
 
@@ -233,10 +284,12 @@ interface UserSession {
 ### By Feature
 | Feature | Key Files |
 |---------|-----------|
-| Board | `features/board/viewmodels/useBoardViewModel.ts`, `models/stores/boardStore.ts` |
-| Card | `features/card/viewmodels/{useCardViewModel,useDragDropViewModel}.ts`, `models/stores/cardStore.ts` |
-| Participant | `features/participant/viewmodels/useParticipantViewModel.ts`, `models/stores/userStore.ts` |
+| Board | `features/board/viewmodels/useBoardViewModel.ts`, `features/board/components/RetroBoardPage.tsx`, `models/stores/boardStore.ts` |
+| Card | `features/card/viewmodels/*.ts`, `features/card/components/RetroColumn.tsx`, `features/card/components/RetroCard.tsx` |
+| Participant | `features/participant/viewmodels/*.ts`, `features/participant/components/ParticipantBar.tsx` |
+| User | `features/user/components/MyUserCard.tsx`, `models/stores/userStore.ts` |
 | Shared | `shared/validation/index.ts`, `shared/components/`, `shared/utils/cardRelationships.ts` |
+| UI | `components/ui/` (Avatar, Button, Card, Dialog, DropdownMenu, Input, Skeleton, Tooltip) |
 
 ---
 
@@ -248,11 +301,25 @@ interface UserSession {
 | 2 | Shared Utilities | ✅ Complete | 138 |
 | 3 | Model Layer | ✅ Complete | 337 |
 | 4 | ViewModel Layer | ✅ Complete | 471 |
-| 5 | View Components | 🔲 Pending | - |
+| 5 | View Components | ✅ Complete | 625 |
 | 6 | Real-time Integration | 🔲 Pending | - |
 | 7 | Drag-Drop UI | 🔲 Pending | - |
 | 8 | Polish & Testing | 🔲 Pending | - |
 | 9 | E2E Testing | 🔲 Pending | - |
+
+---
+
+## 🚩 Dependencies Added (Phase 5)
+
+```json
+{
+  "react-router-dom": "^7.11.0",
+  "@radix-ui/react-avatar": "^1.1.11",
+  "@radix-ui/react-dialog": "^1.1.15",
+  "@radix-ui/react-dropdown-menu": "^2.1.16",
+  "@radix-ui/react-tooltip": "^1.2.8"
+}
+```
 
 ---
 
