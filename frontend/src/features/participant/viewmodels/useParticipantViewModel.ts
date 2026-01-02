@@ -124,11 +124,24 @@ export function useParticipantViewModel(
     try {
       const response = await BoardAPI.getActiveUsers(boardId);
       setActiveUsers(response.active_users);
+
+      // UTB-014: Ensure current user is in activeUsers after API response
+      // This handles the race condition where getCurrentUserSession completes
+      // before getActiveUsers, and setActiveUsers overwrites the added user
+      const currentSession = useUserStore.getState().currentUser;
+      if (currentSession) {
+        addActiveUser({
+          alias: currentSession.alias,
+          is_admin: currentSession.is_admin,
+          last_active_at: currentSession.last_active_at,
+          created_at: currentSession.created_at,
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load active users';
       setError(message);
     }
-  }, [boardId, setActiveUsers, setLoading, setError]);
+  }, [boardId, setActiveUsers, addActiveUser, setLoading, setError]);
 
   const fetchCurrentUserSession = useCallback(async () => {
     if (!boardId) return;
@@ -137,12 +150,20 @@ export function useParticipantViewModel(
       const session = await BoardAPI.getCurrentUserSession(boardId);
       if (session) {
         setCurrentUser(session);
+        // Also add current user to activeUsers so they appear in the participant bar
+        const activeUser: ActiveUser = {
+          alias: session.alias,
+          is_admin: session.is_admin,
+          last_active_at: session.last_active_at,
+          created_at: session.created_at,
+        };
+        addActiveUser(activeUser);
       }
     } catch (err) {
       // Non-critical - session might not exist yet
       console.warn('Could not fetch current user session:', err);
     }
-  }, [boardId, setCurrentUser]);
+  }, [boardId, setCurrentUser, addActiveUser]);
 
   // Load active users on mount (unless autoFetch is disabled)
   useEffect(() => {
@@ -331,7 +352,9 @@ export function useParticipantViewModel(
     setShowAll((prev) => {
       const newValue = !prev;
       if (newValue) {
+        // UTB-017: When selecting "All Users", clear other filters
         setSelectedUsers([]);
+        setShowOnlyAnonymous(false);
       }
       return newValue;
     });
@@ -355,18 +378,20 @@ export function useParticipantViewModel(
   const handleToggleUserFilter = useCallback((alias: string) => {
     setSelectedUsers((prev) => {
       const isSelected = prev.includes(alias);
-      const newSelected = isSelected ? prev.filter((a) => a !== alias) : [...prev, alias];
 
-      // If no users selected, show all
-      if (newSelected.length === 0) {
+      // Single-select only: clicking the same user deselects, clicking a different user replaces selection
+      // UTB-017: Filter should be single-selection only (All, Anonymous, OR one user at a time)
+      if (isSelected) {
+        // Deselecting the current user - revert to show all
         setShowAll(true);
-      } else {
-        setShowAll(false);
-        // User filters are mutually exclusive with anonymous-only
         setShowOnlyAnonymous(false);
+        return [];
+      } else {
+        // Selecting a new user - replace any existing selection with just this user
+        setShowAll(false);
+        setShowOnlyAnonymous(false);
+        return [alias];
       }
-
-      return newSelected;
     });
   }, []);
 

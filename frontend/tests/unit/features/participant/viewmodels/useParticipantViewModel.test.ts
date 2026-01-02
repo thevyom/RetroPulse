@@ -148,6 +148,95 @@ describe('useParticipantViewModel', () => {
       expect(BoardAPI.getCurrentUserSession).toHaveBeenCalledWith('board-123');
     });
 
+    it('should add current user to activeUsers after fetching session (UTB-014 fix)', async () => {
+      // Start with empty active users (simulating the bug scenario)
+      vi.mocked(BoardAPI.getActiveUsers).mockResolvedValue({
+        active_users: [],
+        total_count: 0,
+      });
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // Wait for both API calls to complete
+      await waitFor(() => {
+        expect(result.current.currentUser).toEqual(mockCurrentUser);
+      });
+
+      // The bug was that the current user wasn't being added to activeUsers
+      // After the fix, the current user should appear in activeUsers
+      expect(result.current.activeUsers.length).toBeGreaterThan(0);
+      expect(result.current.activeUsers.find((u) => u.alias === mockCurrentUser.alias)).toBeDefined();
+    });
+
+    it('should not duplicate user in activeUsers if already present (UTB-014)', async () => {
+      // Simulate scenario where API returns the current user already
+      const usersWithCurrentUser: ActiveUser[] = [
+        {
+          alias: mockCurrentUser.alias,
+          is_admin: mockCurrentUser.is_admin,
+          last_active_at: mockCurrentUser.last_active_at,
+          created_at: mockCurrentUser.created_at,
+        },
+      ];
+
+      vi.mocked(BoardAPI.getActiveUsers).mockResolvedValue({
+        active_users: usersWithCurrentUser,
+        total_count: 1,
+      });
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.currentUser).toBeDefined();
+      });
+
+      // Wait a bit for all effects to settle
+      await waitFor(() => {
+        // Should not duplicate the user
+        const matchingUsers = result.current.activeUsers.filter(
+          (u) => u.alias === mockCurrentUser.alias
+        );
+        expect(matchingUsers.length).toBe(1);
+      });
+    });
+
+    it('should preserve current user when getActiveUsers completes after getCurrentUserSession (UTB-014 race condition)', async () => {
+      // This test simulates the race condition:
+      // 1. getCurrentUserSession resolves quickly (50ms)
+      // 2. getActiveUsers resolves slowly (200ms) and returns empty array
+      // 3. The bug was that setActiveUsers would overwrite the user added by getCurrentUserSession
+
+      let resolveGetActiveUsers: (value: { active_users: ActiveUser[]; total_count: number }) => void;
+      const getActiveUsersPromise = new Promise<{ active_users: ActiveUser[]; total_count: number }>((resolve) => {
+        resolveGetActiveUsers = resolve;
+      });
+
+      vi.mocked(BoardAPI.getActiveUsers).mockReturnValue(getActiveUsersPromise);
+      // getCurrentUserSession resolves immediately
+      vi.mocked(BoardAPI.getCurrentUserSession).mockResolvedValue(mockCurrentUser);
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // Wait for getCurrentUserSession to complete
+      await waitFor(() => {
+        expect(result.current.currentUser).toEqual(mockCurrentUser);
+      });
+
+      // At this point, currentUser should be in activeUsers
+      expect(result.current.activeUsers.find((u) => u.alias === mockCurrentUser.alias)).toBeDefined();
+
+      // Now resolve getActiveUsers with empty array (simulating API not returning the current user)
+      resolveGetActiveUsers!({ active_users: [], total_count: 0 });
+
+      // Wait for getActiveUsers to complete
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // The fix ensures current user is STILL in activeUsers after setActiveUsers overwrites
+      expect(result.current.activeUsers.find((u) => u.alias === mockCurrentUser.alias)).toBeDefined();
+    });
+
     it('should handle API error during load', async () => {
       vi.mocked(BoardAPI.getActiveUsers).mockRejectedValue(new Error('Network error'));
       // Also reject getCurrentUserSession to prevent it from clearing the error
@@ -196,8 +285,10 @@ describe('useParticipantViewModel', () => {
 
       const { result } = renderHook(() => useParticipantViewModel('board-123'));
 
+      // Wait for active users to load - now includes the current user added by the fix
+      // 3 from mockActiveUsers + 1 from current user session = 4 total
       await waitFor(() => {
-        expect(result.current.activeUsers.length).toBe(3);
+        expect(result.current.activeUsers.length).toBe(4);
       });
 
       expect(result.current.isCurrentUserCreator).toBe(false);
@@ -398,8 +489,9 @@ describe('useParticipantViewModel', () => {
 
       const { result } = renderHook(() => useParticipantViewModel('board-123'));
 
+      // Wait for active users to load - 3 from mockActiveUsers + 1 current user = 4 total
       await waitFor(() => {
-        expect(result.current.activeUsers.length).toBe(3);
+        expect(result.current.activeUsers.length).toBe(4);
       });
 
       await expect(
@@ -556,20 +648,26 @@ describe('useParticipantViewModel', () => {
       expect(result.current.showAll).toBe(true); // Reverts when no users selected
     });
 
-    it('should support multiple user filters (OR logic)', () => {
+    it('should enforce single user selection only (UTB-017 fix)', () => {
       const { result } = renderHook(() => useParticipantViewModel('board-123'));
 
+      // Select first user
       act(() => {
         result.current.handleToggleUserFilter('ParticipantOne');
       });
 
+      expect(result.current.selectedUsers).toContain('ParticipantOne');
+      expect(result.current.selectedUsers.length).toBe(1);
+
+      // Select second user - should REPLACE, not ADD
       act(() => {
         result.current.handleToggleUserFilter('ParticipantTwo');
       });
 
-      expect(result.current.selectedUsers).toContain('ParticipantOne');
+      // Only ParticipantTwo should be selected
+      expect(result.current.selectedUsers).not.toContain('ParticipantOne');
       expect(result.current.selectedUsers).toContain('ParticipantTwo');
-      expect(result.current.selectedUsers.length).toBe(2);
+      expect(result.current.selectedUsers.length).toBe(1);
     });
 
     it('should clear showOnlyAnonymous when selecting a user', () => {
@@ -608,6 +706,28 @@ describe('useParticipantViewModel', () => {
 
       expect(result.current.showAll).toBe(true);
       expect(result.current.showAnonymous).toBe(true);
+      expect(result.current.showOnlyAnonymous).toBe(false);
+      expect(result.current.selectedUsers).toEqual([]);
+    });
+
+    it('should clear showOnlyAnonymous when clicking All Users filter (UTB-017)', () => {
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // Enable anonymous-only filter first
+      act(() => {
+        result.current.handleToggleAnonymousFilter();
+      });
+
+      expect(result.current.showOnlyAnonymous).toBe(true);
+      expect(result.current.showAll).toBe(false);
+
+      // Click All Users filter
+      act(() => {
+        result.current.handleToggleAllUsersFilter();
+      });
+
+      // Both should now be in correct state: All Users selected, Anonymous deselected
+      expect(result.current.showAll).toBe(true);
       expect(result.current.showOnlyAnonymous).toBe(false);
       expect(result.current.selectedUsers).toEqual([]);
     });

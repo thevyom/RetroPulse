@@ -73,8 +73,13 @@ export const ParticipantBar = memo(function ParticipantBar({
         {/* Separator */}
         <div className="h-6 w-px bg-border" aria-hidden="true" />
 
-        {/* User Avatars */}
-        <div className="flex items-center gap-1" role="group" aria-label="Active participants">
+        {/* User Avatars - Scrollable container for overflow handling */}
+        <div
+          className="flex items-center gap-1 overflow-x-auto max-w-[280px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+          role="group"
+          aria-label="Active participants"
+          data-testid="participant-avatar-container"
+        >
           {activeUsers.map((user) => (
             <ParticipantAvatar
               key={user.alias}
@@ -87,7 +92,7 @@ export const ParticipantBar = memo(function ParticipantBar({
           ))}
 
           {activeUsers.length === 0 && (
-            <span className="text-sm text-muted-foreground">No participants yet</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">No participants yet</span>
           )}
         </div>
 

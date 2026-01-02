@@ -958,6 +958,107 @@ describe('useCardViewModel', () => {
       expect(socketService.off).toHaveBeenCalledWith('card:updated', expect.any(Function));
       expect(socketService.off).toHaveBeenCalledWith('card:deleted', expect.any(Function));
     });
+
+    it('should transform card:created socket event with createdByAlias to Card structure (UTB-015)', async () => {
+      // Capture the handler that gets registered
+      let capturedHandler: ((event: unknown) => void) | null = null;
+      vi.mocked(socketService.on).mockImplementation((event, handler) => {
+        if (event === 'card:created') {
+          capturedHandler = handler as (event: unknown) => void;
+        }
+      });
+
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Initial cards from mock
+      expect(result.current.cards.length).toBe(3);
+
+      // Simulate a socket event with camelCase payload (as sent by backend)
+      const socketPayload = {
+        cardId: 'new-socket-card',
+        boardId: 'board-123',
+        columnId: 'col-1',
+        content: 'New card from socket with alias',
+        cardType: 'feedback' as const,
+        isAnonymous: false,
+        createdByAlias: 'SocketUser',
+        createdAt: '2025-12-28T12:00:00Z',
+        directReactionCount: 0,
+        aggregatedReactionCount: 0,
+        parentCardId: null,
+        linkedFeedbackIds: [],
+      };
+
+      // Trigger the captured handler
+      expect(capturedHandler).not.toBeNull();
+      act(() => {
+        capturedHandler!(socketPayload);
+      });
+
+      await waitFor(() => {
+        expect(result.current.cards.length).toBe(4);
+      });
+
+      // Verify the card was transformed correctly with alias preserved
+      const newCard = result.current.cards.find((c) => c.id === 'new-socket-card');
+      expect(newCard).toBeDefined();
+      expect(newCard?.created_by_alias).toBe('SocketUser');
+      expect(newCard?.is_anonymous).toBe(false);
+      expect(newCard?.column_id).toBe('col-1');
+      expect(newCard?.content).toBe('New card from socket with alias');
+    });
+
+    it('should handle card:created socket event for anonymous cards (UTB-015)', async () => {
+      // Capture the handler that gets registered
+      let capturedHandler: ((event: unknown) => void) | null = null;
+      vi.mocked(socketService.on).mockImplementation((event, handler) => {
+        if (event === 'card:created') {
+          capturedHandler = handler as (event: unknown) => void;
+        }
+      });
+
+      const { result } = renderHook(() => useCardViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Simulate a socket event for anonymous card
+      const socketPayload = {
+        cardId: 'anon-socket-card',
+        boardId: 'board-123',
+        columnId: 'col-2',
+        content: 'Anonymous card from socket',
+        cardType: 'feedback' as const,
+        isAnonymous: true,
+        createdByAlias: null,
+        createdAt: '2025-12-28T12:00:00Z',
+        directReactionCount: 0,
+        aggregatedReactionCount: 0,
+        parentCardId: null,
+        linkedFeedbackIds: [],
+      };
+
+      // Trigger the captured handler
+      expect(capturedHandler).not.toBeNull();
+      act(() => {
+        capturedHandler!(socketPayload);
+      });
+
+      await waitFor(() => {
+        expect(result.current.cards.some((c) => c.id === 'anon-socket-card')).toBe(true);
+      });
+
+      // Verify the card was transformed correctly as anonymous
+      const newCard = result.current.cards.find((c) => c.id === 'anon-socket-card');
+      expect(newCard).toBeDefined();
+      expect(newCard?.created_by_alias).toBeNull();
+      expect(newCard?.is_anonymous).toBe(true);
+    });
   });
 
   // ============================================================================

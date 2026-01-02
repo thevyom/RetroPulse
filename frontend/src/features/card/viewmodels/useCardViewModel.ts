@@ -302,8 +302,38 @@ export function useCardViewModel(
   useEffect(() => {
     if (!boardId) return;
 
-    const handleCardCreated = (event: { card: Card }) => {
-      addCard(event.card);
+    // Socket payload uses camelCase and flat structure, need to transform to Card type
+    const handleCardCreated = (event: {
+      cardId: string;
+      boardId: string;
+      columnId: string;
+      content: string;
+      cardType: 'feedback' | 'action';
+      isAnonymous: boolean;
+      createdByAlias: string | null;
+      createdAt: string;
+      directReactionCount: number;
+      aggregatedReactionCount: number;
+      parentCardId: string | null;
+      linkedFeedbackIds: string[];
+    }) => {
+      // Transform socket payload to Card structure
+      const card: Card = {
+        id: event.cardId,
+        board_id: event.boardId,
+        column_id: event.columnId,
+        content: event.content,
+        card_type: event.cardType,
+        is_anonymous: event.isAnonymous,
+        created_by_hash: '', // Not sent via socket, not needed for display
+        created_by_alias: event.createdByAlias,
+        created_at: event.createdAt,
+        direct_reaction_count: event.directReactionCount,
+        aggregated_reaction_count: event.aggregatedReactionCount,
+        parent_card_id: event.parentCardId,
+        linked_feedback_ids: event.linkedFeedbackIds,
+      };
+      addCard(card);
       // Refresh quota after card creation by others
       checkCardQuota().catch(() => {});
     };

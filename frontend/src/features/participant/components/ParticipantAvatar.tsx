@@ -27,12 +27,30 @@ export interface ParticipantAvatarProps {
 // Helpers
 // ============================================================================
 
-function getInitials(alias: string): string {
-  const words = alias.trim().split(/\s+/);
+/**
+ * Extracts initials from an alias.
+ * - Single word: first two letters uppercase ("John" -> "JO")
+ * - Multiple words: first letter of first + first letter of last word ("John A. Smith" -> "JS")
+ */
+export function getInitials(alias: string): string {
+  const trimmed = alias.trim();
+  if (!trimmed) return '??';
+
+  const words = trimmed.split(/\s+/).filter((w) => w.length > 0);
+
+  if (words.length === 0) {
+    return '??';
+  }
+
   if (words.length === 1) {
+    // Single word: first two letters
     return words[0].slice(0, 2).toUpperCase();
   }
-  return (words[0][0] + words[1][0]).toUpperCase();
+
+  // Multiple words: first letter of first word + first letter of last word
+  const firstInitial = words[0][0];
+  const lastInitial = words[words.length - 1][0];
+  return (firstInitial + lastInitial).toUpperCase();
 }
 
 // ============================================================================
@@ -71,7 +89,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
   };
 
   return (
-    <Tooltip>
+    <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <button
           type="button"

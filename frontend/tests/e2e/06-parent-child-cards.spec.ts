@@ -16,6 +16,7 @@ import {
   waitForCardLinked,
   waitForCardUnlinked,
   waitForReactionCount,
+  clickUnlinkForNestedChild,
   getBoardId,
   isBackendReady,
 } from './helpers';
@@ -58,12 +59,8 @@ test.describe('Parent-Child Card Relationships', () => {
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
 
-    // Unlink - use accessible selector
-    const childCard = await findCardByContent(page, childContent);
-    const linkIcon = childCard
-      .getByRole('button', { name: /link|unlink/i })
-      .or(childCard.locator('[aria-label*="linked"]'));
-    await linkIcon.first().click();
+    // Unlink the nested child by clicking its unlink button
+    await clickUnlinkForNestedChild(page, childContent);
 
     await waitForCardUnlinked(page, childContent);
 
@@ -161,13 +158,15 @@ test.describe('Parent-Child Card Relationships', () => {
     // Verify linked
     expect(await isCardLinked(page, childContent)).toBe(true);
 
-    // Delete parent - use accessible selector
+    // Delete parent - hover on the main card element to trigger group-hover styles
     const parentCard = await findCardByContent(page, parentContent);
     await parentCard.hover();
-    const deleteButton = parentCard
-      .getByRole('button', { name: /delete/i })
-      .or(parentCard.locator('[aria-label*="delete"]'));
-    await deleteButton.first().click();
+    await page.waitForTimeout(300); // Wait for CSS transition (opacity animation)
+
+    // Find and click delete button (aria-label="Delete card")
+    // Use force:true in case CSS opacity transition hasn't completed
+    const deleteButton = parentCard.getByRole('button', { name: 'Delete card' });
+    await deleteButton.click({ force: true });
 
     // Confirm deletion
     const confirmButton = page.getByRole('button', { name: /confirm|yes|delete/i });

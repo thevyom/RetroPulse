@@ -4,10 +4,10 @@
  * Supports drag-and-drop via @dnd-kit.
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowRight, GripVertical, Link2, ThumbsUp, Trash2, User } from 'lucide-react';
+import { ArrowRight, Ghost, GripVertical, Link2, ThumbsUp, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Card, LinkedFeedbackCard } from '@/models/types';
 import type { ColumnType } from './RetroColumn';
@@ -91,10 +92,13 @@ export interface RetroCardProps {
   onUnreact: () => Promise<void>;
   onDelete: () => Promise<void>;
   onUnlinkFromParent: () => Promise<void>;
+  onUpdateCard?: (content: string) => Promise<void>;
   // Child card reaction props (UTB-007)
   onReactToChild?: (childId: string) => Promise<void>;
   onUnreactFromChild?: (childId: string) => Promise<void>;
   hasUserReactedToChild?: (childId: string) => boolean;
+  // Child card unlink handler
+  onUnlinkChild?: (childId: string) => Promise<void>;
   level?: number;
 }
 
@@ -117,13 +121,18 @@ export const RetroCard = memo(function RetroCard({
   onUnreact,
   onDelete,
   onUnlinkFromParent,
+  onUpdateCard,
   onReactToChild,
   onUnreactFromChild,
   hasUserReactedToChild,
+  onUnlinkChild,
   level = 0,
 }: RetroCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(card.content);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Handler for clicking on linked card previews
   const handleLinkedCardClick = useCallback((linkedCardId: string) => {
@@ -223,6 +232,59 @@ export const RetroCard = memo(function RetroCard({
     }
   };
 
+  // ============================================================================
+  // Card Content Editing (UTB-020)
+  // ============================================================================
+
+  // Focus textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      // Move cursor to end of text
+      textareaRef.current.selectionStart = textareaRef.current.value.length;
+    }
+  }, [isEditing]);
+
+  // Start editing when owner clicks on content
+  const handleContentClick = useCallback(() => {
+    if (isOwner && !isClosed && onUpdateCard) {
+      setEditContent(card.content);
+      setIsEditing(true);
+    }
+  }, [isOwner, isClosed, onUpdateCard, card.content]);
+
+  // Save changes on blur
+  const handleEditBlur = useCallback(async () => {
+    if (!isEditing || !onUpdateCard) return;
+
+    const trimmedContent = editContent.trim();
+
+    // Only save if content changed and is not empty
+    if (trimmedContent && trimmedContent !== card.content) {
+      setIsSubmitting(true);
+      try {
+        await onUpdateCard(trimmedContent);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
+    setIsEditing(false);
+  }, [isEditing, editContent, card.content, onUpdateCard]);
+
+  // Handle keyboard events for save (Enter) and cancel (Escape)
+  const handleEditKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
+      // Cancel editing, restore original content
+      setEditContent(card.content);
+      setIsEditing(false);
+    } else if (e.key === 'Enter' && !e.shiftKey) {
+      // Save on Enter (but allow Shift+Enter for newlines)
+      e.preventDefault();
+      void handleEditBlur();
+    }
+  }, [card.content, handleEditBlur]);
+
   // Handler for child card reaction clicks (UTB-007)
   const handleChildReactionClick = useCallback(async (childId: string) => {
     if (isClosed) return;
@@ -241,6 +303,16 @@ export const RetroCard = memo(function RetroCard({
     }
   }, [isClosed, onReactToChild, onUnreactFromChild, hasUserReactedToChild]);
 
+  // Handler for unlinking a nested child card
+  const handleUnlinkChildClick = useCallback(async (childId: string) => {
+    if (isClosed || !onUnlinkChild) return;
+    try {
+      await onUnlinkChild(childId);
+    } catch {
+      // Error handling is done in the parent viewmodel
+    }
+  }, [isClosed, onUnlinkChild]);
+
   return (
     <TooltipProvider>
       <div
@@ -257,16 +329,33 @@ export const RetroCard = memo(function RetroCard({
         )}
         {...attributes}
       >
-        {/* Card Header */}
-        <div className="mb-2 flex items-start justify-between">
-          {/* Left: Drag Handle or Link Icon */}
+        {/* Card Header - Full width drag handle (UTB-019) */}
+        <div
+          className={cn(
+            'mb-2 flex items-start justify-between min-h-[30px]',
+            canDrag && !hasParent && 'cursor-grab active:cursor-grabbing',
+            hasParent && 'cursor-default',
+            canDrag && !hasParent && 'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded'
+          )}
+          {...(!hasParent && canDrag ? listeners : {})}
+          tabIndex={canDrag && !hasParent ? 0 : undefined}
+          role={canDrag && !hasParent ? 'button' : undefined}
+          aria-label={canDrag && !hasParent ? 'Drag handle - press Space to pick up, arrow keys to move, Space to drop' : undefined}
+          aria-roledescription={canDrag && !hasParent ? 'draggable' : undefined}
+          data-testid="card-header"
+        >
+          {/* Left: Drag Handle Icon or Link Icon */}
           <div className="flex items-center gap-2">
             {hasParent ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={handleUnlink}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnlink();
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
                     disabled={isClosed || isSubmitting}
                     className="cursor-pointer text-muted-foreground transition-all duration-150 hover:text-primary hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Unlink from parent card"
@@ -278,12 +367,11 @@ export const RetroCard = memo(function RetroCard({
               </Tooltip>
             ) : (
               <div
-                {...listeners}
                 className={cn(
                   'text-muted-foreground opacity-0 group-hover:opacity-100',
                   canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
                 )}
-                aria-label="Drag handle"
+                aria-label="Drag handle icon"
               >
                 <GripVertical className="h-4 w-4" />
               </div>
@@ -297,12 +385,19 @@ export const RetroCard = memo(function RetroCard({
               </div>
             )}
             {card.is_anonymous && (
-              <span className="text-xs italic text-muted-foreground">Anonymous</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center text-muted-foreground" aria-label="Anonymous card">
+                    <Ghost className="h-4 w-4" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Anonymous</TooltipContent>
+              </Tooltip>
             )}
           </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1">
+          {/* Right: Actions - stop propagation to prevent drag interference (UTB-019) */}
+          <div className="flex items-center gap-1" onPointerDown={(e) => e.stopPropagation()}>
             {/* Reaction Button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -319,7 +414,9 @@ export const RetroCard = memo(function RetroCard({
                     <span className="flex items-center gap-1">
                       <span className="text-xs font-medium">{reactionCount}</span>
                       {hasChildren && (
-                        <span className="text-[10px] text-muted-foreground">(Agg)</span>
+                        <span className="text-[10px] text-muted-foreground" data-testid="reaction-own-count">
+                          ({card.direct_reaction_count} own)
+                        </span>
                       )}
                     </span>
                   )}
@@ -356,8 +453,40 @@ export const RetroCard = memo(function RetroCard({
           </div>
         </div>
 
-        {/* Card Content */}
-        <p className="whitespace-pre-wrap text-sm text-foreground">{card.content}</p>
+        {/* Card Content (UTB-020: Editable for owner) */}
+        {isEditing ? (
+          <Textarea
+            ref={textareaRef}
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            onBlur={handleEditBlur}
+            onKeyDown={handleEditKeyDown}
+            disabled={isSubmitting}
+            className="min-h-[60px] resize-none text-sm"
+            aria-label="Edit card content"
+            data-testid="card-edit-textarea"
+          />
+        ) : (
+          <p
+            className={cn(
+              'whitespace-pre-wrap text-sm text-foreground',
+              isOwner && !isClosed && onUpdateCard && 'cursor-pointer hover:bg-black/5 rounded px-1 -mx-1 transition-colors'
+            )}
+            onClick={handleContentClick}
+            role={isOwner && !isClosed && onUpdateCard ? 'button' : undefined}
+            tabIndex={isOwner && !isClosed && onUpdateCard ? 0 : undefined}
+            onKeyDown={isOwner && !isClosed && onUpdateCard ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleContentClick();
+              }
+            } : undefined}
+            aria-label={isOwner && !isClosed && onUpdateCard ? 'Click to edit card content' : undefined}
+            data-testid="card-content"
+          >
+            {card.content}
+          </p>
+        )}
 
         {/* Link Indicators (UTB-004) */}
         {hasLinkedActions && (
@@ -409,11 +538,37 @@ export const RetroCard = memo(function RetroCard({
                 className="rounded-md border-l-2 border-l-primary/20 bg-muted/30 p-2 text-sm"
               >
                 <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Link2 className="h-3 w-3" />
+                  {/* Unlink child button - clickable Link2 icon */}
+                  {onUnlinkChild && !isClosed ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => handleUnlinkChildClick(child.id)}
+                          className="cursor-pointer text-muted-foreground transition-all duration-150 hover:text-primary hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded"
+                          aria-label="Unlink child card"
+                        >
+                          <Link2 className="h-3 w-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Click to unlink</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Link2 className="h-3 w-3" />
+                  )}
                   {!child.is_anonymous && child.created_by_alias && (
                     <span>{child.created_by_alias}</span>
                   )}
-                  {child.is_anonymous && <span className="italic">Anonymous</span>}
+                  {child.is_anonymous && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center" aria-label="Anonymous child card">
+                          <Ghost className="h-3 w-3" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Anonymous</TooltipContent>
+                    </Tooltip>
+                  )}
                   {/* Child card reaction button (UTB-007) */}
                   <Button
                     variant="ghost"

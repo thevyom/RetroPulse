@@ -58,6 +58,7 @@ describe('RetroCard', () => {
     onUnreact: vi.fn().mockResolvedValue(undefined),
     onDelete: vi.fn().mockResolvedValue(undefined),
     onUnlinkFromParent: vi.fn().mockResolvedValue(undefined),
+    onUpdateCard: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
@@ -77,11 +78,12 @@ describe('RetroCard', () => {
       expect(screen.getByText('Alice')).toBeInTheDocument();
     });
 
-    it('should display "Anonymous" for anonymous cards', () => {
+    it('should display Ghost icon for anonymous cards (UTB-018)', () => {
       const anonymousCard = { ...mockCard, is_anonymous: true, created_by_alias: null };
-      render(<RetroCard {...defaultProps} card={anonymousCard} />);
+      render(<RetroCard {...defaultProps} card={anonymousCard} columnType="went_well" />);
 
-      expect(screen.getByText('Anonymous')).toBeInTheDocument();
+      // Ghost icon should be present with aria-label
+      expect(screen.getByLabelText('Anonymous card')).toBeInTheDocument();
     });
 
     it('should display reaction count', () => {
@@ -93,9 +95,11 @@ describe('RetroCard', () => {
 
   describe('Drag Handle vs Link Icon', () => {
     it('should show drag handle for standalone cards (no parent)', () => {
-      render(<RetroCard {...defaultProps} />);
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
 
-      expect(screen.getByLabelText(/drag handle/i)).toBeInTheDocument();
+      // Full header now has drag listeners, with GripVertical icon as visual affordance
+      expect(screen.getByLabelText(/drag handle icon/i)).toBeInTheDocument();
+      expect(screen.getByTestId('card-header')).toHaveAttribute('aria-label', 'Drag handle - drag card header to move');
     });
 
     it('should show link icon for linked cards (has parent)', () => {
@@ -260,6 +264,134 @@ describe('RetroCard', () => {
       // Parent has 10 aggregated, child has 2
       expect(screen.getByText('10')).toBeInTheDocument();
       expect(screen.getByText('2')).toBeInTheDocument();
+    });
+  });
+
+  describe('Aggregated Reaction Display (UTB-016)', () => {
+    it('should show only reaction count for standalone cards without children', () => {
+      render(<RetroCard {...defaultProps} card={mockCard} />);
+
+      // Should show the count
+      expect(screen.getByText('5')).toBeInTheDocument();
+
+      // Should NOT show "(X own)" for standalone cards
+      expect(screen.queryByTestId('reaction-own-count')).not.toBeInTheDocument();
+    });
+
+    it('should show aggregated and direct counts for parent cards with children', () => {
+      const parentCardWithChildren: Card = {
+        ...mockCard,
+        direct_reaction_count: 3,
+        aggregated_reaction_count: 10,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child card content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-01-01T01:00:00Z',
+            direct_reaction_count: 7,
+            aggregated_reaction_count: 7,
+          },
+        ],
+      };
+
+      render(<RetroCard {...defaultProps} card={parentCardWithChildren} />);
+
+      // Should show aggregated count (10)
+      expect(screen.getByText('10')).toBeInTheDocument();
+
+      // Should show "(3 own)" for direct reactions
+      const ownCountElement = screen.getByTestId('reaction-own-count');
+      expect(ownCountElement).toBeInTheDocument();
+      expect(ownCountElement).toHaveTextContent('(3 own)');
+    });
+
+    it('should display format "X (Y own)" showing aggregated and direct counts', () => {
+      const parentCard: Card = {
+        ...mockCard,
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 8,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-01-01T01:00:00Z',
+            direct_reaction_count: 6,
+            aggregated_reaction_count: 6,
+          },
+        ],
+      };
+
+      render(<RetroCard {...defaultProps} card={parentCard} />);
+
+      // Aggregated count is displayed
+      expect(screen.getByText('8')).toBeInTheDocument();
+
+      // Own count is displayed in the expected format
+      expect(screen.getByText('(2 own)')).toBeInTheDocument();
+    });
+
+    it('should show "(0 own)" when parent has no direct reactions but has aggregated', () => {
+      const parentCardNoDirectReactions: Card = {
+        ...mockCard,
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 7,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-01-01T01:00:00Z',
+            direct_reaction_count: 4,
+            aggregated_reaction_count: 4,
+          },
+        ],
+      };
+
+      render(<RetroCard {...defaultProps} card={parentCardNoDirectReactions} columnType="went_well" />);
+
+      // Use getAllByText since child card also shows count
+      const allCounts = screen.getAllByText('7');
+      expect(allCounts.length).toBeGreaterThanOrEqual(1);
+
+      // "(0 own)" is shown
+      expect(screen.getByText('(0 own)')).toBeInTheDocument();
+    });
+
+    it('should not show own count indicator when there are no reactions at all', () => {
+      const parentCardNoReactions: Card = {
+        ...mockCard,
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 0,
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-01-01T01:00:00Z',
+            direct_reaction_count: 0,
+            aggregated_reaction_count: 0,
+          },
+        ],
+      };
+
+      render(<RetroCard {...defaultProps} card={parentCardNoReactions} />);
+
+      // No "(X own)" indicator when reactionCount is 0
+      expect(screen.queryByTestId('reaction-own-count')).not.toBeInTheDocument();
+    });
+
+    it('should have proper styling for own count indicator', () => {
+      render(<RetroCard {...defaultProps} card={mockCardWithChildren} />);
+
+      const ownCountElement = screen.getByTestId('reaction-own-count');
+      expect(ownCountElement).toHaveClass('text-[10px]');
+      expect(ownCountElement).toHaveClass('text-muted-foreground');
     });
   });
 
@@ -672,6 +804,422 @@ describe('RetroCard', () => {
         // Should not throw
         expect(() => scrollToCard('non-existent')).not.toThrow();
       });
+    });
+  });
+
+  describe('Card Content Editing (UTB-020)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    describe('Edit Mode Activation', () => {
+      it('should enter edit mode when owner clicks on content', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        await user.click(content);
+
+        expect(screen.getByTestId('card-edit-textarea')).toBeInTheDocument();
+      });
+
+      it('should NOT enter edit mode when non-owner clicks on content', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" isOwner={false} />);
+
+        const content = screen.getByTestId('card-content');
+        await user.click(content);
+
+        expect(screen.queryByTestId('card-edit-textarea')).not.toBeInTheDocument();
+      });
+
+      it('should NOT enter edit mode when board is closed', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" isClosed={true} />);
+
+        const content = screen.getByTestId('card-content');
+        await user.click(content);
+
+        expect(screen.queryByTestId('card-edit-textarea')).not.toBeInTheDocument();
+      });
+
+      it('should NOT enter edit mode when onUpdateCard is not provided', async () => {
+        const user = userEvent.setup();
+        const propsWithoutUpdate = { ...defaultProps, onUpdateCard: undefined };
+        render(<RetroCard {...propsWithoutUpdate} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        await user.click(content);
+
+        expect(screen.queryByTestId('card-edit-textarea')).not.toBeInTheDocument();
+      });
+
+      it('should show cursor-pointer style for editable content', () => {
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        expect(content).toHaveClass('cursor-pointer');
+      });
+
+      it('should NOT show cursor-pointer for non-owner', () => {
+        render(<RetroCard {...defaultProps} columnType="went_well" isOwner={false} />);
+
+        const content = screen.getByTestId('card-content');
+        expect(content).not.toHaveClass('cursor-pointer');
+      });
+
+      it('should have accessible role for editable content', () => {
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        expect(content).toHaveAttribute('role', 'button');
+        expect(content).toHaveAttribute('tabIndex', '0');
+      });
+
+      it('should enter edit mode on keyboard activation (Enter)', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        content.focus();
+        await user.keyboard('{Enter}');
+
+        expect(screen.getByTestId('card-edit-textarea')).toBeInTheDocument();
+      });
+
+      it('should enter edit mode on keyboard activation (Space)', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        content.focus();
+        await user.keyboard(' ');
+
+        expect(screen.getByTestId('card-edit-textarea')).toBeInTheDocument();
+      });
+    });
+
+    describe('Edit Mode Behavior', () => {
+      it('should populate textarea with current content', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+
+        const textarea = screen.getByTestId('card-edit-textarea');
+        expect(textarea).toHaveValue('This is a great retro!');
+      });
+
+      it('should focus textarea when entering edit mode', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+
+        const textarea = screen.getByTestId('card-edit-textarea');
+        expect(textarea).toHaveFocus();
+      });
+    });
+
+    describe('Saving Changes', () => {
+      it('should call onUpdateCard with new content on blur', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.type(textarea, 'Updated content');
+        await user.tab(); // Blur
+
+        await waitFor(() => {
+          expect(defaultProps.onUpdateCard).toHaveBeenCalledWith('Updated content');
+        });
+      });
+
+      it('should call onUpdateCard on Enter key press', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.type(textarea, 'New content{Enter}');
+
+        await waitFor(() => {
+          expect(defaultProps.onUpdateCard).toHaveBeenCalledWith('New content');
+        });
+      });
+
+      it('should NOT call onUpdateCard if content unchanged', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        await user.tab(); // Blur without changing
+
+        expect(defaultProps.onUpdateCard).not.toHaveBeenCalled();
+      });
+
+      it('should NOT call onUpdateCard if content is empty', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.tab(); // Blur
+
+        expect(defaultProps.onUpdateCard).not.toHaveBeenCalled();
+      });
+
+      it('should exit edit mode after saving', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.type(textarea, 'Updated');
+        await user.tab();
+
+        await waitFor(() => {
+          expect(screen.queryByTestId('card-edit-textarea')).not.toBeInTheDocument();
+        });
+      });
+
+      it('should trim whitespace from content before saving', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.type(textarea, '  Trimmed content  {Enter}');
+
+        await waitFor(() => {
+          expect(defaultProps.onUpdateCard).toHaveBeenCalledWith('Trimmed content');
+        });
+      });
+    });
+
+    describe('Cancelling Edit', () => {
+      it('should cancel edit and restore content on Escape', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.type(textarea, 'Modified content');
+        await user.keyboard('{Escape}');
+
+        // Should exit edit mode without saving
+        expect(screen.queryByTestId('card-edit-textarea')).not.toBeInTheDocument();
+        expect(defaultProps.onUpdateCard).not.toHaveBeenCalled();
+        // Original content should be displayed
+        expect(screen.getByText('This is a great retro!')).toBeInTheDocument();
+      });
+    });
+
+    describe('Multiline Support', () => {
+      it('should allow Shift+Enter for newlines without saving', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+        const textarea = screen.getByTestId('card-edit-textarea');
+
+        await user.clear(textarea);
+        await user.type(textarea, 'Line 1{Shift>}{Enter}{/Shift}Line 2');
+
+        // Should still be in edit mode (not saved)
+        expect(screen.getByTestId('card-edit-textarea')).toBeInTheDocument();
+        expect(defaultProps.onUpdateCard).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Accessibility', () => {
+      it('should have aria-label on textarea', async () => {
+        const user = userEvent.setup();
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        await user.click(screen.getByTestId('card-content'));
+
+        expect(screen.getByLabelText('Edit card content')).toBeInTheDocument();
+      });
+
+      it('should have aria-label on editable content', () => {
+        render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+        const content = screen.getByTestId('card-content');
+        expect(content).toHaveAttribute('aria-label', 'Click to edit card content');
+      });
+    });
+  });
+
+  describe('Anonymous Card Display (UTB-018)', () => {
+    const anonymousCard: Card = {
+      ...mockCard,
+      is_anonymous: true,
+      created_by_alias: null,
+    };
+
+    it('should render Ghost icon for anonymous cards instead of text', () => {
+      render(<RetroCard {...defaultProps} card={anonymousCard} columnType="went_well" />);
+
+      // Ghost icon should be present via aria-label
+      expect(screen.getByLabelText('Anonymous card')).toBeInTheDocument();
+      // Should NOT show "Anonymous" text anymore
+      expect(screen.queryByText('Anonymous', { selector: 'span.italic' })).not.toBeInTheDocument();
+    });
+
+    it('should show "Anonymous" tooltip on Ghost icon hover', async () => {
+      const user = userEvent.setup();
+      render(<RetroCard {...defaultProps} card={anonymousCard} columnType="went_well" />);
+
+      const ghostIcon = screen.getByLabelText('Anonymous card');
+      await user.hover(ghostIcon);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toHaveTextContent('Anonymous');
+      });
+    });
+
+    it('should render Ghost icon for anonymous child cards', () => {
+      const cardWithAnonymousChild: Card = {
+        ...mockCard,
+        children: [
+          {
+            id: 'anon-child-1',
+            content: 'Anonymous child content',
+            is_anonymous: true,
+            created_by_alias: null,
+            created_at: '2025-01-01T01:00:00Z',
+            direct_reaction_count: 1,
+            aggregated_reaction_count: 1,
+          },
+        ],
+      };
+
+      render(<RetroCard {...defaultProps} card={cardWithAnonymousChild} columnType="went_well" />);
+
+      expect(screen.getByLabelText('Anonymous child card')).toBeInTheDocument();
+    });
+
+    it('should show tooltip for anonymous child card on hover', async () => {
+      const user = userEvent.setup();
+      const cardWithAnonymousChild: Card = {
+        ...mockCard,
+        children: [
+          {
+            id: 'anon-child-2',
+            content: 'Anonymous child content',
+            is_anonymous: true,
+            created_by_alias: null,
+            created_at: '2025-01-01T01:00:00Z',
+            direct_reaction_count: 1,
+            aggregated_reaction_count: 1,
+          },
+        ],
+      };
+
+      render(<RetroCard {...defaultProps} card={cardWithAnonymousChild} columnType="went_well" />);
+
+      const ghostIcon = screen.getByLabelText('Anonymous child card');
+      await user.hover(ghostIcon);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toHaveTextContent('Anonymous');
+      });
+    });
+  });
+
+  describe('Full Header Drag Handle (UTB-019)', () => {
+    it('should have card header element with testid', () => {
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+      expect(screen.getByTestId('card-header')).toBeInTheDocument();
+    });
+
+    it('should have cursor-grab class on header for draggable cards', () => {
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+      const header = screen.getByTestId('card-header');
+      expect(header).toHaveClass('cursor-grab');
+    });
+
+    it('should have min-height on header for better drag target', () => {
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+      const header = screen.getByTestId('card-header');
+      expect(header).toHaveClass('min-h-[30px]');
+    });
+
+    it('should have aria-label for full header drag handle', () => {
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+      const header = screen.getByTestId('card-header');
+      expect(header).toHaveAttribute('aria-label', 'Drag handle - drag card header to move');
+    });
+
+    it('should NOT have cursor-grab for cards with parent (linked cards)', () => {
+      render(<RetroCard {...defaultProps} card={mockLinkedCard} columnType="went_well" />);
+
+      const header = screen.getByTestId('card-header');
+      expect(header).not.toHaveClass('cursor-grab');
+      expect(header).toHaveClass('cursor-default');
+    });
+
+    it('should NOT have cursor-grab when board is closed', () => {
+      render(<RetroCard {...defaultProps} isClosed={true} columnType="went_well" />);
+
+      const header = screen.getByTestId('card-header');
+      // canDrag is false when isClosed is true
+      expect(header).not.toHaveClass('cursor-grab');
+    });
+
+    it('should still allow reaction button clicks without triggering drag', async () => {
+      const user = userEvent.setup();
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+      await user.click(screen.getByLabelText(/add reaction/i));
+
+      await waitFor(() => {
+        expect(defaultProps.onReact).toHaveBeenCalled();
+      });
+    });
+
+    it('should still allow delete button clicks without triggering drag', async () => {
+      const user = userEvent.setup();
+      render(<RetroCard {...defaultProps} isOwner={true} columnType="went_well" />);
+
+      await user.click(screen.getByLabelText(/delete card/i));
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('should still allow unlink button clicks for linked cards', async () => {
+      const user = userEvent.setup();
+      render(<RetroCard {...defaultProps} card={mockLinkedCard} columnType="went_well" />);
+
+      await user.click(screen.getByLabelText(/unlink from parent/i));
+
+      await waitFor(() => {
+        expect(defaultProps.onUnlinkFromParent).toHaveBeenCalled();
+      });
+    });
+
+    it('should show GripVertical icon in header for visual drag affordance', () => {
+      render(<RetroCard {...defaultProps} columnType="went_well" />);
+
+      expect(screen.getByLabelText('Drag handle icon')).toBeInTheDocument();
     });
   });
 });

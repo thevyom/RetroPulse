@@ -258,6 +258,7 @@ export const RetroColumn = memo(function RetroColumn({
             onReactToChild={onReactToChild}
             onUnreactFromChild={onUnreactFromChild}
             hasUserReactedToChild={hasUserReactedToChild}
+            onUnlinkChild={onUnlinkChild}
           />
         ))}
 
@@ -298,6 +299,7 @@ export const RetroColumn = memo(function RetroColumn({
                 checked={isAnonymous}
                 onChange={(e) => setIsAnonymous(e.target.checked)}
                 className="rounded border-input"
+                aria-label="Post anonymously"
               />
               <span className="text-sm text-muted-foreground">Post anonymously</span>
             </label>

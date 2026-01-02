@@ -3,7 +3,7 @@
  * Type definitions for Socket.io events
  */
 
-import type { Card, LinkType } from '../types';
+import type { LinkType } from '../types';
 
 // ============================================================================
 // Client -> Server Events
@@ -62,8 +62,20 @@ export interface BaseEvent {
 }
 
 // Card Events
+// Note: Backend sends flat camelCase payload, not wrapped in { card: Card }
 export interface CardCreatedEvent extends BaseEvent {
-  card: Card;
+  cardId: string;
+  boardId: string;
+  columnId: string;
+  content: string;
+  cardType: 'feedback' | 'action';
+  isAnonymous: boolean;
+  createdByAlias: string | null;
+  createdAt: string;
+  directReactionCount: number;
+  aggregatedReactionCount: number;
+  parentCardId: string | null;
+  linkedFeedbackIds: string[];
 }
 
 export interface CardUpdatedEvent extends BaseEvent {

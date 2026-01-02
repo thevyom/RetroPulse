@@ -292,13 +292,16 @@ export async function createCard(
 }
 
 /**
- * Find a card by content
+ * Find a card container by content
+ * Returns the card container element (id="card-{id}"), not just the text element.
+ * This is important for finding child elements like the drag handle.
  */
 export async function findCardByContent(page: Page, content: string, options: { timeout?: number } = {}) {
   const { timeout = 10000 } = options;
 
-  // Find the card by looking for elements containing the text
-  const card = page.getByText(content, { exact: false }).first();
+  // Find the card container by looking for div[id^="card-"] that contains the text
+  // The card container has id="card-{uuid}" pattern
+  const card = page.locator('[id^="card-"]').filter({ hasText: content }).first();
 
   // Wait for it to be visible
   await card.waitFor({ state: 'visible', timeout }).catch(() => {});
@@ -378,61 +381,63 @@ export async function getReactionCount(page: Page, content: string): Promise<num
 // ============================================================================
 
 /**
- * Perform drag-and-drop using keyboard events for @dnd-kit compatibility.
+ * Perform drag-and-drop using Playwright's native pointer events.
  *
- * This is the PRIMARY drag method for E2E tests. @dnd-kit's KeyboardSensor
- * is more reliable in Playwright than PointerSensor because keyboard events
- * are handled consistently across browsers.
+ * This uses the PointerSensor in @dnd-kit. The drag sequence:
+ * 1. Locate the drag handle (card header)
+ * 2. Use Playwright's dragTo() to drag from source to target center
  *
- * Keyboard drag sequence:
- * 1. Focus the draggable element
- * 2. Press Space to pick up
- * 3. Press Arrow keys to move (or Tab to move between drop zones)
- * 4. Press Space to drop
- *
- * For card-to-card linking, we use Tab to navigate between cards.
+ * Note: @dnd-kit requires a minimum drag distance of 8px to activate (see PointerSensor config).
+ * We drag to the center of the target element.
  */
 export async function dndKitDragKeyboard(
   page: Page,
   sourceLocator: Locator,
   targetLocator: Locator
 ): Promise<void> {
-  // Focus the source element (the draggable card)
-  await sourceLocator.focus();
-  await page.waitForTimeout(100);
+  // Find the drag handle within the source card (the card header element)
+  const sourceDragHandle = sourceLocator.locator('[data-testid="card-header"]').first();
 
-  // Press Space to pick up the item
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(200);
+  // Ensure both elements are visible
+  await sourceDragHandle.waitFor({ state: 'visible', timeout: 5000 });
+  await targetLocator.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Get positions to determine direction
-  const sourceBox = await sourceLocator.boundingBox();
+  // Get bounding boxes
+  const sourceBox = await sourceDragHandle.boundingBox();
   const targetBox = await targetLocator.boundingBox();
 
-  if (sourceBox && targetBox) {
-    // Calculate relative position and press arrow keys to move
-    const dx = targetBox.x - sourceBox.x;
-    const dy = targetBox.y - sourceBox.y;
-
-    // Move horizontally first (columns are side by side)
-    const horizontalMoves = Math.round(Math.abs(dx) / 100);
-    const horizontalKey = dx > 0 ? 'ArrowRight' : 'ArrowLeft';
-    for (let i = 0; i < horizontalMoves; i++) {
-      await page.keyboard.press(horizontalKey);
-      await page.waitForTimeout(50);
-    }
-
-    // Then move vertically (cards are stacked)
-    const verticalMoves = Math.round(Math.abs(dy) / 80);
-    const verticalKey = dy > 0 ? 'ArrowDown' : 'ArrowUp';
-    for (let i = 0; i < verticalMoves; i++) {
-      await page.keyboard.press(verticalKey);
-      await page.waitForTimeout(50);
-    }
+  if (!sourceBox || !targetBox) {
+    throw new Error('Could not get bounding box for source or target');
   }
 
-  // Press Space to drop
-  await page.keyboard.press('Space');
+  // Use Playwright's drag API with explicit coordinates
+  // Start from center of source drag handle, end at center of target
+  const sourceX = sourceBox.x + sourceBox.width / 2;
+  const sourceY = sourceBox.y + sourceBox.height / 2;
+  const targetX = targetBox.x + targetBox.width / 2;
+  const targetY = targetBox.y + targetBox.height / 2;
+
+  // Perform the drag using mouse events
+  // Move to source, press, move slowly to target (to trigger @dnd-kit's sensors), release
+  await page.mouse.move(sourceX, sourceY);
+  await page.waitForTimeout(100);
+  await page.mouse.down();
+  await page.waitForTimeout(100);
+
+  // Move in steps to ensure @dnd-kit recognizes the drag (needs 8px minimum movement)
+  const steps = 10;
+  for (let i = 1; i <= steps; i++) {
+    const x = sourceX + (targetX - sourceX) * (i / steps);
+    const y = sourceY + (targetY - sourceY) * (i / steps);
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(30);
+  }
+
+  // Brief pause at destination for drop zone detection
+  await page.waitForTimeout(200);
+
+  // Release
+  await page.mouse.up();
   await page.waitForTimeout(300);
 }
 
@@ -625,16 +630,46 @@ export async function isCardInColumn(
 }
 
 /**
- * Check if card has link icon (is a child)
+ * Check if card is linked (is a child of another card or has feedback links)
+ *
+ * There are two linking patterns:
+ * 1. Parent-child (feedback cards): Child appears nested inside parent with "Add reaction to child card"
+ * 2. Action-feedback links: Action card has "Links to" section showing linked feedback
  */
 export async function isCardLinked(page: Page, cardContent: string): Promise<boolean> {
-  const card = await findCardByContent(page, cardContent);
-  const linkIcon = card.getByTestId('link-icon').or(card.locator('[aria-label*="linked"]'));
-  return linkIcon.isVisible().catch(() => false);
+  // Pattern 1: Card appears as nested child inside another card
+  // Look for a parent card containing both the content and a child reaction button
+  const parentWithChild = page.locator('[id^="card-"]').filter({
+    has: page.getByText(cardContent, { exact: false }),
+  }).filter({
+    has: page.getByRole('button', { name: /reaction to child card/i }),
+  });
+  const isNestedChild = await parentWithChild.first().isVisible().catch(() => false);
+  if (isNestedChild) return true;
+
+  // Pattern 2: Action card has "Links to" section (action linked to feedback)
+  const cardWithLinksTo = page.locator('[id^="card-"]').filter({
+    has: page.getByText(cardContent, { exact: false }),
+  }).filter({
+    has: page.getByText('Links to'),
+  });
+  const hasLinksTo = await cardWithLinksTo.first().isVisible().catch(() => false);
+  if (hasLinksTo) return true;
+
+  // Pattern 3: Card has "Linked Actions" section (feedback with linked action cards)
+  const cardWithLinkedActions = page.locator('[id^="card-"]').filter({
+    has: page.getByText(cardContent, { exact: false }),
+  }).filter({
+    has: page.getByText('Linked Actions'),
+  });
+  const hasLinkedActions = await cardWithLinkedActions.first().isVisible().catch(() => false);
+  if (hasLinkedActions) return true;
+
+  return false;
 }
 
 /**
- * Wait for a card to become linked (has link icon)
+ * Wait for a card to become linked (appears as child of another card or has links)
  */
 export async function waitForCardLinked(
   page: Page,
@@ -642,13 +677,37 @@ export async function waitForCardLinked(
   options: { timeout?: number } = {}
 ): Promise<void> {
   const { timeout = 10000 } = options;
-  const card = await findCardByContent(page, cardContent);
-  const linkIcon = card.getByTestId('link-icon').or(card.locator('[aria-label*="linked"]'));
-  await linkIcon.waitFor({ state: 'visible', timeout });
+
+  // Wait for any of the linking patterns to appear
+  await Promise.race([
+    // Pattern 1: Card appears as nested child - look for the child reaction button
+    // The parent card will have both the child content and a button with aria-label containing "child card"
+    page.locator('[id^="card-"]').filter({
+      has: page.getByText(cardContent, { exact: false }),
+    }).filter({
+      has: page.getByRole('button', { name: /reaction to child card/i }),
+    }).first().waitFor({ state: 'visible', timeout }),
+
+    // Pattern 2: Card has "Links to" text (visible, not aria-label) for action-feedback links
+    page.locator('[id^="card-"]').filter({
+      has: page.getByText(cardContent, { exact: false }),
+    }).filter({
+      has: page.getByText('Links to'),
+    }).first().waitFor({ state: 'visible', timeout }),
+
+    // Pattern 3: Card has "Linked Actions" text for feedback with linked actions
+    page.locator('[id^="card-"]').filter({
+      has: page.getByText(cardContent, { exact: false }),
+    }).filter({
+      has: page.getByText('Linked Actions'),
+    }).first().waitFor({ state: 'visible', timeout }),
+  ]).catch(() => {
+    throw new Error(`Card "${cardContent}" did not become linked within ${timeout}ms`);
+  });
 }
 
 /**
- * Wait for a card to become unlinked (link icon disappears)
+ * Wait for a card to become unlinked (no longer appears as child)
  */
 export async function waitForCardUnlinked(
   page: Page,
@@ -656,13 +715,52 @@ export async function waitForCardUnlinked(
   options: { timeout?: number } = {}
 ): Promise<void> {
   const { timeout = 10000 } = options;
-  const card = await findCardByContent(page, cardContent);
-  const linkIcon = card.getByTestId('link-icon').or(card.locator('[aria-label*="linked"]'));
-  await linkIcon.waitFor({ state: 'hidden', timeout });
+
+  // Wait for the card to appear as a standalone card (its own [id^="card-"] element with drag handle)
+  const standaloneCard = page.locator('[id^="card-"]').filter({
+    has: page.getByText(cardContent, { exact: false }),
+  }).locator('[data-testid="card-header"]').locator('[aria-label="Drag handle icon"]');
+
+  await standaloneCard.first().waitFor({ state: 'visible', timeout });
 }
 
 /**
- * Wait for reaction count to update
+ * Click the unlink button for a nested child card
+ *
+ * When a card is nested inside a parent, we need to find the specific
+ * unlink button that is sibling to the child's content text.
+ */
+export async function clickUnlinkForNestedChild(
+  page: Page,
+  childContent: string,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 5000 } = options;
+
+  // Find the specific nested child section that contains the child content
+  // The structure is: div > [unlink button, reaction button] + paragraph with content
+  // We need to find the unlink button that is a sibling of the paragraph containing childContent
+
+  // First, find the paragraph containing the child content
+  const childParagraph = page.locator('p').filter({ hasText: childContent }).first();
+  await childParagraph.waitFor({ state: 'visible', timeout });
+
+  // The unlink button is in a sibling div, which is a previous sibling of the paragraph
+  // Navigate to the parent container, then find the unlink button
+  const childContainer = childParagraph.locator('..');
+  const unlinkButton = childContainer.getByRole('button', { name: 'Unlink child card' });
+
+  await unlinkButton.click();
+
+  // Wait a bit for the backend to process
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Wait for reaction count to update on a card
+ *
+ * Uses Playwright's locator-based waiting instead of raw querySelector
+ * since :has-text() is not valid in native CSS.
  */
 export async function waitForReactionCount(
   page: Page,
@@ -671,20 +769,37 @@ export async function waitForReactionCount(
   options: { timeout?: number } = {}
 ): Promise<void> {
   const { timeout = 10000 } = options;
-  // Note: We don't use the locator directly, but wait for DOM changes via waitForFunction
-  await findCardByContent(page, cardContent);
 
+  // Find the card container that has the content
+  const card = page.locator('[id^="card-"]').filter({
+    has: page.getByText(cardContent, { exact: false }),
+  }).first();
+
+  // Wait for the card to have a reaction button with the expected count
+  // The reaction count is displayed in a span inside the reaction button
   await page.waitForFunction(
-    async ({ content, expected }) => {
-      const cardEl = document.querySelector(`[data-testid^="card-"]:has-text("${content}")`);
-      if (!cardEl) return false;
-      const countEl =
-        cardEl.querySelector('[data-testid="reaction-count"]') ||
-        cardEl.querySelector('.reaction-count');
-      if (!countEl) return false;
-      return parseInt(countEl.textContent || '0', 10) >= expected;
+    ({ cardText, expected }) => {
+      // Find all card elements
+      const cards = document.querySelectorAll('[id^="card-"]');
+      for (const card of cards) {
+        // Check if this card contains our content
+        if (!card.textContent?.includes(cardText)) continue;
+
+        // Look for reaction count in the Add reaction button
+        const reactionBtn = card.querySelector('[aria-label*="reaction"]');
+        if (!reactionBtn) continue;
+
+        // Get the text content of the button (includes the count)
+        const btnText = reactionBtn.textContent || '';
+        const match = btnText.match(/\d+/);
+        if (match) {
+          const count = parseInt(match[0], 10);
+          if (count >= expected) return true;
+        }
+      }
+      return false;
     },
-    { content: cardContent, expected: expectedCount },
+    { cardText: cardContent, expected: expectedCount },
     { timeout }
   );
 }
