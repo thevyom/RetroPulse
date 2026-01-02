@@ -540,8 +540,8 @@ const cardHandlers = [
     );
   }),
 
-  // DELETE /cards/:cardId/link
-  http.delete(`${API_BASE}/cards/:cardId/link`, async ({ params, request }) => {
+  // POST /cards/:cardId/unlink
+  http.post(`${API_BASE}/cards/:cardId/unlink`, async ({ params, request }) => {
     await delay(50);
     const body = (await request.json()) as { target_card_id: string; link_type: string };
     const sourceCard = mockCards.get(params.cardId as string);

@@ -110,4 +110,31 @@ export class UserSessionController {
       next(error);
     }
   };
+
+  /**
+   * GET /boards/:id/users/me - Get current user's session
+   * Returns the user session for the current user based on their cookie hash
+   * Returns null (with success) if user hasn't joined the board yet
+   */
+  getCurrentUserSession = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const boardId = requireParam(req.params.id, 'Board ID');
+      const cookieHash = req.hashedCookieId;
+
+      const userSession = await this.userSessionService.getUserSession(
+        boardId,
+        cookieHash
+      );
+
+      sendSuccess(res, {
+        user_session: userSession,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

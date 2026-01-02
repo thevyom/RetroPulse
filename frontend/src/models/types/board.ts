@@ -82,6 +82,8 @@ export interface BoardResponse {
   admins: string[];
   card_limit_per_user: number | null;
   reaction_limit_per_user: number | null;
+  // UTB-014: Auto-joined session when creator_alias is provided
+  user_session?: UserSession | null;
 }
 
 export interface JoinBoardResponse {

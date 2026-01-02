@@ -46,6 +46,8 @@ export const createBoardSchema = z.object({
     .max(10, 'Maximum 10 columns allowed'),
   card_limit_per_user: z.number().int().positive().optional().nullable(),
   reaction_limit_per_user: z.number().int().positive().optional().nullable(),
+  // Optional creator alias - if provided, auto-creates user session for the creator
+  creator_alias: aliasSchema.optional(),
 });
 
 // Join board schema

@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { timingSafeEqual } from 'crypto';
 import { BoardService } from './board.service.js';
+import { UserSessionService } from '@/domains/user/user-session.service.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { sendSuccess, requireParam } from '@/shared/utils/index.js';
 import { env } from '@/shared/config/index.js';
@@ -31,10 +32,14 @@ function isValidAdminSecret(providedSecret: string | string[] | undefined): bool
 }
 
 export class BoardController {
-  constructor(private readonly boardService: BoardService) {}
+  constructor(
+    private readonly boardService: BoardService,
+    private readonly userSessionService?: UserSessionService
+  ) {}
 
   /**
    * POST /boards - Create a new board
+   * UTB-014: Auto-joins creator if creator_alias is provided
    */
   createBoard = async (
     req: AuthenticatedRequest,
@@ -43,7 +48,18 @@ export class BoardController {
   ): Promise<void> => {
     try {
       const board = await this.boardService.createBoard(req.body, req.hashedCookieId);
-      sendSuccess(res, board, 201);
+
+      // UTB-014: Auto-join creator if alias provided
+      let userSession = null;
+      if (req.body.creator_alias && this.userSessionService) {
+        userSession = await this.userSessionService.joinBoard(
+          board.id,
+          req.hashedCookieId,
+          req.body.creator_alias
+        );
+      }
+
+      sendSuccess(res, { ...board, user_session: userSession }, 201);
     } catch (error) {
       next(error);
     }

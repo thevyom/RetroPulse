@@ -28,11 +28,33 @@ export const apiClient = axios.create({
 });
 
 // ============================================================================
+// Debug Logging (dev only)
+// ============================================================================
+
+const isDev = import.meta.env.DEV;
+
+// ============================================================================
+// Request Interceptor
+// ============================================================================
+
+apiClient.interceptors.request.use((config) => {
+  if (isDev) {
+    console.log('[API] Request:', config.method?.toUpperCase(), config.url);
+  }
+  return config;
+});
+
+// ============================================================================
 // Response Interceptor
 // ============================================================================
 
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    if (isDev) {
+      console.log('[API] Response:', response.status, response.config.url);
+    }
+    return response;
+  },
   (error: AxiosError<ApiErrorResponse>) => {
     // Handle network errors (no response)
     if (!error.response) {

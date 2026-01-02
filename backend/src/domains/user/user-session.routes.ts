@@ -20,6 +20,9 @@ export function createUserSessionRoutes(
   // GET /boards/:id/users - Get active users
   router.get('/users', controller.getActiveUsers);
 
+  // GET /boards/:id/users/me - Get current user's session
+  router.get('/users/me', controller.getCurrentUserSession);
+
   // PATCH /boards/:id/users/heartbeat - Update heartbeat
   router.patch('/users/heartbeat', controller.updateHeartbeat);
 

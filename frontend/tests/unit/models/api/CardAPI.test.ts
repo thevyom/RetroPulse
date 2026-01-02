@@ -338,19 +338,31 @@ describe('CardAPI', () => {
   // ============================================================================
 
   describe('unlinkCards', () => {
-    it('should make DELETE request with link data', async () => {
-      vi.mocked(apiClient.delete).mockResolvedValue({ data: undefined });
+    it('should make POST request to /unlink endpoint with link data (UTB-024 fix)', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: undefined });
 
       await CardAPI.unlinkCards('parent-123', {
         target_card_id: 'child-123',
         link_type: 'parent_of',
       });
 
-      expect(apiClient.delete).toHaveBeenCalledWith('/cards/parent-123/link', {
-        data: {
-          target_card_id: 'child-123',
-          link_type: 'parent_of',
-        },
+      expect(apiClient.post).toHaveBeenCalledWith('/cards/parent-123/unlink', {
+        target_card_id: 'child-123',
+        link_type: 'parent_of',
+      });
+    });
+
+    it('should unlink action card from feedback card', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ data: undefined });
+
+      await CardAPI.unlinkCards('action-123', {
+        target_card_id: 'feedback-123',
+        link_type: 'linked_to',
+      });
+
+      expect(apiClient.post).toHaveBeenCalledWith('/cards/action-123/unlink', {
+        target_card_id: 'feedback-123',
+        link_type: 'linked_to',
       });
     });
   });

@@ -297,6 +297,42 @@ describe('cardStore', () => {
 
       expect(useCardStore.getState().cards.get('parent-1')?.aggregated_reaction_count).toBe(6);
     });
+
+    it('should update child entry in parent.children array on increment', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 5, // 3 direct + 2 from child
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 2,
+            aggregated_reaction_count: 2,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().incrementReactionCount('child-1');
+
+      const parent = useCardStore.getState().cards.get('parent-1');
+      const childInParent = parent?.children?.find((c) => c.id === 'child-1');
+      expect(childInParent?.direct_reaction_count).toBe(3);
+      expect(childInParent?.aggregated_reaction_count).toBe(3);
+    });
   });
 
   // ============================================================================
@@ -338,6 +374,78 @@ describe('cardStore', () => {
       useCardStore.getState().decrementReactionCount('child-1');
 
       expect(useCardStore.getState().cards.get('parent-1')?.aggregated_reaction_count).toBe(4);
+    });
+
+    it('should update child entry in parent.children array on decrement', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 5, // 3 direct + 2 from child
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 2,
+            aggregated_reaction_count: 2,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 2,
+        aggregated_reaction_count: 2,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().decrementReactionCount('child-1');
+
+      const parent = useCardStore.getState().cards.get('parent-1');
+      const childInParent = parent?.children?.find((c) => c.id === 'child-1');
+      expect(childInParent?.direct_reaction_count).toBe(1);
+      expect(childInParent?.aggregated_reaction_count).toBe(1);
+    });
+
+    it('should not go below zero in parent.children array', () => {
+      const parentCard = {
+        ...mockCard,
+        id: 'parent-1',
+        aggregated_reaction_count: 3, // 3 direct + 0 from child
+        children: [
+          {
+            id: 'child-1',
+            content: 'Child content',
+            is_anonymous: false,
+            created_by_alias: 'Bob',
+            created_at: '2025-12-28T00:00:00Z',
+            direct_reaction_count: 0,
+            aggregated_reaction_count: 0,
+          },
+        ],
+      };
+      const childCard = {
+        ...mockCard,
+        id: 'child-1',
+        parent_card_id: 'parent-1',
+        direct_reaction_count: 0,
+        aggregated_reaction_count: 0,
+      };
+
+      useCardStore.getState().addCard(parentCard);
+      useCardStore.getState().addCard(childCard);
+
+      useCardStore.getState().decrementReactionCount('child-1');
+
+      const parent = useCardStore.getState().cards.get('parent-1');
+      const childInParent = parent?.children?.find((c) => c.id === 'child-1');
+      expect(childInParent?.direct_reaction_count).toBe(0);
+      expect(childInParent?.aggregated_reaction_count).toBe(0);
     });
   });
 

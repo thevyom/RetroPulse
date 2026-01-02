@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { BoardAPI } from '@/models/api';
+import { useUserStore } from '@/models/stores';
 import type { CreateBoardDTO, BoardResponse } from '@/models/types';
 
 // ============================================================================
@@ -31,6 +32,12 @@ export function useCreateBoardViewModel(): UseCreateBoardViewModelReturn {
 
     try {
       const board = await BoardAPI.createBoard(data);
+
+      // UTB-014: If session returned, set it in the store immediately
+      if (board.user_session) {
+        useUserStore.getState().setCurrentUser(board.user_session);
+      }
+
       return board;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create board';

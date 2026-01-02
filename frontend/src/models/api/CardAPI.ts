@@ -127,9 +127,13 @@ export const CardAPI = {
    * Unlink two cards
    * @param sourceCardId - The source card ID
    * @param data - Target card and link type
+   *
+   * Note: Uses POST to /unlink endpoint instead of DELETE with body
+   * because some browsers/axios configurations strip body from DELETE requests
+   * (UTB-024 fix)
    */
   async unlinkCards(sourceCardId: string, data: UnlinkCardsDTO): Promise<void> {
-    await apiClient.delete(`/cards/${sourceCardId}/link`, { data });
+    await apiClient.post(`/cards/${sourceCardId}/unlink`, data);
   },
 
   /**

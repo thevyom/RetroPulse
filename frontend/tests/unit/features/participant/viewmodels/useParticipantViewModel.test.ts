@@ -865,4 +865,170 @@ describe('useParticipantViewModel', () => {
       expect(BoardAPI.sendHeartbeat).toHaveBeenCalledWith('board-123');
     });
   });
+
+  // ==========================================================================
+  // UTB-014: MyUserCard and CurrentUser Display Tests
+  // ==========================================================================
+
+  describe('UTB-014: CurrentUser Session Management', () => {
+    it('should return currentUser for MyUserCard display', async () => {
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.currentUser).toBeDefined();
+      });
+
+      // Verify all fields needed for MyUserCard are present
+      expect(result.current.currentUser).toEqual(
+        expect.objectContaining({
+          cookie_hash: expect.any(String),
+          alias: expect.any(String),
+          is_admin: expect.any(Boolean),
+          last_active_at: expect.any(String),
+          created_at: expect.any(String),
+        })
+      );
+    });
+
+    it('should handle null session gracefully (user not yet joined)', async () => {
+      // Reset store state first
+      useUserStore.getState().clearUser();
+
+      // Simulate API returning null (user hasn't joined the board yet)
+      vi.mocked(BoardAPI.getCurrentUserSession).mockResolvedValueOnce(null);
+      vi.mocked(BoardAPI.getActiveUsers).mockResolvedValueOnce({
+        active_users: [],
+        total_count: 0,
+      });
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // currentUser should be null, MyUserCard won't render
+      expect(result.current.currentUser).toBeNull();
+    });
+
+    it('should handle API error for session fetch gracefully', async () => {
+      // Reset store state first
+      useUserStore.getState().clearUser();
+
+      vi.mocked(BoardAPI.getCurrentUserSession).mockRejectedValueOnce(
+        new Error('Network error')
+      );
+      vi.mocked(BoardAPI.getActiveUsers).mockResolvedValueOnce({
+        active_users: [],
+        total_count: 0,
+      });
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Should not crash, currentUser remains null
+      expect(result.current.currentUser).toBeNull();
+      // Error should NOT propagate to the main error state (non-critical)
+      // This is intentional - session fetch failure shouldn't block the UI
+    });
+
+    it('should ensure current user appears in activeUsers for ParticipantBar (UTB-014)', async () => {
+      // This is the core UTB-014 test - current user must be in both places
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.currentUser).toBeDefined();
+      });
+
+      // The fix ensures current user is always in activeUsers
+      const currentAlias = result.current.currentUser?.alias;
+      expect(currentAlias).toBeDefined();
+
+      const userInActiveList = result.current.activeUsers.find(
+        (u) => u.alias === currentAlias
+      );
+      expect(userInActiveList).toBeDefined();
+      expect(userInActiveList?.alias).toBe(currentAlias);
+    });
+
+    it('should sync currentUser updates with activeUsers list', async () => {
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.currentUser).toBeDefined();
+      });
+
+      const originalAlias = result.current.currentUser?.alias;
+
+      // Simulate alias update
+      vi.mocked(BoardAPI.updateAlias).mockResolvedValue({
+        alias: 'UpdatedAlias',
+        last_active_at: new Date().toISOString(),
+      });
+
+      await act(async () => {
+        await result.current.handleUpdateAlias('UpdatedAlias');
+      });
+
+      // Both currentUser and activeUsers should reflect the update
+      expect(result.current.currentUser?.alias).toBe('UpdatedAlias');
+
+      // The user in activeUsers should also be updated (not duplicated)
+      const updatedUserInList = result.current.activeUsers.find(
+        (u) => u.alias === 'UpdatedAlias'
+      );
+      expect(updatedUserInList).toBeDefined();
+
+      // Old alias should not exist
+      const oldUserInList = result.current.activeUsers.find(
+        (u) => u.alias === originalAlias
+      );
+      expect(oldUserInList).toBeUndefined();
+    });
+
+    it('should handle race condition: getActiveUsers returns before currentUser is set', async () => {
+      // Scenario: getActiveUsers returns empty, then getCurrentUserSession adds user
+      // Then getActiveUsers is called again (e.g., by socket event) and overwrites
+
+      let resolveGetActiveUsers: (value: { active_users: ActiveUser[]; total_count: number }) => void;
+      const getActiveUsersPromise = new Promise<{ active_users: ActiveUser[]; total_count: number }>((resolve) => {
+        resolveGetActiveUsers = resolve;
+      });
+
+      // First call to getActiveUsers will be delayed
+      vi.mocked(BoardAPI.getActiveUsers).mockReturnValueOnce(getActiveUsersPromise);
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      // getCurrentUserSession resolves first
+      await waitFor(() => {
+        expect(result.current.currentUser).toBeDefined();
+      });
+
+      // Now resolve getActiveUsers with a list that doesn't include current user
+      resolveGetActiveUsers!({
+        active_users: [
+          { alias: 'OtherUser', is_admin: false, last_active_at: new Date().toISOString(), created_at: new Date().toISOString() },
+        ],
+        total_count: 1,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Current user should STILL be in activeUsers due to the fix
+      const currentInList = result.current.activeUsers.find(
+        (u) => u.alias === result.current.currentUser?.alias
+      );
+      expect(currentInList).toBeDefined();
+
+      // And OtherUser should also be there
+      const otherInList = result.current.activeUsers.find((u) => u.alias === 'OtherUser');
+      expect(otherInList).toBeDefined();
+    });
+  });
 });

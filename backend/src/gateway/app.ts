@@ -74,8 +74,6 @@ export function createApp(dbOrOptions?: Db | AppOptions): Express {
     // Board domain
     const boardRepository = new BoardRepository(db);
     const boardService = new BoardService(boardRepository);
-    const boardController = new BoardController(boardService);
-    app.use('/v1/boards', createBoardRoutes(boardController));
 
     // User session domain
     // ⚠️ IMPORTANT: User session routes MUST be registered AFTER board routes.
@@ -84,6 +82,11 @@ export function createApp(dbOrOptions?: Db | AppOptions): Express {
     // Avoid adding board routes that conflict with: /join, /users, /users/heartbeat, /users/alias
     const userSessionRepository = new UserSessionRepository(db);
     const userSessionService = new UserSessionService(userSessionRepository, boardRepository);
+
+    // UTB-014: Pass userSessionService to BoardController for auto-join on board creation
+    const boardController = new BoardController(boardService, userSessionService);
+    app.use('/v1/boards', createBoardRoutes(boardController));
+
     const userSessionController = new UserSessionController(userSessionService);
     app.use('/v1/boards/:id', createUserSessionRoutes(userSessionController));
 

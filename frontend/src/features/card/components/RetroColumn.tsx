@@ -203,11 +203,11 @@ export const RetroColumn = memo(function RetroColumn({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-8 w-8"
               onClick={handleOpenEditDialog}
               aria-label="Edit column name"
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className="h-4 w-4" />
             </Button>
           )}
 
@@ -219,7 +219,7 @@ export const RetroColumn = memo(function RetroColumn({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-8 w-8"
                     onClick={handleOpenAddDialog}
                     disabled={!canAdd}
                     aria-label="Add card"

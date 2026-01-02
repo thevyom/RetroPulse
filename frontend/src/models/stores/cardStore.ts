@@ -129,13 +129,25 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
         aggregated_reaction_count: card.aggregated_reaction_count + 1,
       });
 
-      // If card has a parent, update parent's aggregated count
+      // If card has a parent, update parent's aggregated count and children array
       if (card.parent_card_id) {
         const parent = newCards.get(card.parent_card_id);
         if (parent) {
+          // Update the child entry in parent.children array
+          const updatedChildren = parent.children?.map((c) =>
+            c.id === cardId
+              ? {
+                  ...c,
+                  direct_reaction_count: c.direct_reaction_count + 1,
+                  aggregated_reaction_count: c.aggregated_reaction_count + 1,
+                }
+              : c
+          );
+
           newCards.set(card.parent_card_id, {
             ...parent,
             aggregated_reaction_count: parent.aggregated_reaction_count + 1,
+            children: updatedChildren,
           });
         }
       }
@@ -155,13 +167,25 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
         aggregated_reaction_count: Math.max(0, card.aggregated_reaction_count - 1),
       });
 
-      // If card has a parent, update parent's aggregated count
+      // If card has a parent, update parent's aggregated count and children array
       if (card.parent_card_id) {
         const parent = newCards.get(card.parent_card_id);
         if (parent) {
+          // Update the child entry in parent.children array
+          const updatedChildren = parent.children?.map((c) =>
+            c.id === cardId
+              ? {
+                  ...c,
+                  direct_reaction_count: Math.max(0, c.direct_reaction_count - 1),
+                  aggregated_reaction_count: Math.max(0, c.aggregated_reaction_count - 1),
+                }
+              : c
+          );
+
           newCards.set(card.parent_card_id, {
             ...parent,
             aggregated_reaction_count: Math.max(0, parent.aggregated_reaction_count - 1),
+            children: updatedChildren,
           });
         }
       }

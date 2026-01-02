@@ -99,7 +99,7 @@ describe('RetroCard', () => {
 
       // Full header now has drag listeners, with GripVertical icon as visual affordance
       expect(screen.getByLabelText(/drag handle icon/i)).toBeInTheDocument();
-      expect(screen.getByTestId('card-header')).toHaveAttribute('aria-label', 'Drag handle - drag card header to move');
+      expect(screen.getByTestId('card-header')).toHaveAttribute('aria-label', 'Drag handle - press Space to pick up, arrow keys to move, Space to drop');
     });
 
     it('should show link icon for linked cards (has parent)', () => {
@@ -1166,7 +1166,7 @@ describe('RetroCard', () => {
       render(<RetroCard {...defaultProps} columnType="went_well" />);
 
       const header = screen.getByTestId('card-header');
-      expect(header).toHaveAttribute('aria-label', 'Drag handle - drag card header to move');
+      expect(header).toHaveAttribute('aria-label', 'Drag handle - press Space to pick up, arrow keys to move, Space to drop');
     });
 
     it('should NOT have cursor-grab for cards with parent (linked cards)', () => {

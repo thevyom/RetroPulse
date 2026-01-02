@@ -49,8 +49,11 @@ export function createCardRoutes(controller: CardController): Router {
   // POST /cards/:id/link - Link cards
   router.post('/:id/link', validateBody(linkCardsSchema), controller.linkCards);
 
-  // DELETE /cards/:id/link - Unlink cards
+  // DELETE /cards/:id/link - Unlink cards (legacy, kept for backward compatibility)
   router.delete('/:id/link', validateBody(linkCardsSchema), controller.unlinkCards);
+
+  // POST /cards/:id/unlink - Unlink cards (UTB-024 fix: POST avoids DELETE body issues)
+  router.post('/:id/unlink', validateBody(linkCardsSchema), controller.unlinkCards);
 
   return router;
 }

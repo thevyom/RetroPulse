@@ -15,10 +15,15 @@ import {
   BoardController,
   createBoardRoutes,
 } from '@/domains/board/index.js';
+import {
+  UserSessionRepository,
+  UserSessionService,
+} from '@/domains/user/index.js';
 
 describe('Board API Integration Tests', () => {
   let app: Express;
   let boardRepository: BoardRepository;
+  let userSessionRepository: UserSessionRepository;
 
   beforeAll(async () => {
     const db = await startTestDb();
@@ -26,8 +31,11 @@ describe('Board API Integration Tests', () => {
     // Set up app with board routes
     app = createTestApp();
     boardRepository = new BoardRepository(db);
+    userSessionRepository = new UserSessionRepository(db);
     const boardService = new BoardService(boardRepository);
-    const boardController = new BoardController(boardService);
+    const userSessionService = new UserSessionService(userSessionRepository, boardRepository);
+    // UTB-014: Pass userSessionService for auto-join on board creation
+    const boardController = new BoardController(boardService, userSessionService);
     app.use('/v1/boards', createBoardRoutes(boardController));
     addErrorHandlers(app);
   });
@@ -408,6 +416,65 @@ describe('Board API Integration Tests', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.error.code).toBe('BOARD_NOT_FOUND');
+    });
+  });
+
+  describe('POST /v1/boards - UTB-014: Auto-join on board creation', () => {
+    it('should auto-join creator when creator_alias is provided', async () => {
+      const response = await request(app)
+        .post('/v1/boards')
+        .send({
+          name: 'Test Board',
+          columns: [{ id: 'col-1', name: 'Column 1' }],
+          creator_alias: 'John Smith',
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.user_session).not.toBeNull();
+      expect(response.body.data.user_session.alias).toBe('John Smith');
+      expect(response.body.data.user_session.is_admin).toBe(true);
+    });
+
+    it('should return null user_session when creator_alias is not provided', async () => {
+      const response = await request(app)
+        .post('/v1/boards')
+        .send({
+          name: 'Test Board',
+          columns: [{ id: 'col-1', name: 'Column 1' }],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.user_session).toBeNull();
+    });
+
+    it('should create user session in database when creator_alias is provided', async () => {
+      const response = await request(app)
+        .post('/v1/boards')
+        .send({
+          name: 'Test Board',
+          columns: [{ id: 'col-1', name: 'Column 1' }],
+          creator_alias: 'Jane Doe',
+        });
+
+      const boardId = response.body.data.id;
+
+      // Verify session exists in database
+      const sessions = await userSessionRepository.findActiveUsers(boardId);
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].alias).toBe('Jane Doe');
+    });
+
+    it('should return 400 for empty string creator_alias (validation rejects)', async () => {
+      const response = await request(app)
+        .post('/v1/boards')
+        .send({
+          name: 'Test Board',
+          columns: [{ id: 'col-1', name: 'Column 1' }],
+          creator_alias: '',
+        });
+
+      // Empty string alias is rejected by validation
+      expect(response.status).toBe(400);
     });
   });
 

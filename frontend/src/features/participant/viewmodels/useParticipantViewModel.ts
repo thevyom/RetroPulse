@@ -125,7 +125,7 @@ export function useParticipantViewModel(
       const response = await BoardAPI.getActiveUsers(boardId);
       setActiveUsers(response.active_users);
 
-      // UTB-014: Ensure current user is in activeUsers after API response
+      // Ensure current user is in activeUsers after API response
       // This handles the race condition where getCurrentUserSession completes
       // before getActiveUsers, and setActiveUsers overwrites the added user
       const currentSession = useUserStore.getState().currentUser;
@@ -151,17 +151,15 @@ export function useParticipantViewModel(
       if (session) {
         setCurrentUser(session);
         // Also add current user to activeUsers so they appear in the participant bar
-        const activeUser: ActiveUser = {
+        addActiveUser({
           alias: session.alias,
           is_admin: session.is_admin,
           last_active_at: session.last_active_at,
           created_at: session.created_at,
-        };
-        addActiveUser(activeUser);
+        });
       }
-    } catch (err) {
+    } catch {
       // Non-critical - session might not exist yet
-      console.warn('Could not fetch current user session:', err);
     }
   }, [boardId, setCurrentUser, addActiveUser]);
 

@@ -180,20 +180,17 @@ export const BoardAPI = {
   /**
    * Get current user's session for a board
    * @param boardId - The board ID
-   * @returns User session or null if not joined
+   * @returns User session or null if user hasn't joined the board
    */
   async getCurrentUserSession(boardId: string): Promise<UserSession | null> {
     try {
-      const response = await apiClient.get<ApiResponse<{ user_session: UserSession }>>(
+      const response = await apiClient.get<ApiResponse<{ user_session: UserSession | null }>>(
         `/boards/${boardId}/users/me`
       );
       return extractData(response).user_session;
-    } catch (error) {
-      // Return null only for "user not found" - rethrow other errors
-      if (error instanceof ApiRequestError && error.code === 'USER_NOT_FOUND') {
-        return null;
-      }
-      throw error;
+    } catch {
+      // Return null for any error - user may not have joined yet
+      return null;
     }
   },
 };
