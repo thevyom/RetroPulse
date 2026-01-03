@@ -88,6 +88,7 @@ export class ReactionService {
           reactionType: input.reaction_type,
           directCount: updatedCard.direct_reaction_count,
           aggregatedCount: updatedCard.aggregated_reaction_count,
+          parentCardId: updatedCard.parent_card_id?.toHexString() ?? null,
         });
       }
     }
@@ -145,6 +146,7 @@ export class ReactionService {
         userAlias,
         directCount: updatedCard.direct_reaction_count,
         aggregatedCount: updatedCard.aggregated_reaction_count,
+        parentCardId: updatedCard.parent_card_id?.toHexString() ?? null,
       });
     }
   }

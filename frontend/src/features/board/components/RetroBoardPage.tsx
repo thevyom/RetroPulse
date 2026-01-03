@@ -150,6 +150,7 @@ function BoardContent({ boardId }: BoardContentProps) {
   // Memoize filtered cards per column to avoid recalculating on every render
   const filteredCardsByColumn = useMemo(() => {
     const result = new Map<string, typeof cardVM.cards>();
+    const currentUserAlias = participantVM.currentUser?.alias;
 
     boardVM.board?.columns.forEach((column) => {
       const columnCards = cardVM.cardsByColumn.get(column.id) ?? [];
@@ -158,10 +159,14 @@ function BoardContent({ boardId }: BoardContentProps) {
         if (participantVM.showOnlyAnonymous) {
           return card.is_anonymous === true;
         }
-        // Apply user filters
+        // Me-only filter: show only cards created by current user (including anonymous ones they created)
+        if (participantVM.showOnlyMe) {
+          return card.created_by_alias === currentUserAlias;
+        }
+        // Apply user filters (selectedUsers contains aliases, not hashes)
         if (!participantVM.showAll && participantVM.selectedUsers.length > 0) {
           if (card.is_anonymous) return false;
-          if (!participantVM.selectedUsers.includes(card.created_by_hash)) return false;
+          if (!card.created_by_alias || !participantVM.selectedUsers.includes(card.created_by_alias)) return false;
         }
         // Apply anonymous filter (hide anonymous cards when disabled)
         if (!participantVM.showAnonymous && card.is_anonymous) return false;
@@ -178,6 +183,8 @@ function BoardContent({ boardId }: BoardContentProps) {
     participantVM.selectedUsers,
     participantVM.showAnonymous,
     participantVM.showOnlyAnonymous,
+    participantVM.showOnlyMe,
+    participantVM.currentUser?.alias,
   ]);
 
   // Loading state
@@ -219,7 +226,7 @@ function BoardContent({ boardId }: BoardContentProps) {
     boardVM;
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <main className="flex h-screen flex-col bg-background" role="main" aria-label="Retrospective board">
       {/* Header */}
       <RetroBoardHeader
         boardName={board.name}
@@ -236,14 +243,18 @@ function BoardContent({ boardId }: BoardContentProps) {
         <ParticipantBar
           activeUsers={participantVM.activeUsers}
           currentUserHash={participantVM.currentUser?.cookie_hash ?? ''}
+          currentUserAlias={participantVM.currentUser?.alias}
           isCreator={participantVM.isCurrentUserCreator}
           admins={board.admins}
           showAll={participantVM.showAll}
           showAnonymous={participantVM.showAnonymous}
           showOnlyAnonymous={participantVM.showOnlyAnonymous}
+          showOnlyMe={participantVM.showOnlyMe}
           selectedUsers={participantVM.selectedUsers}
+          onlineAliases={participantVM.onlineAliases}
           onToggleAllUsers={participantVM.handleToggleAllUsersFilter}
           onToggleAnonymous={participantVM.handleToggleAnonymousFilter}
+          onToggleMe={participantVM.handleToggleMeFilter}
           onToggleUser={participantVM.handleToggleUserFilter}
           onPromoteToAdmin={participantVM.handlePromoteToAdmin}
         />
@@ -290,10 +301,11 @@ function BoardContent({ boardId }: BoardContentProps) {
                 onDeleteCard={cardVM.handleDeleteCard}
                 onAddReaction={cardVM.handleAddReaction}
                 onRemoveReaction={cardVM.handleRemoveReaction}
-                onUnlinkChild={cardVM.handleUnlinkChild}
+                onUnlinkChild={isAdmin ? cardVM.handleUnlinkChild : undefined}
                 onEditColumnTitle={
                   isAdmin ? (newName) => handleRenameColumn(column.id, newName) : undefined
                 }
+                onUpdateCard={cardVM.handleUpdateCard}
                 onReactToChild={cardVM.handleAddReaction}
                 onUnreactFromChild={cardVM.handleRemoveReaction}
                 hasUserReactedToChild={cardVM.hasUserReacted}
@@ -324,7 +336,7 @@ function BoardContent({ boardId }: BoardContentProps) {
           aria-hidden="true"
         />
       )}
-    </div>
+    </main>
   );
 }
 

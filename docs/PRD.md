@@ -125,7 +125,7 @@ These metrics will be tracked after launch to measure product adoption and usage
 
 **Requirements**:
 - FR-1.3.1: Board admin (creator) SHALL be able to designate other active users as co-admins
-- FR-1.3.2: Admin SHALL select co-admins from list of active aliases displayed at top of board
+- FR-1.3.2: Admin SHALL select co-admins via context menu on participant avatars (right-click on desktop, long-press on touch)
 - FR-1.3.3: Multiple co-admins MAY be designated (no limit)
 - FR-1.3.4: Board admin SHALL be able to close the board to end the active session
 - FR-1.3.5: When a board is closed, it SHALL become read-only
@@ -133,10 +133,13 @@ These metrics will be tracked after launch to measure product adoption and usage
 - FR-1.3.7: When board is closed, a banner SHALL be displayed at top indicating read-only state
 - FR-1.3.8: Only board admins (creator and co-admins) SHALL be able to close a board
 - FR-1.3.9: Board state (active/closed) SHALL be persisted and visible to all users
+- FR-1.3.10: Board creator SHALL be able to remove co-admin status from designated co-admins via context menu
 
 **Acceptance Criteria**:
-- Board creator can designate co-admins from active user list
-- Admin selection interface shows all active aliases
+- Board creator can designate co-admins via right-click/long-press context menu on avatars
+- Context menu shows "Make Admin" option for non-admin participants (visible to admins only)
+- Context menu shows "Remove Admin" option for co-admins (visible to board creator only)
+- Primary click on avatar filters cards (not affected by admin actions)
 - Multiple co-admins can be designated
 - Admins can close the board when the session is complete
 - Closed boards display banner indicating read-only state

@@ -120,7 +120,7 @@ export class BoardService {
   /**
    * Update board name (admin only) - uses atomic operation
    */
-  async updateBoardName(id: string, name: string, userHash: string): Promise<Board> {
+  async updateBoardName(id: string, name: string, userHash: string, isAdminOverride = false): Promise<Board> {
     // First check if board exists and get its state
     const existingBoard = await this.boardRepository.findById(id);
 
@@ -132,10 +132,10 @@ export class BoardService {
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
-    // Atomic update with admin check
+    // Atomic update with admin check (bypassed if admin override)
     const doc = await this.boardRepository.updateName(id, name, {
       requireActive: true,
-      requireAdmin: userHash,
+      requireAdmin: isAdminOverride ? undefined : userHash,
     });
 
     if (!doc) {
@@ -157,7 +157,7 @@ export class BoardService {
   /**
    * Close a board (admin only) - uses atomic operation
    */
-  async closeBoard(id: string, userHash: string): Promise<Board> {
+  async closeBoard(id: string, userHash: string, isAdminOverride = false): Promise<Board> {
     // First check if board exists
     const existingBoard = await this.boardRepository.findById(id);
 
@@ -165,9 +165,9 @@ export class BoardService {
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
-    // Atomic update with admin check
+    // Atomic update with admin check (bypassed if admin override)
     const doc = await this.boardRepository.closeBoard(id, {
-      requireAdmin: userHash,
+      requireAdmin: isAdminOverride ? undefined : userHash,
     });
 
     if (!doc) {
@@ -188,7 +188,7 @@ export class BoardService {
   /**
    * Add a co-admin (creator only) - uses atomic operation
    */
-  async addAdmin(boardId: string, userHashToPromote: string, requesterHash: string): Promise<Board> {
+  async addAdmin(boardId: string, userHashToPromote: string, requesterHash: string, isAdminOverride = false): Promise<Board> {
     // First check if board exists and get its state
     const existingBoard = await this.boardRepository.findById(boardId);
 
@@ -200,10 +200,10 @@ export class BoardService {
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
-    // Atomic update with creator check
+    // Atomic update with creator check (bypassed if admin override)
     const doc = await this.boardRepository.addAdmin(boardId, userHashToPromote, {
       requireActive: true,
-      requireCreator: requesterHash,
+      requireCreator: isAdminOverride ? undefined : requesterHash,
     });
 
     if (!doc) {
@@ -225,7 +225,8 @@ export class BoardService {
     boardId: string,
     columnId: string,
     newName: string,
-    userHash: string
+    userHash: string,
+    isAdminOverride = false
   ): Promise<Board> {
     // First check if board exists and get its state
     const existingBoard = await this.boardRepository.findById(boardId);
@@ -244,10 +245,10 @@ export class BoardService {
       throw new ApiError(ErrorCodes.COLUMN_NOT_FOUND, 'Column not found', 400);
     }
 
-    // Atomic update with admin check
+    // Atomic update with admin check (bypassed if admin override)
     const doc = await this.boardRepository.renameColumn(boardId, columnId, newName, {
       requireActive: true,
-      requireAdmin: userHash,
+      requireAdmin: isAdminOverride ? undefined : userHash,
     });
 
     if (!doc) {

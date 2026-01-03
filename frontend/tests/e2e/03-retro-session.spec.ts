@@ -21,9 +21,11 @@ import {
   waitForReactionCount,
   waitForParticipantCount,
   waitForBoardClosed,
+  waitForWebSocketConnection,
   getBoardId,
   isBackendReady,
 } from './helpers';
+import { closeBoardViaApi, extractBoardIdFromUrl } from './utils/admin-helpers';
 
 test.describe('Complete Retro Session', () => {
   // Get board ID from global setup (reads from file)
@@ -104,48 +106,62 @@ test.describe('Complete Retro Session', () => {
     await expect(authorElement).not.toBeVisible();
   });
 
-  test.skip('admin can close board', async ({ page }) => {
-    // TODO: Fix admin detection timing - requires WebSocket connection to establish user identity
+  test('admin can close board via API', async ({ page, request }) => {
+    // Uses X-Admin-Secret header to bypass WebSocket-based admin detection
     test.skip(!isBackendReady(), 'Backend not running');
 
-    // This test assumes the user is admin
     await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
-    // Close the board
-    await closeBoard(page);
+    // Close the board via API with admin override
+    await closeBoardViaApi(request, testBoardId);
+
+    // Reload page to see closed state
+    await page.reload();
+    await waitForBoardLoad(page);
 
     // Verify board shows closed state
     const closed = await isBoardClosed(page);
     expect(closed).toBe(true);
   });
 
-  test.skip('closed board disables card creation', async ({ page }) => {
-    // TODO: This test depends on previous admin close test which is skipped
+  test('closed board disables card creation', async ({ page, request }) => {
+    // Uses X-Admin-Secret header to ensure board is closed
     test.skip(!isBackendReady(), 'Backend not running');
 
     await page.goto(`/boards/${testBoardId}`);
     await waitForBoardLoad(page);
 
+    // Ensure board is closed via API
+    await closeBoardViaApi(request, testBoardId);
+
+    // Reload page to see closed state
+    await page.reload();
+    await waitForBoardLoad(page);
+
     // Check if board is closed
     const closed = await isBoardClosed(page);
-    if (closed) {
-      // Add button should be disabled or not visible
-      const addButton = page
-        .getByTestId('add-card-col-1')
-        .or(page.locator('button').filter({ hasText: '+' }));
+    expect(closed).toBe(true);
 
-      // Either the button is not visible or it's disabled
-      const isDisabled = await addButton.isDisabled().catch(() => true);
-      const isHidden = !(await addButton.isVisible().catch(() => false));
+    // Add button should be disabled or not visible
+    const addButton = page
+      .getByTestId('add-card-col-1')
+      .or(page.locator('button').filter({ hasText: '+' }));
 
-      expect(isDisabled || isHidden).toBe(true);
-    }
+    // Either the button is not visible or it's disabled
+    const isDisabled = await addButton.isDisabled().catch(() => true);
+    const isHidden = !(await addButton.isVisible().catch(() => false));
+
+    expect(isDisabled || isHidden).toBe(true);
   });
 });
 
+// NOTE: Multi-user tests are inherently flaky due to WebSocket timing across browser contexts.
+// The waitForWebSocketConnection() helper has been added to stabilize these tests.
+// These tests are skipped by default but can be enabled for local debugging.
+// To run: `npm run test:e2e -- --grep "Multi-User" --headed`
 test.describe.skip('Multi-User Real-time Sync', () => {
-  // TODO: These tests require WebSocket real-time sync which is flaky in E2E
+  // Uses waitForWebSocketConnection() helper to stabilize WebSocket sync tests
   test("two users see each other's cards in real-time", async ({ browser }) => {
     test.skip(!isBackendReady(), 'Backend not running');
 
@@ -166,12 +182,16 @@ test.describe.skip('Multi-User Real-time Sync', () => {
       await waitForBoardLoad(user1Page);
       await waitForBoardLoad(user2Page);
 
+      // Wait for WebSocket connections to be established
+      await waitForWebSocketConnection(user1Page);
+      await waitForWebSocketConnection(user2Page);
+
       // User 1 creates a card
       const cardContent = `Sync test ${Date.now()}`;
       await createCard(user1Page, 'col-1', cardContent);
 
       // User 2 should see the card appear (real-time sync)
-      const cardOnUser2 = await findCardByContent(user2Page, cardContent);
+      const cardOnUser2 = await findCardByContent(user2Page, cardContent, { timeout: 15000 });
       await expect(cardOnUser2).toBeVisible({ timeout: 10000 });
 
       // User 2 adds a reaction
@@ -203,16 +223,15 @@ test.describe.skip('Multi-User Real-time Sync', () => {
     const pages = await Promise.all(contexts.map((ctx) => ctx.newPage()));
 
     try {
-      // All users join the board
-      await Promise.all(
-        pages.map(async (page) => {
-          await page.goto(`/boards/${testBoardId}`);
-          await waitForBoardLoad(page);
-        })
-      );
+      // All users join the board sequentially to ensure stable WebSocket connections
+      for (const page of pages) {
+        await page.goto(`/boards/${testBoardId}`);
+        await waitForBoardLoad(page);
+        await waitForWebSocketConnection(page);
+      }
 
       // Wait for participant updates to propagate via WebSocket
-      await waitForParticipantCount(pages[0], 3);
+      await waitForParticipantCount(pages[0], 3, { timeout: 20000 });
 
       // Each user should see 3 participants (or avatars)
       for (const page of pages) {
@@ -239,7 +258,7 @@ test.describe.skip('Multi-User Real-time Sync', () => {
   test('user sees board close in real-time', async ({ browser }) => {
     test.skip(!isBackendReady(), 'Backend not running');
 
-    const testBoardId = getBoardId('default');
+    const testBoardId = getBoardId('lifecycle'); // Use lifecycle board for close test
 
     // Create two contexts
     const adminContext = await browser.newContext();
@@ -249,18 +268,21 @@ test.describe.skip('Multi-User Real-time Sync', () => {
     const userPage = await userContext.newPage();
 
     try {
-      // Both join
+      // Admin joins first (to be recognized as admin)
       await adminPage.goto(`/boards/${testBoardId}`);
-      await userPage.goto(`/boards/${testBoardId}`);
-
       await waitForBoardLoad(adminPage);
+      await waitForWebSocketConnection(adminPage);
+
+      // User joins second
+      await userPage.goto(`/boards/${testBoardId}`);
       await waitForBoardLoad(userPage);
+      await waitForWebSocketConnection(userPage);
 
       // Admin closes board
       await closeBoard(adminPage);
 
       // User should see closed state via WebSocket
-      await waitForBoardClosed(userPage);
+      await waitForBoardClosed(userPage, { timeout: 15000 });
       const closed = await isBoardClosed(userPage);
       expect(closed).toBe(true);
     } finally {

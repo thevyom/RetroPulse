@@ -4,7 +4,7 @@
  */
 
 import { memo } from 'react';
-import { Crown, Ghost, Users } from 'lucide-react';
+import { Crown, Ghost, User, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -13,13 +13,14 @@ import { cn } from '@/lib/utils';
 // Types
 // ============================================================================
 
-export type AvatarType = 'user' | 'all' | 'anonymous';
+export type AvatarType = 'user' | 'all' | 'anonymous' | 'me';
 
 export interface ParticipantAvatarProps {
   type: AvatarType;
   alias?: string;
   isAdmin?: boolean;
   isSelected?: boolean;
+  isOnline?: boolean;
   onClick?: () => void;
 }
 
@@ -62,6 +63,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
   alias,
   isAdmin = false,
   isSelected = false,
+  isOnline,
   onClick,
 }: ParticipantAvatarProps) {
   const renderContent = () => {
@@ -70,9 +72,11 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         return <Users className="h-4 w-4" />;
       case 'anonymous':
         return <Ghost className="h-4 w-4" />;
+      case 'me':
+        return <User className="h-4 w-4" />;
       case 'user':
       default:
-        return <span className="text-xs font-medium">{alias ? getInitials(alias) : '??'}</span>;
+        return <span className="text-xs font-semibold leading-none tracking-tight">{alias ? getInitials(alias) : '??'}</span>;
     }
   };
 
@@ -82,6 +86,8 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         return 'All Users';
       case 'anonymous':
         return 'Anonymous Cards';
+      case 'me':
+        return 'My Cards';
       case 'user':
       default:
         return alias || 'Unknown User';
@@ -100,12 +106,15 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
           )}
           aria-label={`Filter by ${getTooltipText()}`}
           aria-pressed={isSelected}
+          data-testid={type === 'user' ? `participant-avatar-${alias?.replace(/\s+/g, '-').toLowerCase()}` : `${type}-avatar`}
+          data-avatar-type={type}
         >
           <Avatar
             className={cn(
               'h-8 w-8 cursor-pointer transition-opacity hover:opacity-80',
               type === 'all' && 'bg-primary text-primary-foreground',
               type === 'anonymous' && 'bg-muted text-muted-foreground',
+              type === 'me' && 'bg-blue-500 text-white',
               type === 'user' && 'bg-accent text-accent-foreground'
             )}
           >
@@ -119,12 +128,25 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
               aria-label="Admin"
             />
           )}
+
+          {/* Online/Offline Presence Indicator */}
+          {type === 'user' && isOnline !== undefined && (
+            <span
+              className={cn(
+                'absolute bottom-0 right-0 h-2 w-2 rounded-full border border-background',
+                isOnline ? 'bg-green-500' : 'bg-gray-400'
+              )}
+              aria-label={isOnline ? 'Online' : 'Offline'}
+              data-testid={`presence-indicator-${alias?.replace(/\s+/g, '-').toLowerCase()}`}
+            />
+          )}
         </button>
       </TooltipTrigger>
       <TooltipContent>
         <p>
           {getTooltipText()}
           {isAdmin && type === 'user' && ' (Admin)'}
+          {type === 'user' && isOnline !== undefined && (isOnline ? ' - Online' : ' - Offline')}
         </p>
       </TooltipContent>
     </Tooltip>

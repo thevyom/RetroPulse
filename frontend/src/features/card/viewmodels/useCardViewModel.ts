@@ -115,12 +115,13 @@ function filterCards(cards: Card[], filters: FilterState): Card[] {
 
   return cards.filter((card) => {
     // If specific users are selected, only show cards from those users
+    // Note: selectedUsers contains aliases, not hashes
     if (filters.selectedUsers.length > 0) {
       // Anonymous cards don't match any specific user filter
       if (card.is_anonymous) {
         return false;
       }
-      return filters.selectedUsers.includes(card.created_by_hash);
+      return card.created_by_alias ? filters.selectedUsers.includes(card.created_by_alias) : false;
     }
 
     // No specific users selected - apply anonymous filter
@@ -352,26 +353,58 @@ export function useCardViewModel(
       moveCardStore(event.card_id, event.column_id);
     };
 
-    const handleReactionAdded = (event: { card_id: string }) => {
+    const handleReactionAdded = (event: { card_id: string; parent_card_id?: string | null }) => {
       incrementReactionCount(event.card_id);
+      // If card has parent but store doesn't know it, update parent's aggregate directly
+      if (event.parent_card_id) {
+        const card = cardsMap.get(event.card_id);
+        if (!card?.parent_card_id) {
+          // Card in store doesn't have parent linked - update parent aggregate directly
+          const parent = cardsMap.get(event.parent_card_id);
+          if (parent) {
+            updateCard(event.parent_card_id, {
+              aggregated_reaction_count: parent.aggregated_reaction_count + 1,
+            });
+          }
+        }
+      }
       // Refresh reaction quota
       checkReactionQuota().catch(() => {});
     };
 
-    const handleReactionRemoved = (event: { card_id: string }) => {
+    const handleReactionRemoved = (event: { card_id: string; parent_card_id?: string | null }) => {
       decrementReactionCount(event.card_id);
+      // If card has parent but store doesn't know it, update parent's aggregate directly
+      if (event.parent_card_id) {
+        const card = cardsMap.get(event.card_id);
+        if (!card?.parent_card_id) {
+          // Card in store doesn't have parent linked - update parent aggregate directly
+          const parent = cardsMap.get(event.parent_card_id);
+          if (parent) {
+            updateCard(event.parent_card_id, {
+              aggregated_reaction_count: Math.max(0, parent.aggregated_reaction_count - 1),
+            });
+          }
+        }
+      }
       // Refresh reaction quota
       checkReactionQuota().catch(() => {});
     };
 
-    const handleCardLinked = (event: { parent_card_id: string; child_card_id: string }) => {
+    const handleCardLinked = (event: { sourceId: string; targetId: string; linkType: string }) => {
+      // For parent_of link type: sourceId is parent, targetId is child
       // Update store with new link - aggregated count updates immediately
-      linkChildStore(event.parent_card_id, event.child_card_id);
+      if (event.linkType === 'parent_of') {
+        linkChildStore(event.sourceId, event.targetId);
+      }
     };
 
-    const handleCardUnlinked = (event: { parent_card_id: string; child_card_id: string }) => {
+    const handleCardUnlinked = (event: { sourceId: string; targetId: string; linkType: string }) => {
+      // For parent_of link type: sourceId is parent, targetId is child
       // Update store to remove link - aggregated count updates immediately
-      unlinkChildStore(event.parent_card_id, event.child_card_id);
+      if (event.linkType === 'parent_of') {
+        unlinkChildStore(event.sourceId, event.targetId);
+      }
     };
 
     // Subscribe to events

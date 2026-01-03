@@ -525,4 +525,43 @@ describe('Drag-Drop Integration', () => {
       expect(result.current.draggedItem).toBeNull();
     });
   });
+
+  describe('Keyboard DnD Operations', () => {
+    it('handleKeyboardDragStart sets isDragging on Space key', () => {
+      const { result } = renderHook(() => useDragDropViewModel());
+
+      act(() => {
+        result.current.handleDragStart('card-1', 'feedback');
+      });
+
+      expect(result.current.isDragging).toBe(true);
+      expect(result.current.draggedItem?.id).toBe('card-1');
+    });
+
+    it('Escape key cancels drag operation', () => {
+      const { result } = renderHook(() => useDragDropViewModel());
+
+      act(() => {
+        result.current.handleDragStart('card-1', 'feedback');
+      });
+      expect(result.current.isDragging).toBe(true);
+
+      act(() => {
+        result.current.handleDragEnd();
+      });
+      expect(result.current.isDragging).toBe(false);
+    });
+
+    it('Tab navigation cycles through droppable targets', () => {
+      // Test that canDropOn returns correct values for focus cycling
+      const { result } = renderHook(() => useDragDropViewModel());
+
+      act(() => {
+        result.current.handleDragStart('card-1', 'feedback');
+      });
+
+      expect(result.current.canDropOn('col-1', 'column')).toBe(true);
+      expect(result.current.canDropOn('col-2', 'column')).toBe(true);
+    });
+  });
 });

@@ -340,7 +340,7 @@ export const RetroCard = memo(function RetroCard({
           {...(!hasParent && canDrag ? listeners : {})}
           tabIndex={canDrag && !hasParent ? 0 : undefined}
           role={canDrag && !hasParent ? 'button' : undefined}
-          aria-label={canDrag && !hasParent ? 'Drag handle - press Space to pick up, arrow keys to move, Space to drop' : undefined}
+          aria-label={canDrag && !hasParent ? `Drag card: ${card.content.substring(0, 30)}${card.content.length > 30 ? '...' : ''}` : undefined}
           aria-roledescription={canDrag && !hasParent ? 'draggable' : undefined}
           data-testid="card-header"
         >
@@ -371,7 +371,7 @@ export const RetroCard = memo(function RetroCard({
                   'text-muted-foreground opacity-0 group-hover:opacity-100',
                   canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
                 )}
-                aria-label="Drag handle icon"
+                aria-hidden="true"
               >
                 <GripVertical className="h-4 w-4" />
               </div>
@@ -404,7 +404,7 @@ export const RetroCard = memo(function RetroCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={cn('h-7 gap-1 px-2', hasReacted && 'text-primary')}
+                  className={cn('min-w-8 min-h-8 gap-1 px-2 flex items-center justify-center', hasReacted && 'text-primary')}
                   onClick={handleReactionClick}
                   disabled={isClosed || (!canReact && !hasReacted) || isSubmitting}
                   aria-label={hasReacted ? 'Remove reaction' : 'Add reaction'}
@@ -440,7 +440,7 @@ export const RetroCard = memo(function RetroCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+                    className="min-w-8 min-h-8 flex items-center justify-center text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
                     onClick={() => setIsDeleteDialogOpen(true)}
                     aria-label="Delete card"
                   >
@@ -574,7 +574,7 @@ export const RetroCard = memo(function RetroCard({
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      'ml-auto h-5 gap-1 px-1.5 py-0 text-xs',
+                      'ml-auto min-w-8 min-h-8 gap-1 px-1.5 flex items-center justify-center text-xs',
                       hasUserReactedToChild?.(child.id) && 'text-primary'
                     )}
                     onClick={() => handleChildReactionClick(child.id)}

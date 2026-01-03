@@ -6,6 +6,7 @@
 
 import { test, expect } from '@playwright/test';
 import { isBackendReady, uniqueBoardName, waitForBoardLoad } from './helpers';
+import { getBoardViaApi, extractBoardIdFromUrl } from './utils/admin-helpers';
 
 test.describe('Home Page', () => {
   test.beforeEach(async ({ page }) => {
@@ -217,8 +218,60 @@ test.describe('Board Creation', () => {
     await expect(page.getByTestId('board-name-error')).toContainText('75 characters');
   });
 
-  test.skip('user becomes admin of created board', async ({ page }) => {
-    // TODO: Fix admin detection timing - requires WebSocket connection to establish user identity
+  test('creator appears in participant bar after board creation (UTB-014)', async ({ page }) => {
+    // UTB-014: Verify user appears in participant bar after board creation
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Create a new board with a specific alias
+    const creatorAlias = 'ParticipantTestUser';
+    await page.getByTestId('create-board-button').click();
+    await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('participant'));
+    await page.getByTestId('creator-alias-input').pressSequentially(creatorAlias);
+    await page.getByTestId('submit-create-board').click();
+
+    // Wait for navigation to board page
+    await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
+    await waitForBoardLoad(page);
+
+    // 1. Verify participant bar container is visible
+    const participantContainer = page.getByTestId('participant-avatar-container');
+    await expect(participantContainer).toBeVisible();
+
+    // 2. Verify All Users button is visible and clickable
+    const allUsersButton = page.getByRole('button', { name: 'Filter by All Users' });
+    await expect(allUsersButton).toBeVisible();
+    await expect(allUsersButton).toBeEnabled();
+
+    // 3. Wait for WebSocket to register the participant (no more "No participants yet")
+    await page.waitForSelector('text="No participants yet"', {
+      state: 'hidden',
+      timeout: 10000,
+    }).catch(() => {
+      // May already be hidden
+    });
+
+    // 4. Verify user avatar appears with correct initials
+    // "ParticipantTestUser" is one word, so initials should be "PA" (first two letters)
+    const userAvatar = page.getByRole('button', { name: `Filter by ${creatorAlias}` });
+    await expect(userAvatar).toBeVisible({ timeout: 10000 });
+
+    // 5. Verify the avatar contains the correct initials (PA for ParticipantTestUser)
+    const expectedInitials = 'PA';
+    await expect(userAvatar).toContainText(expectedInitials);
+
+    // 6. Verify Anonymous filter button is also visible
+    const anonymousButton = page.getByRole('button', { name: 'Filter by Anonymous Cards' });
+    await expect(anonymousButton).toBeVisible();
+
+    // 7. Verify creator has admin crown badge
+    const adminBadge = userAvatar.locator('[aria-label="Admin"]');
+    await expect(adminBadge).toBeVisible();
+  });
+
+  test('user becomes admin of created board (verified via API)', async ({ page, request }) => {
+    // Verifies that board creator is set as admin by checking via API
+    // This bypasses WebSocket timing issues by using X-Admin-Secret for verification
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
@@ -231,12 +284,20 @@ test.describe('Board Creation', () => {
     await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
     await waitForBoardLoad(page);
 
-    // User should be admin - look for close board button (admin only)
-    const closeButton = page
-      .getByTestId('close-board-button')
-      .or(page.getByRole('button', { name: /close board/i }));
+    // Extract board ID from URL
+    const boardId = extractBoardIdFromUrl(page.url());
+    expect(boardId).not.toBeNull();
 
-    // Admin controls should be visible
-    await expect(closeButton).toBeVisible({ timeout: 10000 });
+    // Verify creator is admin via API
+    const boardData = await getBoardViaApi(request, boardId!);
+
+    // Board should have been created
+    expect(boardData.id).toBe(boardId);
+
+    // Creator hash should be set
+    expect(boardData.creator_hash).toBeTruthy();
+
+    // Admins list should include the creator
+    expect(boardData.admins).toContain(boardData.creator_hash);
   });
 });

@@ -4,10 +4,11 @@
  * Supports drag-and-drop via @dnd-kit.
  */
 
-import type { ChangeEvent, KeyboardEvent } from 'react';
-import { memo, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent, FocusEvent } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Pencil, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RetroCard } from './RetroCard';
 import type { Card, CreateCardDTO } from '@/models/types';
@@ -59,6 +59,8 @@ export interface RetroColumnProps {
   onRemoveReaction: (cardId: string) => Promise<void>;
   onUnlinkChild: (childId: string) => Promise<void>;
   onEditColumnTitle?: (newName: string) => Promise<void>;
+  // Card content editing (UTB-020)
+  onUpdateCard?: (cardId: string, content: string) => Promise<void>;
   // Child card reaction handlers (UTB-007)
   onReactToChild?: (childId: string) => Promise<void>;
   onUnreactFromChild?: (childId: string) => Promise<void>;
@@ -90,6 +92,7 @@ export const RetroColumn = memo(function RetroColumn({
   onRemoveReaction,
   onUnlinkChild,
   onEditColumnTitle,
+  onUpdateCard,
   onReactToChild,
   onUnreactFromChild,
   hasUserReactedToChild,
@@ -101,10 +104,25 @@ export const RetroColumn = memo(function RetroColumn({
   const [addError, setAddError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Edit column dialog state
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  // Inline column title edit state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
-  const [editError, setEditError] = useState<string | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // Sync editedTitle when title prop changes
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setEditedTitle(title);
+    }
+  }, [title, isEditingTitle]);
 
   const cardType = columnType === 'action_item' ? 'action' : 'feedback';
 
@@ -152,31 +170,62 @@ export const RetroColumn = memo(function RetroColumn({
     }
   };
 
-  const handleOpenEditDialog = () => {
-    setEditedTitle(title);
-    setEditError(null);
-    setIsEditDialogOpen(true);
+  // Inline title edit handlers
+  const handleStartEditingTitle = () => {
+    if (isAdmin && !isClosed && onEditColumnTitle) {
+      setEditedTitle(title);
+      setIsEditingTitle(true);
+    }
   };
 
-  const handleEditColumn = async () => {
+  const handleCancelTitleEdit = () => {
+    setEditedTitle(title);
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveTitle = async () => {
     if (!onEditColumnTitle) return;
 
+    // Skip if unchanged
+    if (editedTitle.trim() === title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    // Validate
     const validation = validateColumnName(editedTitle);
     if (!validation.isValid) {
-      setEditError(validation.error || 'Invalid column name');
+      toast.error(validation.error || 'Invalid column name');
+      titleInputRef.current?.focus();
       return;
     }
 
     setIsSubmitting(true);
-    setEditError(null);
 
     try {
-      await onEditColumnTitle(editedTitle);
-      setIsEditDialogOpen(false);
+      await onEditColumnTitle(editedTitle.trim());
+      setIsEditingTitle(false);
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to rename column');
+      toast.error(err instanceof Error ? err.message : 'Failed to rename column');
+      titleInputRef.current?.focus();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isSubmitting) {
+      e.preventDefault();
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelTitleEdit();
+    }
+  };
+
+  const handleTitleBlur = (_e: FocusEvent<HTMLInputElement>) => {
+    if (!isSubmitting) {
+      handleSaveTitle();
     }
   };
 
@@ -196,21 +245,45 @@ export const RetroColumn = memo(function RetroColumn({
     >
       {/* Column Header */}
       <div className="flex items-center justify-between px-4 py-3">
-        <h2 className="font-semibold text-foreground">{title}</h2>
+        {/* Inline editable column title */}
+        {isEditingTitle && isAdmin && !isClosed && onEditColumnTitle ? (
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={editedTitle}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedTitle(e.target.value)}
+            onBlur={handleTitleBlur}
+            onKeyDown={handleTitleKeyDown}
+            disabled={isSubmitting}
+            className="font-semibold text-foreground bg-transparent border-b-2 border-primary outline-none px-1 min-w-[120px]"
+            aria-label="Edit column name"
+          />
+        ) : (
+          <h2
+            className={`font-semibold text-foreground ${
+              isAdmin && !isClosed && onEditColumnTitle
+                ? 'cursor-text hover:underline hover:decoration-muted-foreground/50 transition-all'
+                : ''
+            }`}
+            onClick={handleStartEditingTitle}
+            title={isAdmin && !isClosed && onEditColumnTitle ? 'Click to edit column name' : undefined}
+            role={isAdmin && !isClosed && onEditColumnTitle ? 'button' : undefined}
+            tabIndex={isAdmin && !isClosed && onEditColumnTitle ? 0 : undefined}
+            onKeyDown={
+              isAdmin && !isClosed && onEditColumnTitle
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleStartEditingTitle();
+                    }
+                  }
+                : undefined
+            }
+          >
+            {title}
+          </h2>
+        )}
         <div className="flex items-center gap-1">
-          {/* Edit Column Button (admin only) */}
-          {isAdmin && !isClosed && onEditColumnTitle && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleOpenEditDialog}
-              aria-label="Edit column name"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-          )}
-
           {/* Add Card Button */}
           <TooltipProvider>
             <Tooltip>
@@ -255,6 +328,7 @@ export const RetroColumn = memo(function RetroColumn({
             onUnreact={() => onRemoveReaction(card.id)}
             onDelete={() => onDeleteCard(card.id)}
             onUnlinkFromParent={() => onUnlinkChild(card.id)}
+            onUpdateCard={onUpdateCard ? (content) => onUpdateCard(card.id, content) : undefined}
             onReactToChild={onReactToChild}
             onUnreactFromChild={onUnreactFromChild}
             hasUserReactedToChild={hasUserReactedToChild}
@@ -314,47 +388,6 @@ export const RetroColumn = memo(function RetroColumn({
             </Button>
             <Button onClick={handleAddCard} disabled={isSubmitting}>
               {isSubmitting ? 'Adding...' : 'Add Card'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Column Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Column Name</DialogTitle>
-            <DialogDescription>Change the name of this column.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={editedTitle}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedTitle(e.target.value)}
-              placeholder="Column name"
-              aria-label="Column name"
-              aria-invalid={!!editError}
-              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter' && !isSubmitting) {
-                  handleEditColumn();
-                }
-              }}
-            />
-            {editError && (
-              <p className="mt-2 text-sm text-destructive" role="alert">
-                {editError}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleEditColumn} disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

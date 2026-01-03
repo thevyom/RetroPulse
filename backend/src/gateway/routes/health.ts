@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
+import type { Router as IRouter } from 'express';
 import { checkDatabaseHealth } from '@/shared/database/index.js';
 import { sendSuccess, sendError } from '@/shared/utils/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 
-export const healthRoutes = Router();
+export const healthRoutes: IRouter = Router();
 
 // Basic health check
 healthRoutes.get('/', (_req: Request, res: Response) => {

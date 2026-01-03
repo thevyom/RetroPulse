@@ -62,20 +62,38 @@ test.describe('Basic Accessibility', () => {
     await createCard(page, 'col-1', content);
 
     const card = await findCardByContent(page, content);
-    // Use accessible selector
-    const dragHandle = card
+    // Find all potential drag handles within the card
+    const dragHandles = card
       .getByRole('button', { name: /drag/i })
-      .or(card.locator('[aria-label*="drag"]'))
-      .or(card.locator('button').first());
+      .or(card.locator('[aria-label*="drag"]'));
 
-    if (await dragHandle.isVisible()) {
-      // Should have aria-label for screen readers
-      const ariaLabel = await dragHandle.getAttribute('aria-label');
-      const title = await dragHandle.getAttribute('title');
-      const accessibleName = ariaLabel || title;
+    const count = await dragHandles.count();
 
-      // Drag handle should be accessible
-      expect(accessibleName?.toLowerCase()).toMatch(/drag|move|reorder/i);
+    if (count > 0) {
+      // Test each drag handle for accessibility
+      for (let i = 0; i < count; i++) {
+        const handle = dragHandles.nth(i);
+        if (await handle.isVisible()) {
+          // Should have aria-label for screen readers
+          const ariaLabel = await handle.getAttribute('aria-label');
+          const title = await handle.getAttribute('title');
+          const accessibleName = ariaLabel || title;
+
+          // Drag handle should be accessible
+          expect(accessibleName?.toLowerCase()).toMatch(/drag|move|reorder/i);
+        }
+      }
+    } else {
+      // Fallback: check first button if no drag-specific handles found
+      const firstButton = card.locator('button').first();
+      if (await firstButton.isVisible()) {
+        const ariaLabel = await firstButton.getAttribute('aria-label');
+        const title = await firstButton.getAttribute('title');
+        const accessibleName = ariaLabel || title;
+
+        // First button should have some accessible name
+        expect(accessibleName).toBeTruthy();
+      }
     }
   });
 
@@ -201,10 +219,8 @@ test.describe('Basic Accessibility', () => {
     }
   });
 
-  // TODO: App code fix needed - RetroBoardPage uses <div> instead of <main> element
-  // The board page lacks proper landmark structure for accessibility.
-  // Fix: Change the outer <div> in RetroBoardPage.tsx to <main>
-  test.skip('skip link or landmarks present', async ({ page }) => {
+  // Fixed: RetroBoardPage now uses <main role="main" aria-label="Retrospective board">
+  test('skip link or landmarks present', async ({ page }) => {
     // Check for skip link or main landmark
     const skipLink = page.locator('a[href="#main"], a[href="#content"]');
     const mainLandmark = page.locator('main, [role="main"]');

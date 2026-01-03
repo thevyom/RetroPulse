@@ -647,9 +647,9 @@ test.describe('LOW Priority Bug Regression Tests', () => {
 
       await page.waitForTimeout(1000);
 
-      // Find a user avatar (not All Users or Anonymous)
-      const userAvatar = page.locator('[aria-label*="Filter by"][aria-label*="User"]')
-        .or(page.getByRole('button', { name: new RegExp(userName.slice(0, 5), 'i') }));
+      // Find a user avatar (not All Users or Anonymous) - use data-avatar-type to filter
+      const userAvatar = page.locator('[data-avatar-type="user"]')
+        .or(page.getByTestId(`participant-avatar-${userName.toLowerCase().replace(/\s+/g, '-')}`));
 
       if (await userAvatar.first().isVisible().catch(() => false)) {
         // Hover over the avatar

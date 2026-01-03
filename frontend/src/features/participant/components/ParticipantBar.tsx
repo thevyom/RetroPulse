@@ -16,14 +16,18 @@ import type { ActiveUser } from '@/models/types';
 export interface ParticipantBarProps {
   activeUsers: ActiveUser[];
   currentUserHash: string;
+  currentUserAlias?: string;
   isCreator: boolean;
   admins: string[];
   showAll: boolean;
   showAnonymous: boolean;
   showOnlyAnonymous: boolean;
+  showOnlyMe: boolean;
   selectedUsers: string[];
+  onlineAliases: Set<string>;
   onToggleAllUsers: () => void;
   onToggleAnonymous: () => void;
+  onToggleMe: () => void;
   onToggleUser: (alias: string) => void;
   onPromoteToAdmin: (userHash: string) => Promise<void>;
 }
@@ -35,30 +39,38 @@ export interface ParticipantBarProps {
 export const ParticipantBar = memo(function ParticipantBar({
   activeUsers,
   currentUserHash: _currentUserHash,
+  currentUserAlias,
   isCreator,
   admins,
   showAll,
   showAnonymous: _showAnonymous,
   showOnlyAnonymous,
+  showOnlyMe,
   selectedUsers,
+  onlineAliases,
   onToggleAllUsers,
   onToggleAnonymous,
+  onToggleMe,
   onToggleUser,
   onPromoteToAdmin,
 }: ParticipantBarProps) {
   // Note: _showAnonymous is kept for backward compatibility but showOnlyAnonymous is used for visual state
   void _showAnonymous;
-  // Note: _currentUserHash reserved for highlighting current user's avatar
-  void _currentUserHash;
+  void _currentUserHash; // Kept for backward compatibility
+
+  // Filter out current user from the scrollable list (they have their own "Me" filter)
+  // Use alias comparison since ActiveUser doesn't have cookie_hash
+  const otherUsers = activeUsers.filter((user) => user.alias !== currentUserAlias);
+
   return (
     <TooltipProvider>
       <nav className="flex items-center gap-3" role="toolbar" aria-label="Participant filters">
-        {/* Special Avatars */}
+        {/* Filter Controls Section - Always visible */}
         <div className="flex items-center gap-1" role="group" aria-label="Filter options">
           {/* All Users */}
           <ParticipantAvatar
             type="all"
-            isSelected={showAll && selectedUsers.length === 0}
+            isSelected={showAll && selectedUsers.length === 0 && !showOnlyMe}
             onClick={onToggleAllUsers}
           />
 
@@ -68,31 +80,39 @@ export const ParticipantBar = memo(function ParticipantBar({
             isSelected={showOnlyAnonymous}
             onClick={onToggleAnonymous}
           />
+
+          {/* Me - Current user's filter */}
+          <ParticipantAvatar
+            type="me"
+            isSelected={showOnlyMe}
+            onClick={onToggleMe}
+          />
         </div>
 
         {/* Separator */}
         <div className="h-6 w-px bg-border" aria-hidden="true" />
 
-        {/* User Avatars - Scrollable container for overflow handling */}
+        {/* Other Participants - Scrollable container */}
         <div
           className="flex items-center gap-1 overflow-x-auto max-w-[280px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
           role="group"
-          aria-label="Active participants"
+          aria-label="Other participants"
           data-testid="participant-avatar-container"
         >
-          {activeUsers.map((user) => (
+          {otherUsers.map((user) => (
             <ParticipantAvatar
               key={user.alias}
               type="user"
               alias={user.alias}
               isAdmin={user.is_admin}
               isSelected={selectedUsers.includes(user.alias)}
+              isOnline={onlineAliases.has(user.alias)}
               onClick={() => onToggleUser(user.alias)}
             />
           ))}
 
-          {activeUsers.length === 0 && (
-            <span className="text-sm text-muted-foreground whitespace-nowrap">No participants yet</span>
+          {otherUsers.length === 0 && (
+            <span className="text-sm text-muted-foreground whitespace-nowrap">No other participants</span>
           )}
         </div>
 

@@ -1,7 +1,7 @@
 # UI/UX Design Specification - Collaborative Retro Board
 
-**Document Version**: 1.1
-**Date**: 2025-12-31
+**Document Version**: 1.2
+**Date**: 2026-01-01
 **PRD Version**: 1.4
 **Status**: Draft - Based on Wireframe-1-drawio.xml
 
@@ -167,26 +167,35 @@ The home page is the entry point for the application when users first visit the 
 
 **Layout**:
 ```
-Participants: 🎩U1(Admin) 👤U2 👤U3 👤Anonymous  [+ Make Admin ▼]
-              ↑ click     ↑ click  ↑ click     ↑ click
-              to filter   to filter to filter  to filter
+Participants: 🎩U1(Admin) 👤U2 👤U3 👻Anonymous
+              ↑ click     ↑ click  ↑ click   ↑ click
+              to filter   to filter to filter to filter
+              ↑ right-click for context menu (admin actions)
 ```
 
 **Avatar Display**:
 - **Active User Avatar**: Circle (38px diameter)
-  - Admin: 🎩 icon + username + "Admin" label below
-  - Regular user: 👤 icon + username (or emoji avatar)
+  - Admin: Crown badge (👑) + initials + "Admin" label below
+  - Regular user: Initials in colored circle
+  - Initials: First letter of first name + first letter of last name (e.g., "John Smith" → "JS", "John" → "JO")
+  - Font: 12px bold, letter-spacing: -0.5px, uppercase
   - Colors: Pastel colors per user (#ffe6cc, #d5e8d4, #e1d5e7)
 
-- **Anonymous Avatar**: 👤 "Anonymous" (gray)
+- **Anonymous Avatar**: Ghost icon (👻) in gray circle (38px diameter)
+  - Icon size: 18px
   - Represents anonymous card creators
   - Always visible if any anonymous cards exist on board
 
-**Click Behavior** (Filter Interaction):
+**Tooltip on Hover**:
+- Shows full alias/name: "John Smith"
+- For admins hovering non-admin avatars: "John Smith (right-click for options)"
+- Delay: 300ms
+
+**Primary Click Behavior** (Filter Interaction):
 - Click avatar → Filter view to show only that user's cards
   - Avatar gets green border (selected state)
   - All other cards fade/hide
-  - Action: GET /boards/:id/cards?filter=user:{userId}
+  - Client-side filtering (no server call needed)
 
 - Click "Anonymous" → Show only anonymous cards
   - Anonymous avatar gets selected state
@@ -194,11 +203,41 @@ Participants: 🎩U1(Admin) 👤U2 👤U3 👤Anonymous  [+ Make Admin ▼]
 - Click selected avatar again → Clear filter (show all)
   - Remove border, show all cards
 
-**Make Admin Dropdown**:
-- **Button**: "+ Make Admin ▼" (visible to creator only)
-- **Click**: Shows dropdown of active non-admin users
-- **Select user**: POST /boards/:id/admins with userId
-- **Real-time**: User gets admin badge, can now edit/close board
+**Context Menu** (Secondary Action):
+- **Trigger**: Right-click (desktop) or long-press 500ms (touch)
+- **Position**: At cursor/finger position
+- **Dismiss**: Click outside or Escape key
+
+**Context Menu Options** (for admins viewing non-admin):
+```
+┌─────────────────────┐
+│ 👑 Make Admin       │
+│ ─────────────────── │
+│ 👁️ View Cards       │
+└─────────────────────┘
+```
+
+**Context Menu Options** (for board creator viewing co-admin):
+```
+┌─────────────────────┐
+│ ❌ Remove Admin     │
+│ ─────────────────── │
+│ 👁️ View Cards       │
+└─────────────────────┘
+```
+
+**Context Menu Options** (for non-admins):
+```
+┌─────────────────────┐
+│ 👁️ View Cards       │
+└─────────────────────┘
+```
+
+**Admin Actions**:
+- **Make Admin**: POST /boards/:id/admins with userId
+- **Remove Admin**: DELETE /boards/:id/admins/:userId
+- **Real-time**: User gets/loses admin badge, synced to all users
+- **Feedback**: Toast notification "John Smith is now an admin"
 
 ### 4.4 Sort Controls
 
@@ -874,9 +913,10 @@ interface BoardStore {
 | `<Input>` | Inline editing, form fields | - |
 | `<Textarea>` | Card content input | - |
 | `<Dialog>` | Card creation, confirmations | Accessible modal |
-| `<DropdownMenu>` | Make Admin dropdown, sort options | Keyboard navigable |
+| `<ContextMenu>` | Avatar admin actions | Right-click/long-press menu |
+| `<DropdownMenu>` | Sort options | Keyboard navigable |
 | `<Select>` | Sort mode selection | - |
-| `<Tooltip>` | Hover hints, truncated text | - |
+| `<Tooltip>` | Hover hints, avatar names | 300ms delay |
 | `<Skeleton>` | Loading states | Matches layout structure |
 
 **Icons** (Lucide React):
@@ -902,7 +942,7 @@ interface BoardStore {
 | Lock indicator when closed | ✅ | 🔒 shown when state = closed |
 | Participant avatars | ✅ | Clickable for filtering |
 | Anonymous participant | ✅ | Shows if anonymous cards exist |
-| Make Admin button + dropdown | ✅ | Replaces drag-to-admin from wireframe |
+| Make Admin context menu | ✅ | Right-click/long-press on avatar |
 | Filter pills | ❌ Removed | Use click-avatar filtering instead |
 | Sort dropdown + toggle | ✅ | Combined into single dropdown |
 | 3 columns with colors | ✅ | Green, orange, blue pastels |
@@ -942,6 +982,7 @@ interface BoardStore {
 |---------|------|--------|---------|
 | 1.0 | 2025-12-24 | VK AI | Initial UI/UX spec based on Wireframe-1-drawio.xml |
 | 1.1 | 2025-12-31 | VK AI | Added Home Page / Landing Page section (Section 3.0) |
+| 1.2 | 2026-01-01 | VK AI | Replaced "Make Admin" dropdown with avatar context menu (Section 4.3); Added ContextMenu to shadcn/ui components; Updated avatar display with initials logic and Ghost icon for Anonymous |
 
 ---
 

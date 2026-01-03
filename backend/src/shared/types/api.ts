@@ -4,6 +4,8 @@ import { Request as ExpressRequest } from 'express';
 export interface AuthenticatedRequest extends ExpressRequest {
   hashedCookieId: string;
   sessionId?: string;
+  /** Set by adminOverrideMiddleware when valid X-Admin-Secret header is provided */
+  isAdminOverride?: boolean;
 }
 
 // Standard API response format

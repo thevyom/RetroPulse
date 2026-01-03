@@ -222,17 +222,17 @@ export class CardService {
   }
 
   /**
-   * Delete a card (creator only)
+   * Delete a card (creator only, or admin override)
    */
-  async deleteCard(id: string, userHash: string): Promise<void> {
+  async deleteCard(id: string, userHash: string, isAdminOverride = false): Promise<void> {
     // Get the card first
     const existingCard = await this.cardRepository.findById(id);
     if (!existingCard) {
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
-    // Check authorization
-    if (existingCard.created_by_hash !== userHash) {
+    // Check authorization (bypassed if admin override)
+    if (!isAdminOverride && existingCard.created_by_hash !== userHash) {
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can delete this card', 403);
     }
 
@@ -420,13 +420,12 @@ export class CardService {
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
-    // Authorization: must be source card creator or board admin
-    const isSourceCreator = sourceCard.created_by_hash === userHash;
+    // Authorization: only board admin can unlink cards
     const isAdmin = board.admins.includes(userHash);
-    if (!isSourceCreator && !isAdmin) {
+    if (!isAdmin) {
       throw new ApiError(
         ErrorCodes.FORBIDDEN,
-        'Only the card creator or board admin can unlink cards',
+        'Only board admin can unlink cards',
         403
       );
     }

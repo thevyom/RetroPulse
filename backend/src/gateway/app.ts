@@ -5,6 +5,7 @@ import type { Db, MongoClient } from 'mongodb';
 import { env } from '@/shared/config/index.js';
 import {
   authMiddleware,
+  adminOverrideMiddleware,
   errorHandler,
   notFoundHandler,
   requestLogger,
@@ -29,9 +30,12 @@ interface AppOptions {
 
 export function createApp(dbOrOptions?: Db | AppOptions): Express {
   // Handle both old signature (db only) and new signature (options object)
-  const options: AppOptions = dbOrOptions && 'db' in dbOrOptions
-    ? dbOrOptions
-    : { db: dbOrOptions };
+  let options: AppOptions;
+  if (dbOrOptions && typeof dbOrOptions === 'object' && 'db' in dbOrOptions) {
+    options = dbOrOptions as AppOptions;
+  } else {
+    options = { db: dbOrOptions as Db | undefined };
+  }
   const { db, mongoClient } = options;
   const app = express();
 
@@ -54,6 +58,9 @@ export function createApp(dbOrOptions?: Db | AppOptions): Express {
 
   // Cookie parsing
   app.use(cookieParser(env.COOKIE_SECRET));
+
+  // Admin override for E2E tests (checks X-Admin-Secret header)
+  app.use(adminOverrideMiddleware);
 
   // Request logging
   app.use(requestLogger);

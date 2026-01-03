@@ -14,6 +14,7 @@ interface UserStoreState {
   // State
   currentUser: UserSession | null;
   activeUsers: ActiveUser[];
+  onlineAliases: Set<string>;
   isLoading: boolean;
   error: string | null;
 
@@ -27,11 +28,15 @@ interface UserStoreState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearUser: () => void;
+  setUserOnline: (alias: string) => void;
+  setUserOffline: (alias: string) => void;
+  clearOnlineUsers: () => void;
 
   // Selectors
   isCurrentUserAdmin: () => boolean;
   getActiveUser: (alias: string) => ActiveUser | undefined;
   getActiveUserCount: () => number;
+  isUserOnline: (alias: string) => boolean;
 }
 
 // ============================================================================
@@ -42,6 +47,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   // Initial State
   currentUser: null,
   activeUsers: [],
+  onlineAliases: new Set<string>(),
   isLoading: false,
   error: null,
 
@@ -107,9 +113,27 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     set({
       currentUser: null,
       activeUsers: [],
+      onlineAliases: new Set<string>(),
       isLoading: false,
       error: null,
     }),
+
+  setUserOnline: (alias) =>
+    set((state) => {
+      const newSet = new Set(state.onlineAliases);
+      newSet.add(alias);
+      return { onlineAliases: newSet };
+    }),
+
+  setUserOffline: (alias) =>
+    set((state) => {
+      const newSet = new Set(state.onlineAliases);
+      newSet.delete(alias);
+      return { onlineAliases: newSet };
+    }),
+
+  clearOnlineUsers: () =>
+    set({ onlineAliases: new Set<string>() }),
 
   // Selectors
   isCurrentUserAdmin: () => {
@@ -123,6 +147,8 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   },
 
   getActiveUserCount: () => get().activeUsers.length,
+
+  isUserOnline: (alias) => get().onlineAliases.has(alias),
 }));
 
 // ============================================================================

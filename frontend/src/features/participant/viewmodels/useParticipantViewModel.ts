@@ -39,11 +39,13 @@ export interface UseParticipantViewModelResult {
   currentUser: UserSession | null;
   isLoading: boolean;
   error: string | null;
+  onlineAliases: Set<string>;
 
   // Filter state
   showAll: boolean;
   showAnonymous: boolean;
   showOnlyAnonymous: boolean;
+  showOnlyMe: boolean;
   selectedUsers: string[];
 
   // Derived state
@@ -56,6 +58,7 @@ export interface UseParticipantViewModelResult {
   // Filter actions
   handleToggleAllUsersFilter: () => void;
   handleToggleAnonymousFilter: () => void;
+  handleToggleMeFilter: () => void;
   handleToggleUserFilter: (alias: string) => void;
   handleClearFilters: () => void;
 
@@ -85,6 +88,9 @@ export function useParticipantViewModel(
   const updateHeartbeat = useUserStore((state) => state.updateHeartbeat);
   const setLoading = useUserStore((state) => state.setLoading);
   const setError = useUserStore((state) => state.setError);
+  const onlineAliases = useUserStore((state) => state.onlineAliases);
+  const setUserOnline = useUserStore((state) => state.setUserOnline);
+  const setUserOffline = useUserStore((state) => state.setUserOffline);
 
   const board = useBoardStore((state) => state.board);
   const addAdmin = useBoardStore((state) => state.addAdmin);
@@ -94,6 +100,7 @@ export function useParticipantViewModel(
   const [showAll, setShowAll] = useState(true);
   const [showAnonymous, setShowAnonymous] = useState(true);
   const [showOnlyAnonymous, setShowOnlyAnonymous] = useState(false);
+  const [showOnlyMe, setShowOnlyMe] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
   // Heartbeat interval ref
@@ -157,11 +164,13 @@ export function useParticipantViewModel(
           last_active_at: session.last_active_at,
           created_at: session.created_at,
         });
+        // Mark current user as online
+        setUserOnline(session.alias);
       }
     } catch {
       // Non-critical - session might not exist yet
     }
-  }, [boardId, setCurrentUser, addActiveUser]);
+  }, [boardId, setCurrentUser, addActiveUser, setUserOnline]);
 
   // Load active users on mount (unless autoFetch is disabled)
   useEffect(() => {
@@ -232,11 +241,15 @@ export function useParticipantViewModel(
           created_at: new Date().toISOString(),
         };
         addActiveUser(newUser);
+        // Mark user as online
+        setUserOnline(event.alias);
       }
     };
 
     const handleUserLeft = (event: { board_id: string; alias: string }) => {
       if (event.board_id === boardId) {
+        // Mark user as offline
+        setUserOffline(event.alias);
         // User left events might require refreshing the list
         fetchActiveUsers();
       }
@@ -267,7 +280,7 @@ export function useParticipantViewModel(
       socketService.off('user:left', handleUserLeft);
       socketService.off('user:alias_changed', handleAliasChanged);
     };
-  }, [boardId, addActiveUser, setActiveUsers, fetchActiveUsers]);
+  }, [boardId, addActiveUser, setActiveUsers, fetchActiveUsers, setUserOnline, setUserOffline]);
 
   // ============================================================================
   // Actions
@@ -353,6 +366,7 @@ export function useParticipantViewModel(
         // UTB-017: When selecting "All Users", clear other filters
         setSelectedUsers([]);
         setShowOnlyAnonymous(false);
+        setShowOnlyMe(false);
       }
       return newValue;
     });
@@ -365,6 +379,23 @@ export function useParticipantViewModel(
         // When enabling anonymous-only mode, clear user filters
         setSelectedUsers([]);
         setShowAll(false);
+        setShowOnlyMe(false);
+      } else {
+        // When disabling, show all cards
+        setShowAll(true);
+      }
+      return newValue;
+    });
+  }, []);
+
+  const handleToggleMeFilter = useCallback(() => {
+    setShowOnlyMe((prev) => {
+      const newValue = !prev;
+      if (newValue) {
+        // When enabling Me-only mode, clear other filters
+        setSelectedUsers([]);
+        setShowAll(false);
+        setShowOnlyAnonymous(false);
       } else {
         // When disabling, show all cards
         setShowAll(true);
@@ -383,11 +414,13 @@ export function useParticipantViewModel(
         // Deselecting the current user - revert to show all
         setShowAll(true);
         setShowOnlyAnonymous(false);
+        setShowOnlyMe(false);
         return [];
       } else {
         // Selecting a new user - replace any existing selection with just this user
         setShowAll(false);
         setShowOnlyAnonymous(false);
+        setShowOnlyMe(false);
         return [alias];
       }
     });
@@ -397,6 +430,7 @@ export function useParticipantViewModel(
     setShowAll(true);
     setShowAnonymous(true);
     setShowOnlyAnonymous(false);
+    setShowOnlyMe(false);
     setSelectedUsers([]);
   }, []);
 
@@ -410,11 +444,13 @@ export function useParticipantViewModel(
     currentUser,
     isLoading: storeIsLoading,
     error,
+    onlineAliases,
 
     // Filter state
     showAll,
     showAnonymous,
     showOnlyAnonymous,
+    showOnlyMe,
     selectedUsers,
 
     // Derived state
@@ -427,6 +463,7 @@ export function useParticipantViewModel(
     // Filter actions
     handleToggleAllUsersFilter,
     handleToggleAnonymousFilter,
+    handleToggleMeFilter,
     handleToggleUserFilter,
     handleClearFilters,
 

@@ -4,9 +4,9 @@
  * Memoized to prevent re-renders when sort mode changes (UTB-010).
  */
 
-import type { ChangeEvent, KeyboardEvent } from 'react';
-import { memo, useState } from 'react';
-import { Lock, Pencil, X, Link } from 'lucide-react';
+import type { ChangeEvent, KeyboardEvent, FocusEvent } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
+import { Lock, X, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -18,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { MyUserCard } from '../../user/components/MyUserCard';
 import type { UserSession } from '@/models/types';
 import { validateBoardName } from '@/shared/validation';
@@ -51,39 +50,85 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
   onUpdateAlias,
 }: RetroBoardHeaderProps) {
   // Dialog states
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
 
-  // Edit form state
+  // Inline edit state (UTB-028: replaced dialog with inline editing)
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(boardName);
-  const [editError, setEditError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Handlers
-  const handleOpenEditDialog = () => {
-    setEditedTitle(boardName);
-    setEditError(null);
-    setIsEditDialogOpen(true);
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (isEditingTitle && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // Sync editedTitle when boardName prop changes
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setEditedTitle(boardName);
+    }
+  }, [boardName, isEditingTitle]);
+
+  // Handlers for inline title editing
+  const handleStartEditing = () => {
+    if (isAdmin && !isClosed) {
+      setEditedTitle(boardName);
+      setIsEditingTitle(true);
+    }
   };
 
-  const handleEditSubmit = async () => {
+  const handleCancelEdit = () => {
+    setEditedTitle(boardName);
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveTitle = async () => {
+    // Skip if unchanged
+    if (editedTitle.trim() === boardName) {
+      setIsEditingTitle(false);
+      return;
+    }
+
     // Validate
     const validation = validateBoardName(editedTitle);
     if (!validation.isValid) {
-      setEditError(validation.error || 'Invalid board name');
+      toast.error(validation.error || 'Invalid board name');
+      inputRef.current?.focus();
       return;
     }
 
     setIsSubmitting(true);
-    setEditError(null);
 
     try {
-      await onEditTitle(editedTitle);
-      setIsEditDialogOpen(false);
+      await onEditTitle(editedTitle.trim());
+      setIsEditingTitle(false);
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to update board name');
+      toast.error(err instanceof Error ? err.message : 'Failed to update board name');
+      inputRef.current?.focus();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isSubmitting) {
+      e.preventDefault();
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  const handleTitleBlur = (e: FocusEvent<HTMLInputElement>) => {
+    // Prevent save on blur if clicking inside the header (e.g., for validation feedback)
+    // Only save if actually leaving the input
+    if (!isSubmitting) {
+      handleSaveTitle();
     }
   };
 
@@ -133,25 +178,50 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
-      {/* Left: Board Title */}
+      {/* Left: Board Title (UTB-028: inline editing on click for admins) */}
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold text-foreground">{boardName}</h1>
+        {isEditingTitle && isAdmin && !isClosed ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedTitle}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedTitle(e.target.value)}
+            onBlur={handleTitleBlur}
+            onKeyDown={handleTitleKeyDown}
+            disabled={isSubmitting}
+            className="text-xl font-semibold text-foreground bg-transparent border-b-2 border-primary outline-none px-1 min-w-[200px]"
+            aria-label="Edit board name"
+          />
+        ) : (
+          <h1
+            className={`text-xl font-semibold text-foreground ${
+              isAdmin && !isClosed
+                ? 'cursor-text hover:underline hover:decoration-muted-foreground/50 transition-all'
+                : ''
+            }`}
+            onClick={handleStartEditing}
+            title={isAdmin && !isClosed ? 'Click to edit board name' : undefined}
+            role={isAdmin && !isClosed ? 'button' : undefined}
+            tabIndex={isAdmin && !isClosed ? 0 : undefined}
+            onKeyDown={
+              isAdmin && !isClosed
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleStartEditing();
+                    }
+                  }
+                : undefined
+            }
+          >
+            {boardName}
+          </h1>
+        )}
         {isClosed && (
           <div className="flex items-center gap-1 text-muted-foreground" title="Board is closed">
             <Lock className="h-4 w-4" aria-hidden="true" />
             <span className="text-sm">Closed</span>
           </div>
-        )}
-        {isAdmin && !isClosed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleOpenEditDialog}
-            aria-label="Edit board name"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
         )}
       </div>
 
@@ -197,47 +267,6 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
           />
         )}
       </div>
-
-      {/* Edit Title Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Board Name</DialogTitle>
-            <DialogDescription>Enter a new name for this retrospective board.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={editedTitle}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedTitle(e.target.value)}
-              placeholder="Board name"
-              aria-label="Board name"
-              aria-invalid={!!editError}
-              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter' && !isSubmitting) {
-                  handleEditSubmit();
-                }
-              }}
-            />
-            {editError && (
-              <p className="mt-2 text-sm text-destructive" role="alert">
-                {editError}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleEditSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Close Board Confirmation Dialog */}
       <Dialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>

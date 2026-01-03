@@ -127,7 +127,7 @@ export class CardController {
 
   /**
    * DELETE /cards/:id
-   * Delete a card (creator only)
+   * Delete a card (creator only, or admin override)
    */
   deleteCard = async (
     req: AuthenticatedRequest,
@@ -137,7 +137,7 @@ export class CardController {
     try {
       const { id } = req.params;
 
-      await this.cardService.deleteCard(id, req.hashedCookieId);
+      await this.cardService.deleteCard(id, req.hashedCookieId, req.isAdminOverride);
 
       res.status(204).send();
     } catch (error) {

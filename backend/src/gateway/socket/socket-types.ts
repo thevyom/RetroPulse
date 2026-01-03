@@ -104,6 +104,7 @@ export interface ReactionAddedPayload {
   reactionType: 'thumbs_up';
   directCount: number;
   aggregatedCount: number;
+  parentCardId: string | null;
 }
 
 export interface ReactionRemovedPayload {
@@ -112,6 +113,7 @@ export interface ReactionRemovedPayload {
   userAlias: string | null;
   directCount: number;
   aggregatedCount: number;
+  parentCardId: string | null;
 }
 
 export type ReactionEventType = 'reaction:added' | 'reaction:removed';

@@ -377,8 +377,169 @@ export async function getReactionCount(page: Page, content: string): Promise<num
 }
 
 // ============================================================================
+// WebSocket Connection Helpers
+// ============================================================================
+
+/**
+ * Wait for WebSocket connection to be established
+ * This helps stabilize multi-user tests by ensuring the socket is connected
+ * before performing actions that depend on real-time sync.
+ */
+export async function waitForWebSocketConnection(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 10000 } = options;
+
+  // Wait for the board to be fully loaded with columns and interactive elements
+  // The "No participants yet" message disappears once WebSocket registers the user
+  await page.waitForFunction(
+    () => {
+      // Check for column headings (indicates board loaded)
+      const columnHeadings = document.querySelectorAll('h2');
+      if (columnHeadings.length < 3) return false;
+
+      // Check that "No participants yet" message is gone (WebSocket registered user)
+      const noParticipantsText = document.body.textContent?.includes('No participants yet');
+      if (noParticipantsText) return false;
+
+      return true;
+    },
+    { timeout }
+  );
+
+  // Additional small delay to ensure WebSocket event handlers are registered
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Wait for a specific number of participants to be visible
+ * Useful for multi-user tests that need to verify all users have joined
+ */
+export async function waitForParticipantCount(
+  page: Page,
+  expectedCount: number,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = 15000 } = options;
+
+  await page.waitForFunction(
+    ({ count }) => {
+      const avatars = document.querySelectorAll('[data-testid^="participant-avatar"]');
+      // Count user avatars (exclude All Users and Anonymous buttons)
+      const userAvatars = Array.from(avatars).filter(
+        (el) => el.getAttribute('data-avatar-type') === 'user'
+      );
+      return userAvatars.length >= count;
+    },
+    { count: expectedCount },
+    { timeout }
+  );
+}
+
+// ============================================================================
 // Drag and Drop Operations
 // ============================================================================
+
+/**
+ * Perform drag-and-drop using keyboard shortcuts.
+ *
+ * @dnd-kit's KeyboardSensor responds to:
+ * - Space/Enter: Pick up the draggable item
+ * - Arrow keys: Move the item
+ * - Space/Enter: Drop the item
+ * - Escape: Cancel the drag
+ *
+ * This is more reliable in Playwright than mouse-based dragging because
+ * @dnd-kit's PointerSensor expects native pointer* events, but Playwright
+ * dispatches mouse* events.
+ */
+export async function dndKitDragWithKeyboard(
+  page: Page,
+  sourceLocator: Locator,
+  direction: 'up' | 'down' | 'left' | 'right',
+  steps: number = 1
+): Promise<void> {
+  // Find the drag handle within the source card
+  const dragHandle = sourceLocator.locator('[data-testid="card-header"]').first();
+
+  // Wait for element to be visible and focusable
+  await dragHandle.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Focus the drag handle
+  await dragHandle.focus();
+  await page.waitForTimeout(100);
+
+  // Pick up the item with Space
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(200);
+
+  // Move in the specified direction
+  const arrowKey = {
+    up: 'ArrowUp',
+    down: 'ArrowDown',
+    left: 'ArrowLeft',
+    right: 'ArrowRight',
+  }[direction];
+
+  for (let i = 0; i < steps; i++) {
+    await page.keyboard.press(arrowKey);
+    await page.waitForTimeout(100);
+  }
+
+  // Drop the item with Space
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Perform drag-and-drop to link cards using keyboard navigation.
+ * Uses Tab/Shift+Tab to navigate between drop targets after picking up.
+ */
+export async function dndKitLinkCardsWithKeyboard(
+  page: Page,
+  sourceLocator: Locator,
+  targetLocator: Locator
+): Promise<void> {
+  // Find the drag handle within the source card
+  const dragHandle = sourceLocator.locator('[data-testid="card-header"]').first();
+
+  // Wait for both elements to be visible
+  await dragHandle.waitFor({ state: 'visible', timeout: 5000 });
+  await targetLocator.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Focus the drag handle
+  await dragHandle.focus();
+  await page.waitForTimeout(100);
+
+  // Pick up the item with Space
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+
+  // Navigate to the target using Tab - @dnd-kit cycles through valid drop targets
+  // We'll try multiple tabs to find the target card
+  const maxTabs = 20;
+  for (let i = 0; i < maxTabs; i++) {
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(100);
+
+    // Check if the currently focused drop target matches our target
+    const focused = await page.evaluate(() => {
+      const active = document.activeElement;
+      return active?.getAttribute('data-testid') || active?.id || '';
+    });
+
+    // If we're over the target card, break
+    const targetId = await targetLocator.getAttribute('id').catch(() => null);
+    if (targetId && focused.includes(targetId.replace('card-', ''))) {
+      break;
+    }
+  }
+
+  // Drop the item with Space
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+}
 
 /**
  * Perform drag-and-drop using Playwright's native pointer events.
@@ -729,26 +890,36 @@ export async function waitForCardUnlinked(
  *
  * When a card is nested inside a parent, we need to find the specific
  * unlink button that is sibling to the child's content text.
+ *
+ * DOM structure:
+ * <div class="rounded-md border-l-2..."> <!-- child container -->
+ *   <div class="flex items-center gap-1"> <!-- flex row with buttons -->
+ *     <button aria-label="Unlink child card">...</button>
+ *     ...reaction button...
+ *   </div>
+ *   <p>child content</p>
+ * </div>
  */
 export async function clickUnlinkForNestedChild(
   page: Page,
   childContent: string,
   options: { timeout?: number } = {}
 ): Promise<void> {
-  const { timeout = 5000 } = options;
+  const { timeout = 10000 } = options;
 
-  // Find the specific nested child section that contains the child content
-  // The structure is: div > [unlink button, reaction button] + paragraph with content
-  // We need to find the unlink button that is a sibling of the paragraph containing childContent
+  // Find the child container that has both the unlink button and the child content
+  // The container is a div with class containing "rounded-md" that has the child content
+  const childContainer = page.locator('div.rounded-md').filter({
+    has: page.getByText(childContent, { exact: false }),
+  }).first();
 
-  // First, find the paragraph containing the child content
-  const childParagraph = page.locator('p').filter({ hasText: childContent }).first();
-  await childParagraph.waitFor({ state: 'visible', timeout });
+  await childContainer.waitFor({ state: 'visible', timeout });
 
-  // The unlink button is in a sibling div, which is a previous sibling of the paragraph
-  // Navigate to the parent container, then find the unlink button
-  const childContainer = childParagraph.locator('..');
+  // Find the unlink button within this container
   const unlinkButton = childContainer.getByRole('button', { name: 'Unlink child card' });
+
+  // Wait for button to be visible (should be visible for non-closed boards)
+  await unlinkButton.waitFor({ state: 'visible', timeout: 5000 });
 
   await unlinkButton.click();
 
@@ -800,25 +971,6 @@ export async function waitForReactionCount(
       return false;
     },
     { cardText: cardContent, expected: expectedCount },
-    { timeout }
-  );
-}
-
-/**
- * Wait for participant count to reach expected value
- */
-export async function waitForParticipantCount(
-  page: Page,
-  expectedCount: number,
-  options: { timeout?: number } = {}
-): Promise<void> {
-  const { timeout = 10000 } = options;
-  await page.waitForFunction(
-    (expected) => {
-      const avatars = document.querySelectorAll('[data-testid^="participant-avatar"]');
-      return avatars.length >= expected;
-    },
-    expectedCount,
     { timeout }
   );
 }
