@@ -396,7 +396,11 @@ export function useCardViewModel(
       // For parent_of link type: sourceId is parent, targetId is child
       // Update store with new link - aggregated count updates immediately
       if (event.linkType === 'parent_of') {
-        linkChildStore(event.sourceId, event.targetId);
+        // UTB-029: Idempotent check - only apply if not already linked
+        const child = cardsMap.get(event.targetId);
+        if (!child?.parent_card_id || child.parent_card_id !== event.sourceId) {
+          linkChildStore(event.sourceId, event.targetId);
+        }
       }
     };
 
@@ -408,7 +412,11 @@ export function useCardViewModel(
       // For parent_of link type: sourceId is parent, targetId is child
       // Update store to remove link - aggregated count updates immediately
       if (event.linkType === 'parent_of') {
-        unlinkChildStore(event.sourceId, event.targetId);
+        // UTB-029: Idempotent check - only apply if currently linked
+        const child = cardsMap.get(event.targetId);
+        if (child?.parent_card_id === event.sourceId) {
+          unlinkChildStore(event.sourceId, event.targetId);
+        }
       }
     };
 
@@ -515,6 +523,7 @@ export function useCardViewModel(
     unlinkChildStore,
     checkCardQuota,
     checkReactionQuota,
+    cardsMap, // UTB-029: Added for idempotent checks in link/unlink handlers
   ]);
 
   // ============================================================================
@@ -746,15 +755,15 @@ export function useCardViewModel(
           target_card_id: childId,
           link_type: 'parent_of',
         });
-        // Refresh to get updated aggregation
-        await fetchCards();
+        // UTB-029: Socket event 'card:linked' handles store update - no fetchCards() needed
+        // This prevents race condition that caused duplicate cards
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to link cards';
         setOperationError(message);
         throw err;
       }
     },
-    [board?.state, cardsMap, fetchCards]
+    [board?.state, cardsMap]
   );
 
   const handleUnlinkChild = useCallback(
@@ -779,15 +788,15 @@ export function useCardViewModel(
           target_card_id: childId,
           link_type: 'parent_of',
         });
-        // Refresh to get updated aggregation
-        await fetchCards();
+        // UTB-029: Socket event 'card:unlinked' handles store update - no fetchCards() needed
+        // This prevents race condition that caused duplicate cards
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to unlink card';
         setOperationError(message);
         throw err;
       }
     },
-    [board?.state, cardsMap, fetchCards]
+    [board?.state, cardsMap]
   );
 
   const handleLinkActionToFeedback = useCallback(

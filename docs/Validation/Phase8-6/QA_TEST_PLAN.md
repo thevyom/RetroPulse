@@ -1,8 +1,16 @@
-# Phase 8.6 QA Test Plan
+# Phase 8.6 QA Test Plan - Bug Fixes
 
 **Created**: 2026-01-03
-**Status**: Draft - Pending Implementation
+**Updated**: 2026-01-05
+**Status**: Ready for Testing
 **Author**: Principal Engineer (QA Perspective)
+
+---
+
+## Scope Change Notice
+
+> **Reorganization**: Avatar System v2 tests have been moved to Phase 8.7 QA Test Plan.
+> This plan now covers only the 4 bug fixes.
 
 ---
 
@@ -10,19 +18,19 @@
 
 ### 1.1 In Scope
 
-| Category | Description | Test Level |
-|----------|-------------|------------|
+| Bug ID | Description | Test Level |
+|--------|-------------|------------|
 | UTB-029 | Card linking creates duplicates | Unit + E2E |
 | UTB-030 | New participant alias not shown | Unit + E2E |
-| UTB-031 | Close Board tooltip | Unit + E2E |
+| UTB-031 | Close Board tooltip missing | E2E |
 | UTB-032 | Card header alignment | Visual + E2E |
-| Avatar System v2 | Complete participant bar redesign | Unit + Integration + E2E |
 
-### 1.2 Out of Scope
+### 1.2 Out of Scope (Moved to Phase 8.7)
 
-- Performance testing (deferred)
-- Multi-browser compatibility (Chromium only)
-- Load testing with many participants
+- Avatar System v2 redesign
+- MeSection component
+- Context menu functionality
+- Alias prompt modal
 
 ---
 
@@ -117,81 +125,9 @@ INCORRECT:
 
 ---
 
-## 3. Feature Test Cases: Avatar System v2
+## 3. Test Environment
 
-### 3.1 Status Indicators
-
-| Test ID | Test Name | Type | Expected Result |
-|---------|-----------|------|-----------------|
-| AVT-001 | Admin avatar shows gold fill | Unit + E2E | Gold background color |
-| AVT-002 | Non-admin avatar shows accent fill | Unit + E2E | Blue/accent background |
-| AVT-003 | Online user shows green ring | E2E | 2px green ring visible |
-| AVT-004 | Offline user shows no ring | E2E | No ring visible |
-| AVT-005 | Selected avatar shows thick ring + scale | E2E | 3px ring + scale(1.1) |
-
-### 3.2 MeSection Component
-
-| Test ID | Test Name | Type | Expected Result |
-|---------|-----------|------|-----------------|
-| ME-001 | MeSection positioned on right | E2E | After divider, right side |
-| ME-002 | Avatar shows current user initials | E2E | Matches alias initials |
-| ME-003 | Gold fill if current user is admin | E2E | Correct color |
-| ME-004 | Green ring always present (self=online) | E2E | Ring visible |
-| ME-005 | Alias displayed next to avatar | E2E | Full alias text |
-| ME-006 | Edit button triggers alias dialog | E2E | Dialog opens |
-| ME-007 | Clicking avatar filters to own cards | E2E | Only user's cards shown |
-
-### 3.3 Alias Prompt Modal
-
-| Test ID | Test Name | Type | Expected Result |
-|---------|-----------|------|-----------------|
-| ALIAS-001 | Modal appears for new users (no cookie) | E2E | Modal blocks board view |
-| ALIAS-002 | Modal not shown for returning users | E2E | Direct board access |
-| ALIAS-003 | Empty alias prevents submission | E2E | Button disabled |
-| ALIAS-004 | Valid alias enables submission | E2E | Button enabled |
-| ALIAS-005 | Submit creates session and joins board | E2E | Board loads, cookie set |
-| ALIAS-006 | Modal cannot be dismissed without alias | E2E | No close button, no esc |
-| ALIAS-007 | Alias 1-50 chars only | Unit | Validation works |
-
-### 3.4 Admin Management (Context Menu)
-
-| Test ID | Test Name | Type | Expected Result |
-|---------|-----------|------|-----------------|
-| CTX-001 | Right-click opens context menu | E2E | Menu visible |
-| CTX-002 | Click outside closes menu | E2E | Menu hidden |
-| CTX-003 | Escape closes menu | E2E | Menu hidden |
-| CTX-004 | "Filter by user" option always present | E2E | Option visible |
-| CTX-005 | "Make Admin" visible for admins viewing non-admin | E2E | Option visible |
-| CTX-006 | "Make Admin" hidden for non-admins | E2E | Option not present |
-| CTX-007 | "Make Admin" hidden when viewing admin | E2E | Option not present |
-| CTX-008 | Make Admin promotes user successfully | E2E | Avatar turns gold |
-| CTX-009 | Long-press opens menu on touch (500ms) | E2E | Menu visible on tablet |
-| CTX-010 | Normal tap filters, doesn't open menu | E2E | Filter applied, no menu |
-
-### 3.5 Other Participants Section
-
-| Test ID | Test Name | Type | Expected Result |
-|---------|-----------|------|-----------------|
-| PART-001 | Current user NOT in other participants list | E2E | Only in MeSection |
-| PART-002 | Other participants scrollable when overflow | E2E | Horizontal scroll appears |
-| PART-003 | No scroll when few participants | E2E | No scrollbar visible |
-| PART-004 | Clicking participant avatar filters cards | E2E | Filter applied |
-| PART-005 | Divider visible between sections | E2E | Vertical line present |
-
-### 3.6 Removed Features
-
-| Test ID | Test Name | Type | Expected Result |
-|---------|-----------|------|-----------------|
-| REM-001 | MyUserCard removed from header | E2E | No user card top-right |
-| REM-002 | AdminDropdown button removed | E2E | No dropdown button |
-| REM-003 | Presence dot removed (ring instead) | E2E | No dot indicator |
-| REM-004 | Crown icon removed | E2E | No crown on avatars |
-
----
-
-## 4. Test Environment
-
-### 4.1 Required Setup
+### 3.1 Required Setup
 
 | Component | Requirement |
 |-----------|-------------|
@@ -200,110 +136,66 @@ INCORRECT:
 | MongoDB | Docker container with test data |
 | Browser | Chromium via Playwright |
 
-### 4.2 Multi-User Testing Setup
+### 3.2 Multi-User Testing Setup
 
-For UTB-030 and participant tests:
+For UTB-030 participant tests:
 1. Browser A: Main test context
 2. Browser B: Incognito/new context for second user
 3. Both connected to same board via WebSocket
 
 ---
 
-## 5. Test Execution Plan
+## 4. Test Execution
 
-### 5.1 Phase 1: Bug Fixes (Parallel)
-
-```bash
-# UTB-029 tests
-npm run test:run -- tests/unit/features/card/cardLinking.test.ts
-npm run test:e2e -- 06-parent-child-cards.spec.ts
-
-# UTB-030 tests
-npm run test:run -- tests/unit/features/participant/participantSocket.test.ts
-npm run test:e2e -- --grep "participant joins"
-
-# UTB-031 tests
-npm run test:e2e -- --grep "close board tooltip"
-
-# UTB-032 tests (visual)
-npm run test:e2e -- --grep "card header alignment"
-```
-
-### 5.2 Phase 2: Avatar System v2
+### 4.1 Commands
 
 ```bash
-# Unit tests
-npm run test:run -- tests/unit/features/participant/
-
-# Integration tests
-npm run test:run -- tests/integration/participantBar.test.ts
+# Unit tests for bug fixes
+cd frontend && npm run test:run -- --grep "UTB-029\|UTB-030"
 
 # E2E tests
-npm run test:e2e -- 12-participant-bar.spec.ts
+cd frontend && npm run test:e2e -- --grep "card linking\|participant\|close board\|card header"
+
+# Full suite
+cd frontend && npm run test:run
+cd frontend && npm run test:e2e
 ```
 
-### 5.3 Phase 3: Full Regression
+### 4.2 Test Files
 
-```bash
-# Full E2E suite
-npm run test:e2e
-
-# Full unit suite
-npm run test:run
-```
+| Bug | Unit Test File | E2E Test File |
+|-----|----------------|---------------|
+| UTB-029 | `tests/unit/features/card/viewmodels/useCardViewModel.test.ts` | `tests/e2e/06-parent-child-cards.spec.ts` |
+| UTB-030 | `tests/unit/features/participant/viewmodels/useParticipantViewModel.test.ts` | `tests/e2e/12-participant-bar.spec.ts` |
+| UTB-031 | N/A | `tests/e2e/02-board-lifecycle.spec.ts` |
+| UTB-032 | N/A | `tests/e2e/03-card-management.spec.ts` |
 
 ---
 
-## 6. Acceptance Criteria
+## 5. Acceptance Criteria
 
-### 6.1 Pass Thresholds
+### 5.1 Pass Thresholds
 
 | Metric | Threshold |
 |--------|-----------|
-| E2E Pass Rate | ≥90% |
-| Unit Test Pass Rate | 100% |
 | Bug Fix Tests | 100% pass |
-| New Feature Tests | 100% pass |
+| Unit Test Pass Rate | 100% |
+| E2E Pass Rate | ≥90% |
 
-### 6.2 Sign-off Requirements
+### 5.2 Sign-off Requirements
 
 - [ ] All UTB-029 tests pass (card linking fixed)
 - [ ] All UTB-030 tests pass (participant alias fixed)
 - [ ] All UTB-031 tests pass (tooltip added)
 - [ ] All UTB-032 tests pass (alignment fixed)
-- [ ] All Avatar System v2 tests pass
 - [ ] Regression tests show no new failures
-- [ ] Visual QA review complete
 - [ ] QA engineer sign-off
 
 ---
 
-## 7. Test Data Requirements
+## 6. Regression Tests
 
-### 7.1 Pre-seeded Scenarios
-
-| Scenario | Board State | Users |
-|----------|-------------|-------|
-| Card Linking | 2 feedback cards | 1 user |
-| Participant Join | Empty board | Dynamic |
-| Admin Actions | 1 admin, 2 regular | 3 users |
-| Avatar Display | Various aliases | 5 users |
-
-### 7.2 User Aliases for Testing
-
-| Alias | Expected Initials | Admin |
-|-------|-------------------|-------|
-| John Smith | JS | Yes |
-| Alice Wonderland | AW | No |
-| Bob | B | No |
-| X | X | No |
-| Mary Jane Watson | MW | No |
-
----
-
-## 8. Regression Tests
-
-### 8.1 Must-Pass from Previous Phases
+### 6.1 Must-Pass from Previous Phases
 
 | Suite | Tests | Critical |
 |-------|-------|----------|
@@ -312,27 +204,17 @@ npm run test:run
 | 06-parent-child-cards | 12 | Yes |
 | 11-bug-regression | All | Yes |
 
-### 8.2 Areas at Risk
+### 6.2 Areas at Risk
 
 | Area | Risk | Mitigation |
 |------|------|------------|
-| Card filtering | Avatar changes may break | Keep filter buttons functional |
-| WebSocket events | Socket handler changes | Update all affected handlers |
-| Participant store | State structure changes | Backward-compatible updates |
+| Card store | Link changes may affect state | Verify cardsMap integrity |
+| WebSocket events | Field name changes | Update all affected handlers |
+| Participant store | Socket handler changes | Test multi-user scenarios |
 
 ---
 
-## 9. Known Limitations
-
-| Limitation | Impact | Workaround |
-|------------|--------|------------|
-| Multi-browser testing complex | Participant tests may be flaky | Use Playwright contexts |
-| WebSocket timing | Events may race | Add explicit waits |
-| Touch events in E2E | Long-press hard to simulate | Use dispatchEvent |
-
----
-
-## 10. Test Artifacts
+## 7. Test Artifacts
 
 | Artifact | Location |
 |----------|----------|
@@ -340,9 +222,15 @@ npm run test:run
 | E2E Videos | frontend/test-results/*/video.webm |
 | Coverage Report | frontend/coverage/ |
 | Test Report | frontend/playwright-report/ |
-| Bug Fix Reports | docs/Validation/Phase8-6/BugFixReport_*.md |
 
 ---
 
-*QA Test Plan by Principal Engineer - 2026-01-03*
-*Pending implementation and QA verification*
+## 8. Next Phase
+
+After Phase 8.6 QA complete, proceed to:
+- **Phase 8.7 QA**: Avatar System v2 testing
+
+---
+
+*QA Test Plan by Principal Engineer - Updated 2026-01-05*
+*Ready for testing*

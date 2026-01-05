@@ -61,10 +61,7 @@ vi.mock('@/features/board/components/SortBar', () => ({
         >
           Sort: {sortMode}
         </button>
-        <button
-          onClick={onToggleDirection}
-          data-testid="sort-direction-button"
-        >
+        <button onClick={onToggleDirection} data-testid="sort-direction-button">
           Direction: {sortDirection}
         </button>
       </div>
@@ -103,8 +100,12 @@ const mockCardVM = {
   reactionQuota: null,
   canCreateCard: true,
   canReact: true,
-  get sortMode() { return currentSortMode; },
-  get sortDirection() { return currentSortDirection; },
+  get sortMode() {
+    return currentSortMode;
+  },
+  get sortDirection() {
+    return currentSortDirection;
+  },
   filters: { showAll: true, showAnonymous: true, selectedUsers: [] },
   sortedFilteredCards: [],
   checkCardQuota: vi.fn(),
@@ -134,7 +135,13 @@ const mockCardVM = {
 
 const mockParticipantVM = {
   activeUsers: [],
-  currentUser: { cookie_hash: 'test-user', alias: 'Test User', is_admin: false, last_active_at: '', created_at: '' },
+  currentUser: {
+    cookie_hash: 'test-user',
+    alias: 'Test User',
+    is_admin: false,
+    last_active_at: '',
+    created_at: '',
+  },
   isLoading: false,
   error: null,
   showAll: true,
@@ -241,9 +248,7 @@ describe('RetroBoardPage Re-render Optimization (UTB-010)', () => {
       id: 'board-1',
       name: 'Test Board',
       state: 'active',
-      columns: [
-        { id: 'col-1', name: 'Went Well', color: '#22c55e' },
-      ],
+      columns: [{ id: 'col-1', name: 'Went Well', color: '#22c55e' }],
       admins: ['hash-1'],
       active_users: [],
       shareable_link: 'http://example.com/boards/board-1',
@@ -351,17 +356,8 @@ describe('RetroBoardPage Re-render Optimization (UTB-010)', () => {
       }
     });
 
-    it('should pass stable onUpdateAlias callback to header', async () => {
-      const { RetroBoardHeader } = await import('@/features/board/components/RetroBoardHeader');
-
-      renderWithRouter();
-
-      const mockedHeader = RetroBoardHeader as unknown as ReturnType<typeof vi.fn>;
-      if (mockedHeader.mock?.calls?.length > 0) {
-        const firstRenderProps = mockedHeader.mock.calls[0][0];
-        expect(typeof firstRenderProps.onUpdateAlias).toBe('function');
-      }
-    });
+    // Note: onUpdateAlias is not a prop of RetroBoardHeader - alias editing is handled
+    // in ParticipantBar/MeSection via context menu (see Phase 8.7 Avatar System v2)
 
     it('should pass stable onPromoteToAdmin callback to participant bar', async () => {
       const { ParticipantBar } = await import('@/features/participant/components/ParticipantBar');
