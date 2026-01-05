@@ -246,25 +246,21 @@ export function useParticipantViewModel(
       }
     };
 
-    const handleUserLeft = (event: { board_id: string; alias: string }) => {
-      if (event.board_id === boardId) {
+    const handleUserLeft = (event: { boardId: string; userAlias: string }) => {
+      if (event.boardId === boardId) {
         // Mark user as offline
-        setUserOffline(event.alias);
+        setUserOffline(event.userAlias);
         // User left events might require refreshing the list
         fetchActiveUsers();
       }
     };
 
-    const handleAliasChanged = (event: {
-      board_id: string;
-      old_alias: string;
-      new_alias: string;
-    }) => {
-      if (event.board_id === boardId) {
+    const handleAliasChanged = (event: { boardId: string; oldAlias: string; newAlias: string }) => {
+      if (event.boardId === boardId) {
         // Update alias in active users list using fresh state to avoid stale closure
         const currentUsers = useUserStore.getState().activeUsers;
         const updatedUsers = currentUsers.map((user) =>
-          user.alias === event.old_alias ? { ...user, alias: event.new_alias } : user
+          user.alias === event.oldAlias ? { ...user, alias: event.newAlias } : user
         );
         setActiveUsers(updatedUsers);
       }

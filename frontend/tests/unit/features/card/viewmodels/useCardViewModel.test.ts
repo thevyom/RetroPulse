@@ -737,16 +737,16 @@ describe('useCardViewModel', () => {
       });
 
       act(() => {
-        result.current.toggleUserFilter('hash-user-1');
+        result.current.toggleUserFilter('TestUser');
       });
 
       expect(result.current.filters.showAll).toBe(false);
-      expect(result.current.filters.selectedUsers).toContain('hash-user-1');
+      expect(result.current.filters.selectedUsers).toContain('TestUser');
 
-      // Only user-1's cards should be shown (card-1 and card-3)
+      // Only TestUser's cards should be shown (card-1 and card-3)
       expect(result.current.sortedFilteredCards.length).toBe(2);
       expect(
-        result.current.sortedFilteredCards.every((c) => c.created_by_hash === 'hash-user-1')
+        result.current.sortedFilteredCards.every((c) => c.created_by_alias === 'TestUser')
       ).toBe(true);
     });
 
@@ -760,7 +760,7 @@ describe('useCardViewModel', () => {
       // Set some filters
       act(() => {
         result.current.toggleAnonymousFilter();
-        result.current.toggleUserFilter('hash-user-1');
+        result.current.toggleUserFilter('TestUser');
       });
 
       expect(result.current.filters.showAnonymous).toBe(false);
@@ -787,14 +787,14 @@ describe('useCardViewModel', () => {
 
       // Toggle off (adds user to selectedUsers)
       act(() => {
-        result.current.toggleUserFilter('hash-user-1');
+        result.current.toggleUserFilter('TestUser');
       });
 
       expect(result.current.filters.showAll).toBe(false);
 
       // Clear selected users
       act(() => {
-        result.current.toggleUserFilter('hash-user-1');
+        result.current.toggleUserFilter('TestUser');
       });
 
       // showAll should still be false but selectedUsers empty

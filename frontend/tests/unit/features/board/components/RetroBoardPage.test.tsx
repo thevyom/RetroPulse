@@ -379,11 +379,11 @@ describe('RetroBoardPage', () => {
       mockBoardVM.board = mockBoard;
       // When filtering by user, the viewmodel returns only cards from that user
       // The component just renders what cardsByColumn gives it
-      const filteredCards = mockCards.filter(c => c.created_by_hash === 'user-1');
+      const filteredCards = mockCards.filter((c) => c.created_by_alias === 'User One');
       mockCardVM.cardsByColumn = new Map([['col-1', filteredCards]]);
       mockParticipantVM.showAnonymous = true;
       mockParticipantVM.showAll = false;
-      mockParticipantVM.selectedUsers = ['user-1'];
+      mockParticipantVM.selectedUsers = ['User One'];
 
       renderWithRouter();
 

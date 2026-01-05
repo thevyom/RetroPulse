@@ -73,7 +73,7 @@ export interface UseCardViewModelResult {
   toggleSortDirection: () => void;
   toggleAllUsersFilter: () => void;
   toggleAnonymousFilter: () => void;
-  toggleUserFilter: (userHash: string) => void;
+  toggleUserFilter: (alias: string) => void;
   clearFilters: () => void;
 }
 
@@ -165,6 +165,7 @@ export function useCardViewModel(
   const storeError = useCardStore((state) => state.error);
   const addCard = useCardStore((state) => state.addCard);
   const updateCard = useCardStore((state) => state.updateCard);
+  const upsertCard = useCardStore((state) => state.upsertCard);
   const removeCard = useCardStore((state) => state.removeCard);
   const setCardsWithChildren = useCardStore((state) => state.setCardsWithChildren);
   const moveCardStore = useCardStore((state) => state.moveCard);
@@ -339,30 +340,30 @@ export function useCardViewModel(
       checkCardQuota().catch(() => {});
     };
 
-    const handleCardUpdated = (event: { card_id: string; content: string }) => {
-      updateCard(event.card_id, { content: event.content });
+    const handleCardUpdated = (event: { cardId: string; content: string }) => {
+      updateCard(event.cardId, { content: event.content });
     };
 
-    const handleCardDeleted = (event: { card_id: string }) => {
-      removeCard(event.card_id);
+    const handleCardDeleted = (event: { cardId: string }) => {
+      removeCard(event.cardId);
       // Refresh quota after card deletion
       checkCardQuota().catch(() => {});
     };
 
-    const handleCardMoved = (event: { card_id: string; column_id: string }) => {
-      moveCardStore(event.card_id, event.column_id);
+    const handleCardMoved = (event: { cardId: string; columnId: string }) => {
+      moveCardStore(event.cardId, event.columnId);
     };
 
-    const handleReactionAdded = (event: { card_id: string; parent_card_id?: string | null }) => {
-      incrementReactionCount(event.card_id);
+    const handleReactionAdded = (event: { cardId: string; parentCardId?: string | null }) => {
+      incrementReactionCount(event.cardId);
       // If card has parent but store doesn't know it, update parent's aggregate directly
-      if (event.parent_card_id) {
-        const card = cardsMap.get(event.card_id);
+      if (event.parentCardId) {
+        const card = cardsMap.get(event.cardId);
         if (!card?.parent_card_id) {
           // Card in store doesn't have parent linked - update parent aggregate directly
-          const parent = cardsMap.get(event.parent_card_id);
+          const parent = cardsMap.get(event.parentCardId);
           if (parent) {
-            updateCard(event.parent_card_id, {
+            updateCard(event.parentCardId, {
               aggregated_reaction_count: parent.aggregated_reaction_count + 1,
             });
           }
@@ -372,16 +373,16 @@ export function useCardViewModel(
       checkReactionQuota().catch(() => {});
     };
 
-    const handleReactionRemoved = (event: { card_id: string; parent_card_id?: string | null }) => {
-      decrementReactionCount(event.card_id);
+    const handleReactionRemoved = (event: { cardId: string; parentCardId?: string | null }) => {
+      decrementReactionCount(event.cardId);
       // If card has parent but store doesn't know it, update parent's aggregate directly
-      if (event.parent_card_id) {
-        const card = cardsMap.get(event.card_id);
+      if (event.parentCardId) {
+        const card = cardsMap.get(event.cardId);
         if (!card?.parent_card_id) {
           // Card in store doesn't have parent linked - update parent aggregate directly
-          const parent = cardsMap.get(event.parent_card_id);
+          const parent = cardsMap.get(event.parentCardId);
           if (parent) {
-            updateCard(event.parent_card_id, {
+            updateCard(event.parentCardId, {
               aggregated_reaction_count: Math.max(0, parent.aggregated_reaction_count - 1),
             });
           }
@@ -391,20 +392,92 @@ export function useCardViewModel(
       checkReactionQuota().catch(() => {});
     };
 
-    const handleCardLinked = (event: { source_card_id: string; target_card_id: string; link_type: string }) => {
-      // For parent_of link type: source_card_id is parent, target_card_id is child
+    const handleCardLinked = (event: { sourceId: string; targetId: string; linkType: string }) => {
+      // For parent_of link type: sourceId is parent, targetId is child
       // Update store with new link - aggregated count updates immediately
-      if (event.link_type === 'parent_of') {
-        linkChildStore(event.source_card_id, event.target_card_id);
+      if (event.linkType === 'parent_of') {
+        linkChildStore(event.sourceId, event.targetId);
       }
     };
 
-    const handleCardUnlinked = (event: { source_card_id: string; target_card_id: string; link_type: string }) => {
-      // For parent_of link type: source_card_id is parent, target_card_id is child
+    const handleCardUnlinked = (event: {
+      sourceId: string;
+      targetId: string;
+      linkType: string;
+    }) => {
+      // For parent_of link type: sourceId is parent, targetId is child
       // Update store to remove link - aggregated count updates immediately
-      if (event.link_type === 'parent_of') {
-        unlinkChildStore(event.source_card_id, event.target_card_id);
+      if (event.linkType === 'parent_of') {
+        unlinkChildStore(event.sourceId, event.targetId);
       }
+    };
+
+    // Handler for card refresh events - used after link/unlink to sync full card state
+    const handleCardRefresh = (event: {
+      boardId: string;
+      card: {
+        id: string;
+        boardId: string;
+        columnId: string;
+        content: string;
+        cardType: 'feedback' | 'action';
+        isAnonymous: boolean;
+        createdByAlias: string | null;
+        createdAt: string;
+        updatedAt: string | null;
+        directReactionCount: number;
+        aggregatedReactionCount: number;
+        parentCardId: string | null;
+        linkedFeedbackIds: string[];
+        children: Array<{
+          id: string;
+          content: string;
+          isAnonymous: boolean;
+          createdByAlias: string | null;
+          createdAt: string;
+          directReactionCount: number;
+          aggregatedReactionCount: number;
+        }>;
+        linkedFeedbackCards: Array<{
+          id: string;
+          content: string;
+          createdByAlias: string | null;
+          createdAt: string;
+        }>;
+      };
+    }) => {
+      // Transform socket payload (camelCase) to Card structure (snake_case)
+      const card: Card = {
+        id: event.card.id,
+        board_id: event.card.boardId,
+        column_id: event.card.columnId,
+        content: event.card.content,
+        card_type: event.card.cardType,
+        is_anonymous: event.card.isAnonymous,
+        created_by_hash: '', // Not sent via socket
+        created_by_alias: event.card.createdByAlias,
+        created_at: event.card.createdAt,
+        direct_reaction_count: event.card.directReactionCount,
+        aggregated_reaction_count: event.card.aggregatedReactionCount,
+        parent_card_id: event.card.parentCardId,
+        linked_feedback_ids: event.card.linkedFeedbackIds,
+        children: event.card.children?.map((child) => ({
+          id: child.id,
+          content: child.content,
+          is_anonymous: child.isAnonymous,
+          created_by_alias: child.createdByAlias,
+          created_at: child.createdAt,
+          direct_reaction_count: child.directReactionCount,
+          aggregated_reaction_count: child.aggregatedReactionCount,
+        })),
+        linked_feedback_cards: event.card.linkedFeedbackCards?.map((lfc) => ({
+          id: lfc.id,
+          content: lfc.content,
+          created_by_alias: lfc.createdByAlias,
+          created_at: lfc.createdAt,
+        })),
+      };
+      upsertCard(card);
     };
 
     // Subscribe to events
@@ -416,6 +489,7 @@ export function useCardViewModel(
     socketService.on('reaction:removed', handleReactionRemoved);
     socketService.on('card:linked', handleCardLinked);
     socketService.on('card:unlinked', handleCardUnlinked);
+    socketService.on('card:refresh', handleCardRefresh);
 
     return () => {
       socketService.off('card:created', handleCardCreated);
@@ -426,11 +500,13 @@ export function useCardViewModel(
       socketService.off('reaction:removed', handleReactionRemoved);
       socketService.off('card:linked', handleCardLinked);
       socketService.off('card:unlinked', handleCardUnlinked);
+      socketService.off('card:refresh', handleCardRefresh);
     };
   }, [
     boardId,
     addCard,
     updateCard,
+    upsertCard,
     removeCard,
     moveCardStore,
     incrementReactionCount,
@@ -869,12 +945,12 @@ export function useCardViewModel(
     }));
   }, []);
 
-  const toggleUserFilter = useCallback((userHash: string) => {
+  const toggleUserFilter = useCallback((alias: string) => {
     setFilters((prev) => {
-      const isSelected = prev.selectedUsers.includes(userHash);
+      const isSelected = prev.selectedUsers.includes(alias);
       const newSelectedUsers = isSelected
-        ? prev.selectedUsers.filter((h) => h !== userHash)
-        : [...prev.selectedUsers, userHash];
+        ? prev.selectedUsers.filter((a) => a !== alias)
+        : [...prev.selectedUsers, alias];
 
       return {
         ...prev,

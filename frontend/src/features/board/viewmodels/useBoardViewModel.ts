@@ -126,16 +126,16 @@ export function useBoardViewModel(
     if (!boardId) return;
 
     // Handler for board renamed event
-    const handleBoardRenamed = (event: { board_id: string; name: string }) => {
-      if (event.board_id === boardId) {
+    const handleBoardRenamed = (event: { boardId: string; name: string }) => {
+      if (event.boardId === boardId) {
         updateBoardName(event.name);
       }
     };
 
     // Handler for board closed event
-    const handleBoardClosed = (event: { board_id: string; closed_at: string }) => {
-      if (event.board_id === boardId) {
-        closeBoard(event.closed_at);
+    const handleBoardClosed = (event: { boardId: string; closedAt: string }) => {
+      if (event.boardId === boardId) {
+        closeBoard(event.closedAt);
       }
     };
 

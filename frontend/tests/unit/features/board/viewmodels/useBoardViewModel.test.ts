@@ -574,7 +574,7 @@ describe('useBoardViewModel', () => {
     it('should update board name when board:renamed event is received', async () => {
       vi.mocked(BoardAPI.getBoard).mockResolvedValue(mockBoard);
 
-      let renamedHandler: ((event: { board_id: string; name: string }) => void) | undefined;
+      let renamedHandler: ((event: { boardId: string; name: string }) => void) | undefined;
       vi.mocked(socketService.on).mockImplementation((event, handler) => {
         if (event === 'board:renamed') {
           renamedHandler = handler as typeof renamedHandler;
@@ -589,7 +589,7 @@ describe('useBoardViewModel', () => {
 
       // Simulate socket event
       act(() => {
-        renamedHandler?.({ board_id: 'board-123', name: 'Socket Updated Name' });
+        renamedHandler?.({ boardId: 'board-123', name: 'Socket Updated Name' });
       });
 
       expect(result.current.board?.name).toBe('Socket Updated Name');
@@ -598,7 +598,7 @@ describe('useBoardViewModel', () => {
     it('should update board state when board:closed event is received', async () => {
       vi.mocked(BoardAPI.getBoard).mockResolvedValue(mockBoard);
 
-      let closedHandler: ((event: { board_id: string; closed_at: string }) => void) | undefined;
+      let closedHandler: ((event: { boardId: string; closedAt: string }) => void) | undefined;
       vi.mocked(socketService.on).mockImplementation((event, handler) => {
         if (event === 'board:closed') {
           closedHandler = handler as typeof closedHandler;
@@ -615,7 +615,7 @@ describe('useBoardViewModel', () => {
 
       // Simulate socket event
       act(() => {
-        closedHandler?.({ board_id: 'board-123', closed_at: '2025-12-28T13:00:00Z' });
+        closedHandler?.({ boardId: 'board-123', closedAt: '2025-12-28T13:00:00Z' });
       });
 
       expect(result.current.isClosed).toBe(true);
@@ -625,7 +625,7 @@ describe('useBoardViewModel', () => {
     it('should ignore socket events for different board', async () => {
       vi.mocked(BoardAPI.getBoard).mockResolvedValue(mockBoard);
 
-      let renamedHandler: ((event: { board_id: string; name: string }) => void) | undefined;
+      let renamedHandler: ((event: { boardId: string; name: string }) => void) | undefined;
       vi.mocked(socketService.on).mockImplementation((event, handler) => {
         if (event === 'board:renamed') {
           renamedHandler = handler as typeof renamedHandler;
@@ -640,7 +640,7 @@ describe('useBoardViewModel', () => {
 
       // Simulate socket event for different board
       act(() => {
-        renamedHandler?.({ board_id: 'other-board', name: 'Should Not Update' });
+        renamedHandler?.({ boardId: 'other-board', name: 'Should Not Update' });
       });
 
       // Should still have original name

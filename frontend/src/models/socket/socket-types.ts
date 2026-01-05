@@ -80,29 +80,35 @@ export interface CardCreatedEvent extends BaseEvent {
 }
 
 export interface CardUpdatedEvent extends BaseEvent {
-  card_id: string;
+  cardId: string;
+  boardId: string;
   content: string;
+  updatedAt: string;
 }
 
 export interface CardDeletedEvent extends BaseEvent {
-  card_id: string;
+  cardId: string;
+  boardId: string;
 }
 
 export interface CardMovedEvent extends BaseEvent {
-  card_id: string;
-  column_id: string;
+  cardId: string;
+  boardId: string;
+  columnId: string;
 }
 
 export interface CardLinkedEvent extends BaseEvent {
-  source_card_id: string;
-  target_card_id: string;
-  link_type: LinkType;
+  sourceId: string;
+  targetId: string;
+  boardId: string;
+  linkType: LinkType;
 }
 
 export interface CardUnlinkedEvent extends BaseEvent {
-  source_card_id: string;
-  target_card_id: string;
-  link_type: LinkType;
+  sourceId: string;
+  targetId: string;
+  boardId: string;
+  linkType: LinkType;
 }
 
 /**
@@ -145,29 +151,37 @@ export interface CardRefreshEvent extends BaseEvent {
 
 // Reaction Events
 export interface ReactionAddedEvent extends BaseEvent {
-  card_id: string;
-  user_alias: string;
-  reaction_type: string;
+  cardId: string;
+  boardId: string;
+  userAlias: string | null;
+  reactionType: 'thumbs_up';
+  directCount: number;
+  aggregatedCount: number;
+  parentCardId: string | null;
 }
 
 export interface ReactionRemovedEvent extends BaseEvent {
-  card_id: string;
-  user_alias: string;
+  cardId: string;
+  boardId: string;
+  userAlias: string | null;
+  directCount: number;
+  aggregatedCount: number;
+  parentCardId: string | null;
 }
 
 // Board Events
 export interface BoardRenamedEvent extends BaseEvent {
-  board_id: string;
+  boardId: string;
   name: string;
 }
 
 export interface BoardClosedEvent extends BaseEvent {
-  board_id: string;
-  closed_at: string;
+  boardId: string;
+  closedAt: string;
 }
 
 export interface BoardDeletedEvent extends BaseEvent {
-  board_id: string;
+  boardId: string;
 }
 
 // User Events
@@ -178,14 +192,14 @@ export interface UserJoinedEvent extends BaseEvent {
 }
 
 export interface UserLeftEvent extends BaseEvent {
-  board_id: string;
-  alias: string;
+  boardId: string;
+  userAlias: string;
 }
 
 export interface UserAliasChangedEvent extends BaseEvent {
-  board_id: string;
-  old_alias: string;
-  new_alias: string;
+  boardId: string;
+  oldAlias: string;
+  newAlias: string;
 }
 
 // ============================================================================
