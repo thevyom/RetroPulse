@@ -18,8 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { MyUserCard } from '../../user/components/MyUserCard';
-import type { UserSession } from '@/models/types';
 import { validateBoardName } from '@/shared/validation';
 
 // ============================================================================
@@ -30,10 +28,8 @@ export interface RetroBoardHeaderProps {
   boardName: string;
   isAdmin: boolean;
   isClosed: boolean;
-  currentUser: UserSession | null;
   onEditTitle: (newTitle: string) => Promise<void>;
   onCloseBoard: () => Promise<void>;
-  onUpdateAlias: (newAlias: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -44,10 +40,8 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
   boardName,
   isAdmin,
   isClosed,
-  currentUser,
   onEditTitle,
   onCloseBoard,
-  onUpdateAlias,
 }: RetroBoardHeaderProps) {
   // Dialog states
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
@@ -124,7 +118,7 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
     }
   };
 
-  const handleTitleBlur = (e: FocusEvent<HTMLInputElement>) => {
+  const handleTitleBlur = (_e: FocusEvent<HTMLInputElement>) => {
     // Prevent save on blur if clicking inside the header (e.g., for validation feedback)
     // Only save if actually leaving the input
     if (!isSubmitting) {
@@ -229,15 +223,24 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
       <div className="flex items-center gap-3">
         {/* Admin Controls */}
         {isAdmin && !isClosed && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsCloseDialogOpen(true)}
-            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <X className="mr-1 h-4 w-4" />
-            Close Board
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCloseDialogOpen(true)}
+                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <X className="mr-1 h-4 w-4" />
+                  Close Board
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p>Makes the board read-only. No new cards, edits, or reactions allowed. This action cannot be undone.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         {/* Copy Link Button - visible on both active and closed boards */}
@@ -257,15 +260,6 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
             <TooltipContent>Copy board link</TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
-        {/* Current User Card */}
-        {currentUser && (
-          <MyUserCard
-            uuid={currentUser.cookie_hash}
-            alias={currentUser.alias}
-            onUpdateAlias={onUpdateAlias}
-          />
-        )}
       </div>
 
       {/* Close Board Confirmation Dialog */}
@@ -273,9 +267,17 @@ export const RetroBoardHeader = memo(function RetroBoardHeader({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Close Board?</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. The board will become read-only and no new cards or
-              reactions can be added.
+            <DialogDescription asChild>
+              <div>
+                <p className="mb-2">Closing the board makes it permanently read-only:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>No new cards can be created</li>
+                  <li>Existing cards cannot be edited or deleted</li>
+                  <li>Reactions are locked</li>
+                  <li>Aliases cannot be changed</li>
+                </ul>
+                <p className="mt-3 font-medium">This is useful for archiving completed retrospectives. This action cannot be undone.</p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

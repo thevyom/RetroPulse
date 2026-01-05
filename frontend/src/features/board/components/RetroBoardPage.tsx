@@ -232,10 +232,8 @@ function BoardContent({ boardId }: BoardContentProps) {
         boardName={board.name}
         isAdmin={isAdmin}
         isClosed={isClosed}
-        currentUser={participantVM.currentUser}
         onEditTitle={handleRenameBoard}
         onCloseBoard={handleCloseBoard}
-        onUpdateAlias={participantVM.handleUpdateAlias}
       />
 
       {/* Participant Bar and Sort Bar */}
@@ -244,8 +242,7 @@ function BoardContent({ boardId }: BoardContentProps) {
           activeUsers={participantVM.activeUsers}
           currentUserHash={participantVM.currentUser?.cookie_hash ?? ''}
           currentUserAlias={participantVM.currentUser?.alias}
-          isCreator={participantVM.isCurrentUserCreator}
-          admins={board.admins}
+          currentUserIsAdmin={isAdmin}
           showAll={participantVM.showAll}
           showAnonymous={participantVM.showAnonymous}
           showOnlyAnonymous={participantVM.showOnlyAnonymous}

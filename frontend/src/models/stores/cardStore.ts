@@ -19,6 +19,7 @@ interface CardStoreState {
   // Actions
   addCard: (card: Card) => void;
   updateCard: (cardId: string, updates: Partial<Card>) => void;
+  upsertCard: (card: Card) => void;
   removeCard: (cardId: string) => void;
   setCards: (cards: Card[]) => void;
   setCardsWithChildren: (cards: Card[]) => void;
@@ -69,6 +70,14 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
         ...updates,
         children: updates.children ?? card.children,
       });
+      return { cards: newCards };
+    }),
+
+  upsertCard: (card) =>
+    set((state) => {
+      const newCards = new Map(state.cards);
+      // Full replace - used for card:refresh events with complete card data
+      newCards.set(card.id, card);
       return { cards: newCards };
     }),
 
@@ -208,17 +217,23 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
 
   linkChild: (parentId, childId) =>
     set((state) => {
+      if (import.meta.env.DEV) console.log('[DEBUG] cardStore.linkChild called:', { parentId, childId });
       const parent = state.cards.get(parentId);
       const child = state.cards.get(childId);
-      if (!parent || !child) return state;
+      if (!parent || !child) {
+        if (import.meta.env.DEV) console.log('[DEBUG] cardStore.linkChild - parent or child not found');
+        return state;
+      }
 
       const newCards = new Map(state.cards);
 
       // Update child's parent_card_id
-      newCards.set(childId, {
+      const updatedChild = {
         ...child,
         parent_card_id: parentId,
-      });
+      };
+      newCards.set(childId, updatedChild);
+      if (import.meta.env.DEV) console.log('[DEBUG] cardStore.linkChild - updated child:', { childId, parent_card_id: updatedChild.parent_card_id });
 
       // Create CardChild from child card
       const childEntry: CardChild = {
@@ -236,28 +251,36 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
       const newAggregatedCount =
         parent.aggregated_reaction_count + child.aggregated_reaction_count;
 
-      newCards.set(parentId, {
+      const updatedParent = {
         ...parent,
         children: [...existingChildren, childEntry],
         aggregated_reaction_count: newAggregatedCount,
-      });
+      };
+      newCards.set(parentId, updatedParent);
+      if (import.meta.env.DEV) console.log('[DEBUG] cardStore.linkChild - updated parent:', { parentId, childrenCount: updatedParent.children?.length });
 
       return { cards: newCards };
     }),
 
   unlinkChild: (parentId, childId) =>
     set((state) => {
+      if (import.meta.env.DEV) console.log('[DEBUG] cardStore.unlinkChild called:', { parentId, childId });
       const parent = state.cards.get(parentId);
       const child = state.cards.get(childId);
-      if (!parent || !child) return state;
+      if (!parent || !child) {
+        if (import.meta.env.DEV) console.log('[DEBUG] cardStore.unlinkChild - parent or child not found');
+        return state;
+      }
 
       const newCards = new Map(state.cards);
 
       // Update child: remove parent_card_id
-      newCards.set(childId, {
+      const updatedChild = {
         ...child,
         parent_card_id: null,
-      });
+      };
+      newCards.set(childId, updatedChild);
+      if (import.meta.env.DEV) console.log('[DEBUG] cardStore.unlinkChild - updated child:', { childId, parent_card_id: updatedChild.parent_card_id });
 
       // Update parent: remove child from children array and subtract aggregated count
       const existingChildren = parent.children ?? [];
@@ -267,11 +290,13 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
         parent.aggregated_reaction_count - child.aggregated_reaction_count
       );
 
-      newCards.set(parentId, {
+      const updatedParent = {
         ...parent,
         children: newChildren,
         aggregated_reaction_count: newAggregatedCount,
-      });
+      };
+      newCards.set(parentId, updatedParent);
+      if (import.meta.env.DEV) console.log('[DEBUG] cardStore.unlinkChild - updated parent:', { parentId, childrenCount: updatedParent.children?.length });
 
       return { cards: newCards };
     }),

@@ -1,6 +1,6 @@
 import express, { Express } from 'express';
 import cookieParser from 'cookie-parser';
-import { authMiddleware, errorHandler, notFoundHandler } from '@/shared/middleware/index.js';
+import { authMiddleware, adminOverrideMiddleware, errorHandler, notFoundHandler } from '@/shared/middleware/index.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 
 /**
@@ -12,6 +12,9 @@ export function createTestApp(): Express {
 
   app.use(express.json());
   app.use(cookieParser('test-secret'));
+
+  // Admin override middleware (for X-Admin-Secret header support in tests)
+  app.use('/v1', adminOverrideMiddleware);
 
   // Auth middleware for /v1 routes
   app.use('/v1', (req, res, next) => {

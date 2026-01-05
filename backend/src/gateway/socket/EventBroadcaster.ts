@@ -17,6 +17,7 @@ import type {
   CardMovedPayload,
   CardLinkedPayload,
   CardUnlinkedPayload,
+  CardRefreshPayload,
   ReactionAddedPayload,
   ReactionRemovedPayload,
   UserJoinedPayload,
@@ -44,6 +45,7 @@ export interface IEventBroadcaster {
   cardMoved(payload: CardMovedPayload): void;
   cardLinked(payload: CardLinkedPayload): void;
   cardUnlinked(payload: CardUnlinkedPayload): void;
+  cardRefresh(payload: CardRefreshPayload): void;
 
   // Reaction events
   reactionAdded(payload: ReactionAddedPayload): void;
@@ -110,6 +112,10 @@ export class EventBroadcaster implements IEventBroadcaster {
     this.broadcast(payload.boardId, 'card:unlinked', payload);
   }
 
+  cardRefresh(payload: CardRefreshPayload): void {
+    this.broadcast(payload.boardId, 'card:refresh', payload);
+  }
+
   // ===== Reaction Events =====
 
   reactionAdded(payload: ReactionAddedPayload): void {
@@ -149,6 +155,7 @@ export class NoOpEventBroadcaster implements IEventBroadcaster {
   cardMoved(): void {}
   cardLinked(): void {}
   cardUnlinked(): void {}
+  cardRefresh(): void {}
   reactionAdded(): void {}
   reactionRemoved(): void {}
   userJoined(): void {}

@@ -662,6 +662,7 @@ describe('CardService', () => {
       const childId = new ObjectId();
       const parentDoc = { ...mockCardDoc, _id: parentId };
       const childDoc = { ...mockCardDoc, _id: childId, parent_card_id: parentId, direct_reaction_count: 2 };
+      const adminHash = 'creator-hash'; // This is in mockBoardDoc.admins
 
       vi.mocked(mockCardRepository.findById!)
         .mockResolvedValueOnce(parentDoc)
@@ -673,7 +674,7 @@ describe('CardService', () => {
       await service.unlinkCards(
         parentId.toHexString(),
         { target_card_id: childId.toHexString(), link_type: 'parent_of' },
-        userHash
+        adminHash // Only admin can unlink
       );
 
       expect(mockCardRepository.setParentCard).toHaveBeenCalledWith(childId.toHexString(), null);

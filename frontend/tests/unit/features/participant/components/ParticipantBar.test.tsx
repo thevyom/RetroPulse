@@ -1,5 +1,6 @@
 /**
  * ParticipantBar Component Tests
+ * Updated for Avatar System v2 (Phase 8.6)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -27,22 +28,32 @@ const mockActiveUsers: ActiveUser[] = [
     last_active_at: '2025-01-01T00:00:00Z',
     created_at: '2025-01-01T00:00:00Z',
   },
+  {
+    alias: 'CurrentUser',
+    is_admin: false,
+    last_active_at: '2025-01-01T00:00:00Z',
+    created_at: '2025-01-01T00:00:00Z',
+  },
 ];
 
 describe('ParticipantBar', () => {
   const defaultProps = {
     activeUsers: mockActiveUsers,
     currentUserHash: 'user-hash-1',
-    isCreator: false,
-    admins: ['admin-hash-1'],
+    currentUserAlias: 'CurrentUser',
+    currentUserIsAdmin: false,
     showAll: true,
     showAnonymous: true,
     showOnlyAnonymous: false,
+    showOnlyMe: false,
     selectedUsers: [] as string[],
+    onlineAliases: new Set<string>(['Alice', 'Bob', 'CurrentUser']),
     onToggleAllUsers: vi.fn(),
     onToggleAnonymous: vi.fn(),
+    onToggleMe: vi.fn(),
     onToggleUser: vi.fn(),
     onPromoteToAdmin: vi.fn().mockResolvedValue(undefined),
+    onUpdateAlias: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
@@ -85,18 +96,21 @@ describe('ParticipantBar', () => {
   });
 
   describe('User Avatars', () => {
-    it('should render avatars for all active users', () => {
+    it('should render avatars for other active users (not current user)', () => {
       render(<ParticipantBar {...defaultProps} />);
 
+      // Other users should be visible
       expect(screen.getByLabelText(/filter by alice/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/filter by bob/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/filter by charlie/i)).toBeInTheDocument();
+      // Current user should be in MeSection, not in the participant list
     });
 
-    it('should show "No participants yet" when no active users', () => {
-      render(<ParticipantBar {...defaultProps} activeUsers={[]} />);
+    it('should show "No other participants" when only current user exists', () => {
+      const onlyCurrentUser = [mockActiveUsers.find((u) => u.alias === 'CurrentUser')!];
+      render(<ParticipantBar {...defaultProps} activeUsers={onlyCurrentUser} />);
 
-      expect(screen.getByText(/no participants yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/no other participants/i)).toBeInTheDocument();
     });
 
     it('should call onToggleUser when user avatar is clicked', async () => {
@@ -129,17 +143,44 @@ describe('ParticipantBar', () => {
     });
   });
 
-  describe('Admin Dropdown', () => {
-    it('should show admin dropdown for creator', () => {
-      render(<ParticipantBar {...defaultProps} isCreator={true} />);
+  describe('MeSection', () => {
+    it('should show MeSection with current user alias', () => {
+      render(<ParticipantBar {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /manage admins/i })).toBeInTheDocument();
+      expect(screen.getByTestId('me-section')).toBeInTheDocument();
+      expect(screen.getByTestId('me-alias')).toHaveTextContent('CurrentUser');
     });
 
-    it('should not show admin dropdown for non-creator', () => {
-      render(<ParticipantBar {...defaultProps} isCreator={false} />);
+    it('should call onToggleMe when MeSection avatar is clicked', async () => {
+      const user = userEvent.setup();
+      render(<ParticipantBar {...defaultProps} />);
+
+      await user.click(screen.getByTestId('me-avatar'));
+
+      expect(defaultProps.onToggleMe).toHaveBeenCalled();
+    });
+
+    it('should show edit button in MeSection', () => {
+      render(<ParticipantBar {...defaultProps} />);
+
+      expect(screen.getByTestId('edit-alias-button')).toBeInTheDocument();
+    });
+  });
+
+  describe('Admin Context Menu (replaces AdminDropdown)', () => {
+    it('should not render AdminDropdown button (removed in v2)', () => {
+      render(<ParticipantBar {...defaultProps} />);
 
       expect(screen.queryByRole('button', { name: /manage admins/i })).not.toBeInTheDocument();
+    });
+
+    it('should render participant avatars with correct aria-labels for filtering', () => {
+      render(<ParticipantBar {...defaultProps} currentUserIsAdmin={true} />);
+
+      // Avatars should be present and clickable for filtering
+      expect(screen.getByLabelText(/filter by alice/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/filter by bob/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/filter by charlie/i)).toBeInTheDocument();
     });
   });
 
@@ -236,25 +277,25 @@ describe('ParticipantBar', () => {
       expect(container).toHaveClass('overflow-x-auto');
     });
 
-    it('should have max-width constraint on avatar container', () => {
+    it('should use flex-1 for natural sizing (no fixed max-width)', () => {
       render(<ParticipantBar {...defaultProps} />);
 
       const container = screen.getByTestId('participant-avatar-container');
-      expect(container).toHaveClass('max-w-[280px]');
+      expect(container).toHaveClass('flex-1');
+      expect(container).toHaveClass('min-w-0');
     });
 
     it('should render all participants when there are many (10+)', () => {
-      const manyUsers = generateManyUsers(15);
+      const manyUsers = [...generateManyUsers(15), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
-      // All 15 users should be rendered (accessible via scroll)
-      // Use getAllByLabelText to verify all users are present
+      // All 15 other users should be rendered (CurrentUser is in MeSection)
       const allUserAvatars = screen.getAllByLabelText(/filter by user\d+/i);
       expect(allUserAvatars).toHaveLength(15);
     });
 
     it('should keep filter controls accessible with many participants', () => {
-      const manyUsers = generateManyUsers(20);
+      const manyUsers = [...generateManyUsers(20), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
       // Filter controls should still be visible and accessible
@@ -262,12 +303,12 @@ describe('ParticipantBar', () => {
       expect(screen.getByLabelText(/filter by anonymous/i)).toBeInTheDocument();
     });
 
-    it('should keep admin dropdown accessible with many participants', () => {
-      const manyUsers = generateManyUsers(20);
-      render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} isCreator={true} />);
+    it('should keep MeSection accessible with many participants', () => {
+      const manyUsers = [...generateManyUsers(20), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
+      render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
-      // Admin dropdown should still be visible
-      expect(screen.getByRole('button', { name: /manage admins/i })).toBeInTheDocument();
+      // MeSection should still be visible
+      expect(screen.getByTestId('me-section')).toBeInTheDocument();
     });
 
     it('should have scrollbar styling classes', () => {
@@ -281,7 +322,7 @@ describe('ParticipantBar', () => {
 
     it('should allow clicking on participants in scrollable area', async () => {
       const user = userEvent.setup();
-      const manyUsers = generateManyUsers(15);
+      const manyUsers = [...generateManyUsers(15), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
       // Click on a user that would be in the scrollable area

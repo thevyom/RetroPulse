@@ -21,7 +21,7 @@ export class ReactionController {
       const input = req.body as AddReactionInput;
       const userHash = req.hashedCookieId;
 
-      const reaction = await this.reactionService.addReaction(cardId, input, userHash);
+      const reaction = await this.reactionService.addReaction(cardId!, input, userHash!);
 
       sendSuccess(res, reaction, 201);
     } catch (error) {
@@ -42,7 +42,7 @@ export class ReactionController {
       const { id: cardId } = req.params;
       const userHash = req.hashedCookieId;
 
-      await this.reactionService.removeReaction(cardId, userHash);
+      await this.reactionService.removeReaction(cardId!, userHash!);
 
       res.status(204).send();
     } catch (error) {
@@ -64,7 +64,7 @@ export class ReactionController {
       // Allow checking quota for another user (admin use case)
       const userHash = (req.query.created_by_hash as string) || req.hashedCookieId;
 
-      const quota = await this.reactionService.getReactionQuota(boardId, userHash);
+      const quota = await this.reactionService.getReactionQuota(boardId!, userHash!);
 
       sendSuccess(res, quota);
     } catch (error) {

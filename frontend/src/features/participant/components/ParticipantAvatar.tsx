@@ -4,7 +4,7 @@
  */
 
 import { memo } from 'react';
-import { Crown, Ghost, User, Users } from 'lucide-react';
+import { Ghost, User, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -76,7 +76,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         return <User className="h-4 w-4" />;
       case 'user':
       default:
-        return <span className="text-xs font-semibold leading-none tracking-tight">{alias ? getInitials(alias) : '??'}</span>;
+        return <span className="text-sm font-semibold leading-none tracking-tight">{alias ? getInitials(alias) : '??'}</span>;
     }
   };
 
@@ -100,10 +100,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         <button
           type="button"
           onClick={onClick}
-          className={cn(
-            'relative rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
-            isSelected && 'ring-2 ring-primary ring-offset-2'
-          )}
+          className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           aria-label={`Filter by ${getTooltipText()}`}
           aria-pressed={isSelected}
           data-testid={type === 'user' ? `participant-avatar-${alias?.replace(/\s+/g, '-').toLowerCase()}` : `${type}-avatar`}
@@ -111,35 +108,22 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         >
           <Avatar
             className={cn(
-              'h-8 w-8 cursor-pointer transition-opacity hover:opacity-80',
+              'h-9 w-9 cursor-pointer transition-all hover:opacity-80',
+              // Filter button styles (all, anonymous, me)
               type === 'all' && 'bg-primary text-primary-foreground',
               type === 'anonymous' && 'bg-muted text-muted-foreground',
               type === 'me' && 'bg-blue-500 text-white',
-              type === 'user' && 'bg-accent text-accent-foreground'
+              // User avatar styles - admin status determines fill color
+              type === 'user' && isAdmin && 'bg-amber-400 text-gray-800',
+              type === 'user' && !isAdmin && 'bg-accent text-accent-foreground',
+              // Online status - green ring (only for user type)
+              type === 'user' && isOnline && 'ring-2 ring-green-500',
+              // Selection state - thicker ring + scale
+              isSelected && 'ring-[3px] ring-primary scale-110'
             )}
           >
             <AvatarFallback className="bg-inherit text-inherit">{renderContent()}</AvatarFallback>
           </Avatar>
-
-          {/* Admin Crown */}
-          {isAdmin && type === 'user' && (
-            <Crown
-              className="absolute -right-1 -top-1 h-3 w-3 text-yellow-500"
-              aria-label="Admin"
-            />
-          )}
-
-          {/* Online/Offline Presence Indicator */}
-          {type === 'user' && isOnline !== undefined && (
-            <span
-              className={cn(
-                'absolute bottom-0 right-0 h-2 w-2 rounded-full border border-background',
-                isOnline ? 'bg-green-500' : 'bg-gray-400'
-              )}
-              aria-label={isOnline ? 'Online' : 'Offline'}
-              data-testid={`presence-indicator-${alias?.replace(/\s+/g, '-').toLowerCase()}`}
-            />
-          )}
         </button>
       </TooltipTrigger>
       <TooltipContent>

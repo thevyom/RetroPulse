@@ -40,6 +40,7 @@ export interface ServerToClientEvents {
   'card:moved': (event: CardMovedEvent) => void;
   'card:linked': (event: CardLinkedEvent) => void;
   'card:unlinked': (event: CardUnlinkedEvent) => void;
+  'card:refresh': (event: CardRefreshEvent) => void;
   'reaction:added': (event: ReactionAddedEvent) => void;
   'reaction:removed': (event: ReactionRemovedEvent) => void;
   'board:renamed': (event: BoardRenamedEvent) => void;
@@ -104,6 +105,44 @@ export interface CardUnlinkedEvent extends BaseEvent {
   link_type: LinkType;
 }
 
+/**
+ * Full card data for refresh events
+ * Used after link/unlink operations to sync complete card state including relationships
+ */
+export interface CardRefreshEvent extends BaseEvent {
+  boardId: string;
+  card: {
+    id: string;
+    boardId: string;
+    columnId: string;
+    content: string;
+    cardType: 'feedback' | 'action';
+    isAnonymous: boolean;
+    createdByAlias: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+    directReactionCount: number;
+    aggregatedReactionCount: number;
+    parentCardId: string | null;
+    linkedFeedbackIds: string[];
+    children: Array<{
+      id: string;
+      content: string;
+      isAnonymous: boolean;
+      createdByAlias: string | null;
+      createdAt: string;
+      directReactionCount: number;
+      aggregatedReactionCount: number;
+    }>;
+    linkedFeedbackCards: Array<{
+      id: string;
+      content: string;
+      createdByAlias: string | null;
+      createdAt: string;
+    }>;
+  };
+}
+
 // Reaction Events
 export interface ReactionAddedEvent extends BaseEvent {
   card_id: string;
@@ -133,9 +172,9 @@ export interface BoardDeletedEvent extends BaseEvent {
 
 // User Events
 export interface UserJoinedEvent extends BaseEvent {
-  board_id: string;
-  alias: string;
-  is_admin: boolean;
+  boardId: string;
+  userAlias: string;
+  isAdmin: boolean;
 }
 
 export interface UserLeftEvent extends BaseEvent {

@@ -1190,16 +1190,13 @@ describe('Board Lifecycle E2E Tests', () => {
         });
 
       const board = createBoardResponse.body.data;
-
-      const joinResponse = await request(app)
-        .post(`/v1/boards/${board.id}/join`)
-        .send({ alias: 'User' });
-      const userCookies = joinResponse.headers['set-cookie'];
+      // Use creator cookies - creator is admin and can unlink
+      const creatorCookies = createBoardResponse.headers['set-cookie'];
 
       // Create parent and child
       const parentResponse = await request(app)
         .post(`/v1/boards/${board.id}/cards`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({
           column_id: 'col-1',
           content: 'Parent',
@@ -1210,7 +1207,7 @@ describe('Board Lifecycle E2E Tests', () => {
 
       const childResponse = await request(app)
         .post(`/v1/boards/${board.id}/cards`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({
           column_id: 'col-1',
           content: 'Child',
@@ -1222,7 +1219,7 @@ describe('Board Lifecycle E2E Tests', () => {
       // Link
       await request(app)
         .post(`/v1/cards/${parentId}/link`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({ target_card_id: childId, link_type: 'parent_of' });
 
       // Verify linked
@@ -1232,7 +1229,7 @@ describe('Board Lifecycle E2E Tests', () => {
       // Unlink
       const unlinkResponse = await request(app)
         .delete(`/v1/cards/${parentId}/link`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({ target_card_id: childId, link_type: 'parent_of' });
 
       expect(unlinkResponse.status).toBe(204);
@@ -1256,16 +1253,13 @@ describe('Board Lifecycle E2E Tests', () => {
         });
 
       const board = createBoardResponse.body.data;
-
-      const joinResponse = await request(app)
-        .post(`/v1/boards/${board.id}/join`)
-        .send({ alias: 'User' });
-      const userCookies = joinResponse.headers['set-cookie'];
+      // Use creator cookies - creator is admin and can unlink
+      const creatorCookies = createBoardResponse.headers['set-cookie'];
 
       // Create feedback and action cards
       const feedbackResponse = await request(app)
         .post(`/v1/boards/${board.id}/cards`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({
           column_id: 'col-1',
           content: 'Feedback card',
@@ -1276,7 +1270,7 @@ describe('Board Lifecycle E2E Tests', () => {
 
       const actionResponse = await request(app)
         .post(`/v1/boards/${board.id}/cards`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({
           column_id: 'col-1',
           content: 'Action card',
@@ -1288,7 +1282,7 @@ describe('Board Lifecycle E2E Tests', () => {
       // Link action to feedback
       await request(app)
         .post(`/v1/cards/${actionId}/link`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({ target_card_id: feedbackId, link_type: 'linked_to' });
 
       // Verify linked
@@ -1299,7 +1293,7 @@ describe('Board Lifecycle E2E Tests', () => {
       // Unlink
       const unlinkResponse = await request(app)
         .delete(`/v1/cards/${actionId}/link`)
-        .set('Cookie', userCookies)
+        .set('Cookie', creatorCookies)
         .send({ target_card_id: feedbackId, link_type: 'linked_to' });
 
       expect(unlinkResponse.status).toBe(204);

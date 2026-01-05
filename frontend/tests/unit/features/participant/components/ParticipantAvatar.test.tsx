@@ -208,17 +208,22 @@ describe('ParticipantAvatar', () => {
     });
   });
 
-  describe('admin indicator', () => {
-    it('should show crown icon for admin users', () => {
+  describe('admin indicator (v2: gold fill instead of crown)', () => {
+    it('should show gold fill for admin users', () => {
       renderWithProvider(<ParticipantAvatar type="user" alias="Alice" isAdmin={true} />);
 
-      expect(screen.getByLabelText('Admin')).toBeInTheDocument();
+      // Avatar System v2: Admin is indicated by gold/amber background, not crown icon
+      const avatar = screen.getByRole('button').querySelector('span');
+      expect(avatar).toHaveClass('bg-amber-400');
     });
 
-    it('should not show crown icon for non-admin users', () => {
+    it('should not show gold fill for non-admin users', () => {
       renderWithProvider(<ParticipantAvatar type="user" alias="Alice" isAdmin={false} />);
 
-      expect(screen.queryByLabelText('Admin')).not.toBeInTheDocument();
+      // Non-admin users have accent background, not amber
+      const avatar = screen.getByRole('button').querySelector('span');
+      expect(avatar).not.toHaveClass('bg-amber-400');
+      expect(avatar).toHaveClass('bg-accent');
     });
   });
 });

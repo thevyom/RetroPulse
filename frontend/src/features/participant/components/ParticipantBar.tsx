@@ -1,12 +1,26 @@
 /**
  * ParticipantBar Component
  * Displays active users as avatars with filter functionality.
+ * Layout: [All, Anon, Me] | [Participants]
  */
 
-import { memo } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
+import { memo, useState } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { ParticipantAvatar } from './ParticipantAvatar';
-import { AdminDropdown } from './AdminDropdown';
+import { MeSection } from './MeSection';
+import { AvatarContextMenu } from './AvatarContextMenu';
+import { validateAlias } from '@/shared/validation';
 import type { ActiveUser } from '@/models/types';
 
 // ============================================================================
@@ -17,8 +31,7 @@ export interface ParticipantBarProps {
   activeUsers: ActiveUser[];
   currentUserHash: string;
   currentUserAlias?: string;
-  isCreator: boolean;
-  admins: string[];
+  currentUserIsAdmin: boolean;
   showAll: boolean;
   showAnonymous: boolean;
   showOnlyAnonymous: boolean;
@@ -29,7 +42,9 @@ export interface ParticipantBarProps {
   onToggleAnonymous: () => void;
   onToggleMe: () => void;
   onToggleUser: (alias: string) => void;
-  onPromoteToAdmin: (userHash: string) => Promise<void>;
+  /** Promote a user to admin - called from context menu (Task 3.4) */
+  onPromoteToAdmin?: (alias: string) => Promise<void>;
+  onUpdateAlias: (newAlias: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -38,10 +53,9 @@ export interface ParticipantBarProps {
 
 export const ParticipantBar = memo(function ParticipantBar({
   activeUsers,
-  currentUserHash: _currentUserHash,
+  currentUserHash,
   currentUserAlias,
-  isCreator,
-  admins,
+  currentUserIsAdmin,
   showAll,
   showAnonymous: _showAnonymous,
   showOnlyAnonymous,
@@ -53,20 +67,61 @@ export const ParticipantBar = memo(function ParticipantBar({
   onToggleMe,
   onToggleUser,
   onPromoteToAdmin,
+  onUpdateAlias,
 }: ParticipantBarProps) {
   // Note: _showAnonymous is kept for backward compatibility but showOnlyAnonymous is used for visual state
   void _showAnonymous;
-  void _currentUserHash; // Kept for backward compatibility
 
-  // Filter out current user from the scrollable list (they have their own "Me" filter)
+  // Edit alias dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedAlias, setEditedAlias] = useState(currentUserAlias ?? '');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Filter out current user from the scrollable list (they appear in MeSection)
   // Use alias comparison since ActiveUser doesn't have cookie_hash
   const otherUsers = activeUsers.filter((user) => user.alias !== currentUserAlias);
 
+  // Handle opening edit dialog
+  const handleOpenEditDialog = () => {
+    setEditedAlias(currentUserAlias ?? '');
+    setEditError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle alias update submission
+  const handleEditSubmit = async () => {
+    // Validate
+    const validation = validateAlias(editedAlias);
+    if (!validation.isValid) {
+      setEditError(validation.error || 'Invalid alias');
+      return;
+    }
+
+    // Skip if unchanged
+    if (editedAlias === currentUserAlias) {
+      setIsEditDialogOpen(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setEditError(null);
+
+    try {
+      await onUpdateAlias(editedAlias);
+      setIsEditDialogOpen(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to update alias');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <TooltipProvider>
-      <nav className="flex items-center gap-3" role="toolbar" aria-label="Participant filters">
-        {/* Filter Controls Section - Always visible */}
-        <div className="flex items-center gap-1" role="group" aria-label="Filter options">
+      <nav className="flex items-center w-full" role="toolbar" aria-label="Participant filters">
+        {/* Filter Controls Section - fixed left: All, Anon, Me */}
+        <div className="flex items-center gap-2 shrink-0" role="group" aria-label="Filter options">
           {/* All Users */}
           <ParticipantAvatar
             type="all"
@@ -81,53 +136,103 @@ export const ParticipantBar = memo(function ParticipantBar({
             onClick={onToggleAnonymous}
           />
 
-          {/* Me - Current user's filter */}
-          <ParticipantAvatar
-            type="me"
-            isSelected={showOnlyMe}
-            onClick={onToggleMe}
-          />
+          {/* Me - part of filter group */}
+          {currentUserAlias && (
+            <MeSection
+              alias={currentUserAlias}
+              isAdmin={currentUserIsAdmin}
+              isSelected={showOnlyMe}
+              onFilter={onToggleMe}
+              onEditAlias={handleOpenEditDialog}
+            />
+          )}
         </div>
 
-        {/* Separator */}
-        <div className="h-6 w-px bg-border" aria-hidden="true" />
+        {/* Divider */}
+        <div className="h-6 w-px bg-border mx-3" aria-hidden="true" />
 
-        {/* Other Participants - Scrollable container */}
+        {/* Other Participants - scrollable middle */}
+        {/* Admin promotion moved to AvatarContextMenu (right-click) per Task 3.4 */}
         <div
-          className="flex items-center gap-1 overflow-x-auto max-w-[280px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+          className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
           role="group"
           aria-label="Other participants"
           data-testid="participant-avatar-container"
         >
           {otherUsers.map((user) => (
-            <ParticipantAvatar
+            <AvatarContextMenu
               key={user.alias}
-              type="user"
-              alias={user.alias}
-              isAdmin={user.is_admin}
-              isSelected={selectedUsers.includes(user.alias)}
-              isOnline={onlineAliases.has(user.alias)}
-              onClick={() => onToggleUser(user.alias)}
-            />
+              user={user}
+              isCurrentUserAdmin={currentUserIsAdmin}
+              onMakeAdmin={onPromoteToAdmin}
+              onFilterByUser={onToggleUser}
+            >
+              <ParticipantAvatar
+                type="user"
+                alias={user.alias}
+                isAdmin={user.is_admin}
+                isSelected={selectedUsers.includes(user.alias)}
+                isOnline={onlineAliases.has(user.alias)}
+                onClick={() => onToggleUser(user.alias)}
+              />
+            </AvatarContextMenu>
           ))}
 
           {otherUsers.length === 0 && (
             <span className="text-sm text-muted-foreground whitespace-nowrap">No other participants</span>
           )}
         </div>
-
-        {/* Admin Dropdown (creator only) */}
-        {isCreator && (
-          <>
-            <div className="h-6 w-px bg-border" aria-hidden="true" />
-            <AdminDropdown
-              activeUsers={activeUsers}
-              admins={admins}
-              onPromoteToAdmin={onPromoteToAdmin}
-            />
-          </>
-        )}
       </nav>
+
+      {/* Edit Alias Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Your Alias</DialogTitle>
+            <DialogDescription>
+              Choose a display name that other participants will see.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <Input
+              value={editedAlias}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedAlias(e.target.value)}
+              placeholder="Your alias"
+              aria-label="Alias"
+              aria-invalid={!!editError}
+              maxLength={50}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter' && !isSubmitting) {
+                  handleEditSubmit();
+                }
+              }}
+            />
+            {editError && (
+              <p className="text-sm text-destructive" role="alert">
+                {editError}
+              </p>
+            )}
+            {/* UUID display - moved from header per design */}
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">Your ID:</span>{' '}
+              <code className="bg-muted px-1 rounded">{currentUserHash?.slice(0, 12)}...</code>
+              <p className="text-xs mt-1">(This identifies you across sessions)</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 });

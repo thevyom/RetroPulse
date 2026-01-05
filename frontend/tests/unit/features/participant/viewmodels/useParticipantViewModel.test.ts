@@ -766,7 +766,7 @@ describe('useParticipantViewModel', () => {
 
     it('should add user when user:joined event is received', async () => {
       let joinedHandler:
-        | ((event: { board_id: string; alias: string; is_admin: boolean }) => void)
+        | ((event: { boardId: string; userAlias: string; isAdmin: boolean }) => void)
         | undefined;
       vi.mocked(socketService.on).mockImplementation((event, handler) => {
         if (event === 'user:joined') {
@@ -780,12 +780,12 @@ describe('useParticipantViewModel', () => {
         expect(result.current.activeUsers.length).toBe(3);
       });
 
-      // Simulate socket event
+      // Simulate socket event with camelCase fields (UTB-030 fix)
       act(() => {
         joinedHandler?.({
-          board_id: 'board-123',
-          alias: 'NewUser',
-          is_admin: false,
+          boardId: 'board-123',
+          userAlias: 'NewUser',
+          isAdmin: false,
         });
       });
 
@@ -794,7 +794,7 @@ describe('useParticipantViewModel', () => {
 
     it('should ignore user:joined event for different board', async () => {
       let joinedHandler:
-        | ((event: { board_id: string; alias: string; is_admin: boolean }) => void)
+        | ((event: { boardId: string; userAlias: string; isAdmin: boolean }) => void)
         | undefined;
       vi.mocked(socketService.on).mockImplementation((event, handler) => {
         if (event === 'user:joined') {
@@ -810,16 +810,81 @@ describe('useParticipantViewModel', () => {
 
       const initialCount = result.current.activeUsers.length;
 
-      // Simulate socket event for different board
+      // Simulate socket event for different board (UTB-030 fix - camelCase fields)
       act(() => {
         joinedHandler?.({
-          board_id: 'other-board',
-          alias: 'NewUser',
-          is_admin: false,
+          boardId: 'other-board',
+          userAlias: 'NewUser',
+          isAdmin: false,
         });
       });
 
       expect(result.current.activeUsers.length).toBe(initialCount);
+    });
+
+    it('should mark new user as online when user:joined event is received (UTB-030)', async () => {
+      let joinedHandler:
+        | ((event: { boardId: string; userAlias: string; isAdmin: boolean }) => void)
+        | undefined;
+      vi.mocked(socketService.on).mockImplementation((event, handler) => {
+        if (event === 'user:joined') {
+          joinedHandler = handler as typeof joinedHandler;
+        }
+      });
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.activeUsers.length).toBe(3);
+      });
+
+      // Simulate socket event with camelCase fields matching backend payload
+      act(() => {
+        joinedHandler?.({
+          boardId: 'board-123',
+          userAlias: 'NewJoiner',
+          isAdmin: false,
+        });
+      });
+
+      // Verify user was added
+      const newUser = result.current.activeUsers.find((u) => u.alias === 'NewJoiner');
+      expect(newUser).toBeDefined();
+      expect(newUser?.is_admin).toBe(false);
+
+      // Verify user is marked as online
+      expect(result.current.onlineAliases.has('NewJoiner')).toBe(true);
+    });
+
+    it('should correctly map admin status from socket event (UTB-030)', async () => {
+      let joinedHandler:
+        | ((event: { boardId: string; userAlias: string; isAdmin: boolean }) => void)
+        | undefined;
+      vi.mocked(socketService.on).mockImplementation((event, handler) => {
+        if (event === 'user:joined') {
+          joinedHandler = handler as typeof joinedHandler;
+        }
+      });
+
+      const { result } = renderHook(() => useParticipantViewModel('board-123'));
+
+      await waitFor(() => {
+        expect(result.current.activeUsers.length).toBe(3);
+      });
+
+      // Simulate admin user joining with camelCase isAdmin field
+      act(() => {
+        joinedHandler?.({
+          boardId: 'board-123',
+          userAlias: 'AdminUser',
+          isAdmin: true,
+        });
+      });
+
+      // Verify admin status is correctly mapped to snake_case in store
+      const adminUser = result.current.activeUsers.find((u) => u.alias === 'AdminUser');
+      expect(adminUser).toBeDefined();
+      expect(adminUser?.is_admin).toBe(true);
     });
   });
 

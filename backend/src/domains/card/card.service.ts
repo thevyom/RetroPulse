@@ -15,6 +15,7 @@ import {
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
+import type { CardRefreshPayload } from '@/gateway/socket/socket-types.js';
 
 export class CardService {
   private broadcaster: IEventBroadcaster;
@@ -26,6 +27,45 @@ export class CardService {
     broadcaster?: IEventBroadcaster
   ) {
     this.broadcaster = broadcaster ?? eventBroadcaster;
+  }
+
+  /**
+   * Convert CardWithRelationships to CardRefreshPayload for socket emission
+   */
+  private toCardRefreshPayload(card: CardWithRelationships): CardRefreshPayload {
+    return {
+      boardId: card.board_id,
+      card: {
+        id: card.id,
+        boardId: card.board_id,
+        columnId: card.column_id,
+        content: card.content,
+        cardType: card.card_type,
+        isAnonymous: card.is_anonymous,
+        createdByAlias: card.created_by_alias,
+        createdAt: card.created_at,
+        updatedAt: card.updated_at,
+        directReactionCount: card.direct_reaction_count,
+        aggregatedReactionCount: card.aggregated_reaction_count,
+        parentCardId: card.parent_card_id,
+        linkedFeedbackIds: card.linked_feedback_ids,
+        children: card.children.map((child) => ({
+          id: child.id,
+          content: child.content,
+          isAnonymous: child.is_anonymous,
+          createdByAlias: child.created_by_alias,
+          createdAt: child.created_at,
+          directReactionCount: child.direct_reaction_count,
+          aggregatedReactionCount: child.aggregated_reaction_count,
+        })),
+        linkedFeedbackCards: card.linked_feedback_cards.map((linked) => ({
+          id: linked.id,
+          content: linked.content,
+          createdByAlias: linked.created_by_alias,
+          createdAt: linked.created_at,
+        })),
+      },
+    };
   }
 
   /**
@@ -365,6 +405,18 @@ export class CardService {
         boardId: sourceCard.board_id.toHexString(),
         linkType: 'parent_of',
       });
+
+      // Emit card:refresh for both parent and child with full data (for post-refresh sync)
+      const [updatedParent, updatedChild] = await Promise.all([
+        this.cardRepository.findByIdWithRelationships(sourceCardId),
+        this.cardRepository.findByIdWithRelationships(input.target_card_id),
+      ]);
+      if (updatedParent) {
+        this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedParent));
+      }
+      if (updatedChild) {
+        this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedChild));
+      }
     } else if (input.link_type === 'linked_to') {
       // Action-feedback linking: source must be action, target must be feedback
       if (sourceCard.card_type !== 'action') {
@@ -392,6 +444,12 @@ export class CardService {
         boardId: sourceCard.board_id.toHexString(),
         linkType: 'linked_to',
       });
+
+      // Emit card:refresh for action card with updated linked_feedback_cards
+      const updatedAction = await this.cardRepository.findByIdWithRelationships(sourceCardId);
+      if (updatedAction) {
+        this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedAction));
+      }
     }
   }
 
@@ -456,6 +514,18 @@ export class CardService {
         boardId: sourceCard.board_id.toHexString(),
         linkType: 'parent_of',
       });
+
+      // Emit card:refresh for both former parent and unlinked child with full data
+      const [updatedParent, updatedChild] = await Promise.all([
+        this.cardRepository.findByIdWithRelationships(sourceCardId),
+        this.cardRepository.findByIdWithRelationships(input.target_card_id),
+      ]);
+      if (updatedParent) {
+        this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedParent));
+      }
+      if (updatedChild) {
+        this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedChild));
+      }
     } else if (input.link_type === 'linked_to') {
       // Remove linked feedback
       await this.cardRepository.removeLinkedFeedback(sourceCardId, input.target_card_id);
@@ -467,6 +537,12 @@ export class CardService {
         boardId: sourceCard.board_id.toHexString(),
         linkType: 'linked_to',
       });
+
+      // Emit card:refresh for action card with updated linked_feedback_cards
+      const updatedAction = await this.cardRepository.findByIdWithRelationships(sourceCardId);
+      if (updatedAction) {
+        this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedAction));
+      }
     }
   }
 

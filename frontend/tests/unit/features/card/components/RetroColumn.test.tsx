@@ -201,7 +201,7 @@ describe('RetroColumn', () => {
       expect(screen.queryByLabelText(/edit column name/i)).not.toBeInTheDocument();
     });
 
-    it('should open edit dialog when edit button is clicked', async () => {
+    it('should show inline edit input when column title is clicked', async () => {
       const user = userEvent.setup();
       render(
         <RetroColumn
@@ -213,11 +213,11 @@ describe('RetroColumn', () => {
 
       await user.click(screen.getByLabelText(/edit column name/i));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/edit column name/i)).toBeInTheDocument();
+      // Inline edit input should now be visible
+      expect(screen.getByRole('textbox', { name: /edit column name/i })).toBeInTheDocument();
     });
 
-    it('should call onEditColumnTitle when new name is submitted', async () => {
+    it('should call onEditColumnTitle when Enter is pressed', async () => {
       const user = userEvent.setup();
       const mockEditColumnTitle = vi.fn().mockResolvedValue(undefined);
       render(
@@ -229,14 +229,14 @@ describe('RetroColumn', () => {
       const input = screen.getByRole('textbox');
       await user.clear(input);
       await user.type(input, 'New Column Name');
-      await user.click(screen.getByRole('button', { name: /save/i }));
+      await user.keyboard('{Enter}');
 
       await waitFor(() => {
         expect(mockEditColumnTitle).toHaveBeenCalledWith('New Column Name');
       });
     });
 
-    it('should show validation error for empty column name', async () => {
+    it('should show toast error for empty column name', async () => {
       const user = userEvent.setup();
       render(
         <RetroColumn
@@ -250,12 +250,13 @@ describe('RetroColumn', () => {
 
       const input = screen.getByRole('textbox');
       await user.clear(input);
-      await user.click(screen.getByRole('button', { name: /save/i }));
+      await user.keyboard('{Enter}');
 
-      expect(screen.getByRole('alert')).toBeInTheDocument();
+      // Input should still be in edit mode (validation failed)
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
-    it('should close edit dialog on cancel', async () => {
+    it('should cancel edit when Escape is pressed', async () => {
       const user = userEvent.setup();
       render(
         <RetroColumn
@@ -266,12 +267,13 @@ describe('RetroColumn', () => {
       );
 
       await user.click(screen.getByLabelText(/edit column name/i));
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: /cancel/i }));
+      await user.keyboard('{Escape}');
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        // Should exit edit mode and show the original title
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
       });
     });
 
@@ -287,10 +289,11 @@ describe('RetroColumn', () => {
       const input = screen.getByRole('textbox');
       await user.clear(input);
       await user.type(input, 'New Name');
-      await user.click(screen.getByRole('button', { name: /save/i }));
+      await user.keyboard('{Enter}');
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toHaveTextContent('Failed to rename');
+        // Should still be in edit mode after error
+        expect(screen.getByRole('textbox')).toBeInTheDocument();
       });
     });
   });

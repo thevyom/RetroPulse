@@ -391,19 +391,19 @@ export function useCardViewModel(
       checkReactionQuota().catch(() => {});
     };
 
-    const handleCardLinked = (event: { sourceId: string; targetId: string; linkType: string }) => {
-      // For parent_of link type: sourceId is parent, targetId is child
+    const handleCardLinked = (event: { source_card_id: string; target_card_id: string; link_type: string }) => {
+      // For parent_of link type: source_card_id is parent, target_card_id is child
       // Update store with new link - aggregated count updates immediately
-      if (event.linkType === 'parent_of') {
-        linkChildStore(event.sourceId, event.targetId);
+      if (event.link_type === 'parent_of') {
+        linkChildStore(event.source_card_id, event.target_card_id);
       }
     };
 
-    const handleCardUnlinked = (event: { sourceId: string; targetId: string; linkType: string }) => {
-      // For parent_of link type: sourceId is parent, targetId is child
+    const handleCardUnlinked = (event: { source_card_id: string; target_card_id: string; link_type: string }) => {
+      // For parent_of link type: source_card_id is parent, target_card_id is child
       // Update store to remove link - aggregated count updates immediately
-      if (event.linkType === 'parent_of') {
-        unlinkChildStore(event.sourceId, event.targetId);
+      if (event.link_type === 'parent_of') {
+        unlinkChildStore(event.source_card_id, event.target_card_id);
       }
     };
 

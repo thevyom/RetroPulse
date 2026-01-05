@@ -15,19 +15,19 @@ export function createUserSessionRoutes(
   const router = Router({ mergeParams: true }); // mergeParams to access :id from parent
 
   // POST /boards/:id/join - Join a board
-  router.post('/join', validateBody(joinBoardSchema), controller.joinBoard as RequestHandler);
+  router.post('/join', validateBody(joinBoardSchema), controller.joinBoard as unknown as RequestHandler);
 
   // GET /boards/:id/users - Get active users
-  router.get('/users', controller.getActiveUsers as RequestHandler);
+  router.get('/users', controller.getActiveUsers as unknown as RequestHandler);
 
   // GET /boards/:id/users/me - Get current user's session
-  router.get('/users/me', controller.getCurrentUserSession as RequestHandler);
+  router.get('/users/me', controller.getCurrentUserSession as unknown as RequestHandler);
 
   // PATCH /boards/:id/users/heartbeat - Update heartbeat
-  router.patch('/users/heartbeat', controller.updateHeartbeat as RequestHandler);
+  router.patch('/users/heartbeat', controller.updateHeartbeat as unknown as RequestHandler);
 
   // PATCH /boards/:id/users/alias - Update alias
-  router.patch('/users/alias', validateBody(updateAliasSchema), controller.updateAlias as RequestHandler);
+  router.patch('/users/alias', validateBody(updateAliasSchema), controller.updateAlias as unknown as RequestHandler);
 
   return router;
 }

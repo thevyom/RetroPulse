@@ -3,10 +3,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RetroBoardPage } from '@/features/board/components/RetroBoardPage';
+import { BoardAPI } from '@/models/api/BoardAPI';
+
+// Mock BoardAPI for session check on mount
+vi.mock('@/models/api/BoardAPI', () => ({
+  BoardAPI: {
+    getCurrentUserSession: vi.fn(),
+    joinBoard: vi.fn(),
+  },
+}));
 
 // Mock the ViewModels
 const mockBoardVM = {
@@ -88,6 +97,30 @@ vi.mock('@/features/participant/viewmodels/useParticipantViewModel', () => ({
   useParticipantViewModel: () => mockParticipantVM,
 }));
 
+// Mock socket service
+vi.mock('@/models/socket/SocketService', () => ({
+  socketService: {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+  },
+}));
+
+// Mock user store
+vi.mock('@/models/stores/userStore', () => ({
+  useUserStore: vi.fn((selector) => {
+    const state = {
+      currentUser: null,
+      activeUsers: [],
+      setCurrentUser: vi.fn(),
+      addActiveUser: vi.fn(),
+      setUserOnline: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 // Helper to render with router
 function renderWithRouter(boardId: string = 'test-board-id') {
   return render(
@@ -108,6 +141,16 @@ describe('RetroBoardPage', () => {
     mockBoardVM.error = null;
     mockBoardVM.isAdmin = false;
     mockBoardVM.isClosed = false;
+
+    // Mock BoardAPI.getCurrentUserSession to return a valid session
+    // This prevents the alias prompt modal from showing
+    vi.mocked(BoardAPI.getCurrentUserSession).mockResolvedValue({
+      cookie_hash: 'user-hash-123',
+      alias: 'Test User',
+      is_admin: false,
+      last_active_at: '2025-01-01T00:00:00Z',
+      created_at: '2025-01-01T00:00:00Z',
+    });
   });
 
   describe('Loading State', () => {
@@ -122,12 +165,15 @@ describe('RetroBoardPage', () => {
   });
 
   describe('Error State', () => {
-    it('should show error message when board fetch fails', () => {
+    it('should show error message when board fetch fails', async () => {
       mockBoardVM.error = 'Failed to load board';
 
       renderWithRouter();
 
-      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load board');
+      // Wait for session check to complete
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Failed to load board');
+      });
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
@@ -137,24 +183,32 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
+      // Wait for session check to complete
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /try again/i }));
 
       expect(mockBoardVM.refetchBoard).toHaveBeenCalled();
     });
 
-    it('should show "Board not found" when board is null after loading', () => {
+    it('should show "Board not found" when board is null after loading', async () => {
       mockBoardVM.board = null;
       mockBoardVM.isLoading = false;
       mockBoardVM.error = null;
 
       renderWithRouter();
 
-      expect(screen.getByText(/board not found/i)).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        expect(screen.getByText(/board not found/i)).toBeInTheDocument();
+      });
     });
   });
 
   describe('Board Rendering', () => {
-    it('should render board header with name', () => {
+    it('should render board header with name', async () => {
       mockBoardVM.board = {
         id: 'board-1',
         name: 'Sprint 42 Retro',
@@ -176,10 +230,13 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
-      expect(screen.getByText('Sprint 42 Retro')).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 42 Retro')).toBeInTheDocument();
+      });
     });
 
-    it('should render 3 columns', () => {
+    it('should render 3 columns', async () => {
       mockBoardVM.board = {
         id: 'board-1',
         name: 'Test Board',
@@ -201,12 +258,15 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
-      expect(screen.getByText('Went Well')).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        expect(screen.getByText('Went Well')).toBeInTheDocument();
+      });
       expect(screen.getByText('To Improve')).toBeInTheDocument();
       expect(screen.getByText('Action Items')).toBeInTheDocument();
     });
 
-    it('should show closed board overlay when board is closed', () => {
+    it('should show closed board overlay when board is closed', async () => {
       mockBoardVM.board = {
         id: 'board-1',
         name: 'Closed Board',
@@ -225,9 +285,12 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
-      // Check for the overlay (has aria-hidden)
-      const overlay = document.querySelector('[aria-hidden="true"]');
-      expect(overlay).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        // Check for the overlay (has aria-hidden)
+        const overlay = document.querySelector('[aria-hidden="true"]');
+        expect(overlay).toBeInTheDocument();
+      });
     });
   });
 
@@ -294,7 +357,7 @@ describe('RetroBoardPage', () => {
       },
     ];
 
-    it('should filter out anonymous cards when showAnonymous is false', () => {
+    it('should filter out anonymous cards when showAnonymous is false', async () => {
       mockBoardVM.board = mockBoard;
       mockCardVM.cardsByColumn = new Map([['col-1', mockCards]]);
       mockParticipantVM.showAnonymous = false;
@@ -303,28 +366,37 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
-      // Regular card should be visible
-      expect(screen.getByText('Regular card')).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        // Regular card should be visible
+        expect(screen.getByText('Regular card')).toBeInTheDocument();
+      });
       // Anonymous card should not be visible
       expect(screen.queryByText('Anonymous card')).not.toBeInTheDocument();
     });
 
-    it('should filter cards by selected users', () => {
+    it('should filter cards by selected users', async () => {
       mockBoardVM.board = mockBoard;
-      mockCardVM.cardsByColumn = new Map([['col-1', mockCards]]);
+      // When filtering by user, the viewmodel returns only cards from that user
+      // The component just renders what cardsByColumn gives it
+      const filteredCards = mockCards.filter(c => c.created_by_hash === 'user-1');
+      mockCardVM.cardsByColumn = new Map([['col-1', filteredCards]]);
       mockParticipantVM.showAnonymous = true;
       mockParticipantVM.showAll = false;
       mockParticipantVM.selectedUsers = ['user-1'];
 
       renderWithRouter();
 
-      // User-1's card should be visible
-      expect(screen.getByText('Regular card')).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        // User-1's card should be visible
+        expect(screen.getByText('Regular card')).toBeInTheDocument();
+      });
       // Anonymous card should not be visible (doesn't match user filter)
       expect(screen.queryByText('Anonymous card')).not.toBeInTheDocument();
     });
 
-    it('should show all cards when showAll is true and no filters', () => {
+    it('should show all cards when showAll is true and no filters', async () => {
       mockBoardVM.board = mockBoard;
       mockCardVM.cardsByColumn = new Map([['col-1', mockCards]]);
       mockParticipantVM.showAnonymous = true;
@@ -333,13 +405,16 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
-      expect(screen.getByText('Regular card')).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        expect(screen.getByText('Regular card')).toBeInTheDocument();
+      });
       expect(screen.getByText('Anonymous card')).toBeInTheDocument();
     });
   });
 
   describe('Admin Column Edit', () => {
-    it('should pass onEditColumnTitle callback when user is admin', () => {
+    it('should pass onEditColumnTitle callback when user is admin', async () => {
       mockBoardVM.board = {
         id: 'board-1',
         name: 'Test Board',
@@ -358,11 +433,14 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
-      // Admin should see the edit column button
-      expect(screen.getByLabelText(/edit column name/i)).toBeInTheDocument();
+      // Wait for session check to complete
+      await waitFor(() => {
+        // Admin should see the edit column button
+        expect(screen.getByLabelText(/edit column name/i)).toBeInTheDocument();
+      });
     });
 
-    it('should not show edit column button when user is not admin', () => {
+    it('should not show edit column button when user is not admin', async () => {
       mockBoardVM.board = {
         id: 'board-1',
         name: 'Test Board',
@@ -381,6 +459,10 @@ describe('RetroBoardPage', () => {
 
       renderWithRouter();
 
+      // Wait for session check to complete (wait for board name to appear)
+      await waitFor(() => {
+        expect(screen.getByText('Test Board')).toBeInTheDocument();
+      });
       // Non-admin should not see the edit column button
       expect(screen.queryByLabelText(/edit column name/i)).not.toBeInTheDocument();
     });

@@ -76,13 +76,52 @@ export interface CardUnlinkedPayload {
   linkType: 'parent_of' | 'linked_to';
 }
 
+/**
+ * Full card data payload for refresh events
+ * Used after link/unlink operations to sync complete card state including relationships
+ */
+export interface CardRefreshPayload {
+  boardId: string;
+  card: {
+    id: string;
+    boardId: string;
+    columnId: string;
+    content: string;
+    cardType: 'feedback' | 'action';
+    isAnonymous: boolean;
+    createdByAlias: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+    directReactionCount: number;
+    aggregatedReactionCount: number;
+    parentCardId: string | null;
+    linkedFeedbackIds: string[];
+    children: Array<{
+      id: string;
+      content: string;
+      isAnonymous: boolean;
+      createdByAlias: string | null;
+      createdAt: string;
+      directReactionCount: number;
+      aggregatedReactionCount: number;
+    }>;
+    linkedFeedbackCards: Array<{
+      id: string;
+      content: string;
+      createdByAlias: string | null;
+      createdAt: string;
+    }>;
+  };
+}
+
 export type CardEventType =
   | 'card:created'
   | 'card:updated'
   | 'card:deleted'
   | 'card:moved'
   | 'card:linked'
-  | 'card:unlinked';
+  | 'card:unlinked'
+  | 'card:refresh';
 
 export interface CardEvent {
   type: CardEventType;
@@ -92,7 +131,8 @@ export interface CardEvent {
     | CardDeletedPayload
     | CardMovedPayload
     | CardLinkedPayload
-    | CardUnlinkedPayload;
+    | CardUnlinkedPayload
+    | CardRefreshPayload;
 }
 
 // ===== Reaction Events =====
@@ -163,6 +203,7 @@ export type EventPayload =
   | CardMovedPayload
   | CardLinkedPayload
   | CardUnlinkedPayload
+  | CardRefreshPayload
   | ReactionAddedPayload
   | ReactionRemovedPayload
   | UserJoinedPayload
@@ -202,6 +243,7 @@ export interface ServerToClientEvents {
   'card:moved': (payload: CardMovedPayload) => void;
   'card:linked': (payload: CardLinkedPayload) => void;
   'card:unlinked': (payload: CardUnlinkedPayload) => void;
+  'card:refresh': (payload: CardRefreshPayload) => void;
 
   // Reaction events
   'reaction:added': (payload: ReactionAddedPayload) => void;

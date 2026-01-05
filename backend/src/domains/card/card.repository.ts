@@ -461,10 +461,10 @@ export class CardRepository {
       return null;
     }
 
-    const doc = results[0];
+    const doc = results[0]!;
     const card = cardDocumentToCard(doc as CardDocument);
-    const childrenDocs = (doc.children_docs || []) as CardDocument[];
-    const linkedDocs = (doc.linked_feedback_docs || []) as CardDocument[];
+    const childrenDocs = ((doc as Record<string, unknown>).children_docs || []) as CardDocument[];
+    const linkedDocs = ((doc as Record<string, unknown>).linked_feedback_docs || []) as CardDocument[];
 
     return {
       ...card,
@@ -515,12 +515,12 @@ export class CardRepository {
       }
       visited.add(key);
 
-      const card = await this.collection.findOne(
+      const cardResult: Pick<CardDocument, 'parent_card_id'> | null = await this.collection.findOne(
         { _id: currentId },
         { projection: { parent_card_id: 1 } }
       );
 
-      currentId = card?.parent_card_id ?? null;
+      currentId = cardResult?.parent_card_id ?? null;
     }
 
     return false;

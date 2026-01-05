@@ -232,17 +232,17 @@ export function useParticipantViewModel(
   useEffect(() => {
     if (!boardId) return;
 
-    const handleUserJoined = (event: { board_id: string; alias: string; is_admin: boolean }) => {
-      if (event.board_id === boardId) {
+    const handleUserJoined = (event: { boardId: string; userAlias: string; isAdmin: boolean }) => {
+      if (event.boardId === boardId) {
         const newUser: ActiveUser = {
-          alias: event.alias,
-          is_admin: event.is_admin,
+          alias: event.userAlias,
+          is_admin: event.isAdmin,
           last_active_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         };
         addActiveUser(newUser);
         // Mark user as online
-        setUserOnline(event.alias);
+        setUserOnline(event.userAlias);
       }
     };
 

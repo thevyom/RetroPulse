@@ -10,6 +10,15 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RetroBoardPage } from '@/features/board/components/RetroBoardPage';
+import { BoardAPI } from '@/models/api/BoardAPI';
+
+// Mock BoardAPI for session check on mount
+vi.mock('@/models/api/BoardAPI', () => ({
+  BoardAPI: {
+    getCurrentUserSession: vi.fn(),
+    joinBoard: vi.fn(),
+  },
+}));
 
 // Track render counts for each component
 let headerRenderCount = 0;
@@ -181,6 +190,20 @@ vi.mock('@/models/socket/SocketService', () => ({
   },
 }));
 
+// Mock user store
+vi.mock('@/models/stores/userStore', () => ({
+  useUserStore: vi.fn((selector) => {
+    const state = {
+      currentUser: null,
+      activeUsers: [],
+      setCurrentUser: vi.fn(),
+      addActiveUser: vi.fn(),
+      setUserOnline: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 // Helper to render with router
 function renderWithRouter(boardId: string = 'test-board-id') {
   return render(
@@ -202,6 +225,16 @@ describe('RetroBoardPage Re-render Optimization (UTB-010)', () => {
     // Reset sort state
     currentSortMode = 'recency';
     currentSortDirection = 'desc';
+
+    // Mock BoardAPI.getCurrentUserSession to return a valid session
+    // This prevents the alias prompt modal from showing
+    vi.mocked(BoardAPI.getCurrentUserSession).mockResolvedValue({
+      cookie_hash: 'user-hash-123',
+      alias: 'Test User',
+      is_admin: false,
+      last_active_at: '2025-01-01T00:00:00Z',
+      created_at: '2025-01-01T00:00:00Z',
+    });
 
     // Setup board data
     mockBoardVM.board = {

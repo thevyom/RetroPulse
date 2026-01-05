@@ -1,7 +1,18 @@
-import { Response, NextFunction } from 'express';
+import { Response, NextFunction, RequestHandler } from 'express';
 import { CardService } from './card.service.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { sendSuccess } from '@/shared/utils/index.js';
+
+// Type assertion helper for route handlers that require authentication
+type AuthenticatedHandler = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => Promise<void>;
+
+// Cast authenticated handler to Express RequestHandler
+export const asHandler = (handler: AuthenticatedHandler): RequestHandler =>
+  handler as unknown as RequestHandler;
 
 export class CardController {
   constructor(private readonly cardService: CardService) {}
@@ -19,7 +30,7 @@ export class CardController {
       const { boardId } = req.params;
       const { column_id, created_by, include_relationships } = req.query;
 
-      const result = await this.cardService.getCards(boardId, {
+      const result = await this.cardService.getCards(boardId!, {
         columnId: column_id as string | undefined,
         createdBy: created_by as string | undefined,
         includeRelationships: include_relationships !== 'false',
@@ -45,9 +56,9 @@ export class CardController {
       const { column_id, content, card_type, is_anonymous } = req.body;
 
       const card = await this.cardService.createCard(
-        boardId,
+        boardId!,
         { column_id, content, card_type, is_anonymous },
-        req.hashedCookieId
+        req.hashedCookieId!
       );
 
       sendSuccess(res, card, 201);
@@ -72,7 +83,7 @@ export class CardController {
       // Use query param if provided, otherwise use current user's hash
       const userHash = (created_by_hash as string) || req.hashedCookieId;
 
-      const quota = await this.cardService.getCardQuota(boardId, userHash);
+      const quota = await this.cardService.getCardQuota(boardId!, userHash!);
 
       sendSuccess(res, quota);
     } catch (error) {
@@ -92,7 +103,7 @@ export class CardController {
     try {
       const { id } = req.params;
 
-      const card = await this.cardService.getCard(id);
+      const card = await this.cardService.getCard(id!);
 
       sendSuccess(res, card);
     } catch (error) {
@@ -114,9 +125,9 @@ export class CardController {
       const { content } = req.body;
 
       const card = await this.cardService.updateCard(
-        id,
+        id!,
         { content },
-        req.hashedCookieId
+        req.hashedCookieId!
       );
 
       sendSuccess(res, card);
@@ -137,7 +148,7 @@ export class CardController {
     try {
       const { id } = req.params;
 
-      await this.cardService.deleteCard(id, req.hashedCookieId, req.isAdminOverride);
+      await this.cardService.deleteCard(id!, req.hashedCookieId!, req.isAdminOverride);
 
       res.status(204).send();
     } catch (error) {
@@ -159,9 +170,9 @@ export class CardController {
       const { column_id } = req.body;
 
       const card = await this.cardService.moveCard(
-        id,
+        id!,
         { column_id },
-        req.hashedCookieId
+        req.hashedCookieId!
       );
 
       sendSuccess(res, card);
@@ -184,9 +195,9 @@ export class CardController {
       const { target_card_id, link_type } = req.body;
 
       await this.cardService.linkCards(
-        id,
+        id!,
         { target_card_id, link_type },
-        req.hashedCookieId
+        req.hashedCookieId!
       );
 
       sendSuccess(res, {
@@ -213,9 +224,9 @@ export class CardController {
       const { target_card_id, link_type } = req.body;
 
       await this.cardService.unlinkCards(
-        id,
+        id!,
         { target_card_id, link_type },
-        req.hashedCookieId
+        req.hashedCookieId!
       );
 
       res.status(204).send();

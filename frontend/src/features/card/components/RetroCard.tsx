@@ -329,10 +329,10 @@ export const RetroCard = memo(function RetroCard({
         )}
         {...attributes}
       >
-        {/* Card Header - Full width drag handle (UTB-019) */}
+        {/* Card Header - Full width drag handle (UTB-019, UTB-032: fixed alignment) */}
         <div
           className={cn(
-            'mb-2 flex items-start justify-between min-h-[30px]',
+            'mb-2 flex items-center justify-between',
             canDrag && !hasParent && 'cursor-grab active:cursor-grabbing',
             hasParent && 'cursor-default',
             canDrag && !hasParent && 'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded'

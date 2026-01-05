@@ -269,6 +269,7 @@ export const RetroColumn = memo(function RetroColumn({
             title={isAdmin && !isClosed && onEditColumnTitle ? 'Click to edit column name' : undefined}
             role={isAdmin && !isClosed && onEditColumnTitle ? 'button' : undefined}
             tabIndex={isAdmin && !isClosed && onEditColumnTitle ? 0 : undefined}
+            aria-label={isAdmin && !isClosed && onEditColumnTitle ? `Edit column name: ${title}` : undefined}
             onKeyDown={
               isAdmin && !isClosed && onEditColumnTitle
                 ? (e) => {
