@@ -4,7 +4,7 @@
  * Supports drag-and-drop via @dnd-kit.
  */
 
-import type { ChangeEvent, KeyboardEvent, FocusEvent } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import { memo, useState, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
@@ -32,9 +32,9 @@ export type ColumnType = 'went_well' | 'to_improve' | 'action_item';
 
 // Column background colors (pastel shades per spec)
 const columnBgColors: Record<ColumnType, string> = {
-  went_well: 'bg-green-50',    // #ecf9ec - light green
-  to_improve: 'bg-orange-50',  // #FFF7E8 - light orange
-  action_item: 'bg-blue-50',   // #dae8fc - light blue
+  went_well: 'bg-green-50', // #ecf9ec - light green
+  to_improve: 'bg-orange-50', // #FFF7E8 - light orange
+  action_item: 'bg-blue-50', // #dae8fc - light blue
 };
 
 export interface RetroColumnProps {
@@ -57,7 +57,7 @@ export interface RetroColumnProps {
   onDeleteCard: (cardId: string) => Promise<void>;
   onAddReaction: (cardId: string) => Promise<void>;
   onRemoveReaction: (cardId: string) => Promise<void>;
-  onUnlinkChild: (childId: string) => Promise<void>;
+  onUnlinkChild?: (childId: string) => Promise<void>;
   onEditColumnTitle?: (newName: string) => Promise<void>;
   // Card content editing (UTB-020)
   onUpdateCard?: (cardId: string, content: string) => Promise<void>;
@@ -223,7 +223,7 @@ export const RetroColumn = memo(function RetroColumn({
     }
   };
 
-  const handleTitleBlur = (_e: FocusEvent<HTMLInputElement>) => {
+  const handleTitleBlur = () => {
     if (!isSubmitting) {
       handleSaveTitle();
     }
@@ -266,10 +266,14 @@ export const RetroColumn = memo(function RetroColumn({
                 : ''
             }`}
             onClick={handleStartEditingTitle}
-            title={isAdmin && !isClosed && onEditColumnTitle ? 'Click to edit column name' : undefined}
+            title={
+              isAdmin && !isClosed && onEditColumnTitle ? 'Click to edit column name' : undefined
+            }
             role={isAdmin && !isClosed && onEditColumnTitle ? 'button' : undefined}
             tabIndex={isAdmin && !isClosed && onEditColumnTitle ? 0 : undefined}
-            aria-label={isAdmin && !isClosed && onEditColumnTitle ? `Edit column name: ${title}` : undefined}
+            aria-label={
+              isAdmin && !isClosed && onEditColumnTitle ? `Edit column name: ${title}` : undefined
+            }
             onKeyDown={
               isAdmin && !isClosed && onEditColumnTitle
                 ? (e) => {
@@ -328,7 +332,7 @@ export const RetroColumn = memo(function RetroColumn({
             onReact={() => onAddReaction(card.id)}
             onUnreact={() => onRemoveReaction(card.id)}
             onDelete={() => onDeleteCard(card.id)}
-            onUnlinkFromParent={() => onUnlinkChild(card.id)}
+            onUnlinkFromParent={onUnlinkChild ? () => onUnlinkChild(card.id) : undefined}
             onUpdateCard={onUpdateCard ? (content) => onUpdateCard(card.id, content) : undefined}
             onReactToChild={onReactToChild}
             onUnreactFromChild={onUnreactFromChild}

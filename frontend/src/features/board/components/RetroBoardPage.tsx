@@ -31,6 +31,7 @@ import { SortBar } from './SortBar';
 import { RetroColumn } from '../../card/components/RetroColumn';
 import { socketService } from '@/models/socket/SocketService';
 import { cn } from '@/lib/utils';
+import type { Card } from '@/models/card/card-types';
 
 // ============================================================================
 // Types
@@ -149,7 +150,7 @@ function BoardContent({ boardId }: BoardContentProps) {
 
   // Memoize filtered cards per column to avoid recalculating on every render
   const filteredCardsByColumn = useMemo(() => {
-    const result = new Map<string, typeof cardVM.cards>();
+    const result = new Map<string, Card[]>();
     const currentUserAlias = participantVM.currentUser?.alias;
 
     boardVM.board?.columns.forEach((column) => {
@@ -166,7 +167,11 @@ function BoardContent({ boardId }: BoardContentProps) {
         // Apply user filters (selectedUsers contains aliases, not hashes)
         if (!participantVM.showAll && participantVM.selectedUsers.length > 0) {
           if (card.is_anonymous) return false;
-          if (!card.created_by_alias || !participantVM.selectedUsers.includes(card.created_by_alias)) return false;
+          if (
+            !card.created_by_alias ||
+            !participantVM.selectedUsers.includes(card.created_by_alias)
+          )
+            return false;
         }
         // Apply anonymous filter (hide anonymous cards when disabled)
         if (!participantVM.showAnonymous && card.is_anonymous) return false;
@@ -226,7 +231,11 @@ function BoardContent({ boardId }: BoardContentProps) {
     boardVM;
 
   return (
-    <main className="flex h-screen flex-col bg-background" role="main" aria-label="Retrospective board">
+    <main
+      className="flex h-screen flex-col bg-background"
+      role="main"
+      aria-label="Retrospective board"
+    >
       {/* Header */}
       <RetroBoardHeader
         boardName={board.name}
@@ -254,6 +263,7 @@ function BoardContent({ boardId }: BoardContentProps) {
           onToggleMe={participantVM.handleToggleMeFilter}
           onToggleUser={participantVM.handleToggleUserFilter}
           onPromoteToAdmin={participantVM.handlePromoteToAdmin}
+          onUpdateAlias={participantVM.handleUpdateAlias}
         />
         <SortBar
           sortMode={cardVM.sortMode}

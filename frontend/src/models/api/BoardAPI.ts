@@ -5,7 +5,6 @@
 
 import { apiClient, extractData } from './client';
 import {
-  ApiRequestError,
   type ApiResponse,
   type Board,
   type CreateBoardDTO,
