@@ -33,6 +33,11 @@ import {
   isBackendReady,
 } from './helpers';
 
+// Debug helper for tests
+const debugLog = (testName: string, msg: string) => {
+  console.log(`[E2E:${testName}] ${msg}`);
+};
+
 // Drag-drop tests using keyboard navigation (compatible with @dnd-kit)
 test.describe('Drag-and-Drop Interactions', () => {
   // Use default board for drag-drop tests
@@ -64,41 +69,83 @@ test.describe('Drag-and-Drop Interactions', () => {
   });
 
   test('drag feedback onto feedback creates parent-child', async ({ page }) => {
+    const testName = 'parent-child';
+    debugLog(testName, 'Starting test');
+
     // Create two feedback cards
     const parentContent = `Parent ${Date.now()}`;
     const childContent = `Child ${Date.now()}`;
 
+    debugLog(testName, `Creating parent card: ${parentContent}`);
     await createCard(page, 'col-1', parentContent, { cardType: 'feedback' });
+    debugLog(testName, `Creating child card: ${childContent}`);
     await createCard(page, 'col-1', childContent, { cardType: 'feedback' });
 
+    // Verify cards are visible before drag
+    const parentCard = await findCardByContent(page, parentContent);
+    const childCard = await findCardByContent(page, childContent);
+    const parentVisible = await parentCard.isVisible().catch(() => false);
+    const childVisible = await childCard.isVisible().catch(() => false);
+    debugLog(
+      testName,
+      `Parent card visible: ${parentVisible}, Child card visible: ${childVisible}`
+    );
+
     // Drag child onto parent
+    debugLog(testName, 'Starting drag operation');
     await dragCardOntoCard(page, childContent, parentContent);
+    debugLog(testName, 'Drag operation completed');
 
     // Wait for link to be created
+    debugLog(testName, 'Waiting for card to be linked');
     await waitForCardLinked(page, childContent);
+    debugLog(testName, 'Card linked wait completed');
 
     // Child should now show link icon
     const isLinked = await isCardLinked(page, childContent);
+    debugLog(testName, `isCardLinked result: ${isLinked}`);
     expect(isLinked).toBe(true);
   });
 
   test('drag action onto feedback creates link', async ({ page }) => {
+    const testName = 'action-feedback-link';
+    debugLog(testName, 'Starting test');
+
     // Create feedback card
     const feedbackContent = `Feedback ${Date.now()}`;
+    debugLog(testName, `Creating feedback card in col-1: ${feedbackContent}`);
     await createCard(page, 'col-1', feedbackContent, { cardType: 'feedback' });
+    debugLog(testName, 'Feedback card created');
 
     // Create action card
     const actionContent = `Action ${Date.now()}`;
+    debugLog(testName, `Creating action card in col-3: ${actionContent}`);
     await createCard(page, 'col-3', actionContent, { cardType: 'action' });
+    debugLog(testName, 'Action card created');
+
+    // Verify cards are visible
+    const feedbackCard = await findCardByContent(page, feedbackContent);
+    const actionCard = await findCardByContent(page, actionContent);
+    const feedbackVisible = await feedbackCard.isVisible().catch(() => false);
+    const actionVisible = await actionCard.isVisible().catch(() => false);
+    debugLog(
+      testName,
+      `Feedback card visible: ${feedbackVisible}, Action card visible: ${actionVisible}`
+    );
 
     // Drag action onto feedback
+    debugLog(testName, 'Starting drag: action onto feedback');
     await dragCardOntoCard(page, actionContent, feedbackContent);
+    debugLog(testName, 'Drag operation completed');
 
     // Wait for link to be created
+    debugLog(testName, 'Waiting for action card to be linked');
     await waitForCardLinked(page, actionContent);
+    debugLog(testName, 'Link wait completed');
 
     // Action should show it's linked
     const isLinked = await isCardLinked(page, actionContent);
+    debugLog(testName, `isCardLinked result: ${isLinked}`);
     expect(isLinked).toBe(true);
   });
 
@@ -157,30 +204,51 @@ test.describe('Drag-and-Drop Interactions', () => {
   });
 
   test('click link icon unlinks child', async ({ page }) => {
+    const testName = 'unlink-child';
+    debugLog(testName, 'Starting test');
+
     // Create and link two cards
     const parentContent = `Unlink parent ${Date.now()}`;
     const childContent = `Unlink child ${Date.now()}`;
 
+    debugLog(testName, `Creating parent card: ${parentContent}`);
     await createCard(page, 'col-1', parentContent);
+    debugLog(testName, `Creating child card: ${childContent}`);
     await createCard(page, 'col-1', childContent);
+
+    debugLog(testName, 'Linking cards via drag');
     await dragCardOntoCard(page, childContent, parentContent);
     await waitForCardLinked(page, childContent);
+    debugLog(testName, 'Cards linked successfully');
 
     // Verify linked
-    expect(await isCardLinked(page, childContent)).toBe(true);
+    const linkedBefore = await isCardLinked(page, childContent);
+    debugLog(testName, `Verified linked state: ${linkedBefore}`);
+    expect(linkedBefore).toBe(true);
 
     // Click link icon to unlink - use accessible selector
     const childCard = await findCardByContent(page, childContent);
     const linkIcon = childCard
       .getByRole('button', { name: /link|unlink/i })
       .or(childCard.locator('[aria-label*="linked"]'));
+
+    const linkIconVisible = await linkIcon
+      .first()
+      .isVisible()
+      .catch(() => false);
+    debugLog(testName, `Link icon visible: ${linkIconVisible}`);
+
+    debugLog(testName, 'Clicking link icon to unlink');
     await linkIcon.first().click();
 
     // Wait for unlink
+    debugLog(testName, 'Waiting for card to be unlinked');
     await waitForCardUnlinked(page, childContent);
+    debugLog(testName, 'Unlink wait completed');
 
     // Should no longer be linked
     const stillLinked = await isCardLinked(page, childContent);
+    debugLog(testName, `isCardLinked after unlink: ${stillLinked}`);
     expect(stillLinked).toBe(false);
   });
 

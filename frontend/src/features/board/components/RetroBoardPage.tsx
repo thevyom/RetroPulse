@@ -27,6 +27,7 @@ import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { RetroBoardHeader } from './RetroBoardHeader';
 import { ParticipantBar } from '../../participant/components/ParticipantBar';
+import { AliasPromptModal } from '../../participant/components/AliasPromptModal';
 import { SortBar } from './SortBar';
 import { RetroColumn } from '../../card/components/RetroColumn';
 import { socketService } from '@/models/socket/SocketService';
@@ -231,119 +232,124 @@ function BoardContent({ boardId }: BoardContentProps) {
     boardVM;
 
   return (
-    <main
-      className="flex h-screen flex-col bg-background"
-      role="main"
-      aria-label="Retrospective board"
-    >
-      {/* Header */}
-      <RetroBoardHeader
-        boardName={board.name}
-        isAdmin={isAdmin}
-        isClosed={isClosed}
-        onEditTitle={handleRenameBoard}
-        onCloseBoard={handleCloseBoard}
-      />
+    <>
+      {/* Alias Prompt Modal - shown for new users who haven't joined yet */}
+      <AliasPromptModal isOpen={participantVM.needsAlias} onJoin={participantVM.handleJoinBoard} />
 
-      {/* Participant Bar and Sort Bar */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <ParticipantBar
-          activeUsers={participantVM.activeUsers}
-          currentUserHash={participantVM.currentUser?.cookie_hash ?? ''}
-          currentUserAlias={participantVM.currentUser?.alias}
-          currentUserIsAdmin={isAdmin}
-          showAll={participantVM.showAll}
-          showAnonymous={participantVM.showAnonymous}
-          showOnlyAnonymous={participantVM.showOnlyAnonymous}
-          showOnlyMe={participantVM.showOnlyMe}
-          selectedUsers={participantVM.selectedUsers}
-          onlineAliases={participantVM.onlineAliases}
-          onToggleAllUsers={participantVM.handleToggleAllUsersFilter}
-          onToggleAnonymous={participantVM.handleToggleAnonymousFilter}
-          onToggleMe={participantVM.handleToggleMeFilter}
-          onToggleUser={participantVM.handleToggleUserFilter}
-          onPromoteToAdmin={participantVM.handlePromoteToAdmin}
-          onUpdateAlias={participantVM.handleUpdateAlias}
-        />
-        <SortBar
-          sortMode={cardVM.sortMode}
-          sortDirection={cardVM.sortDirection}
-          onSortModeChange={cardVM.setSortMode}
-          onToggleDirection={cardVM.toggleSortDirection}
-        />
-      </div>
-
-      {/* Columns with DnD Context */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
+      <main
+        className="flex h-screen flex-col bg-background"
+        role="main"
+        aria-label="Retrospective board"
       >
-        <div className="flex flex-1 gap-4 overflow-x-auto p-4">
-          {board.columns.map((column) => {
-            // Use memoized filtered cards
-            const filteredCards = filteredCardsByColumn.get(column.id) ?? [];
+        {/* Header */}
+        <RetroBoardHeader
+          boardName={board.name}
+          isAdmin={isAdmin}
+          isClosed={isClosed}
+          onEditTitle={handleRenameBoard}
+          onCloseBoard={handleCloseBoard}
+        />
 
-            return (
-              <RetroColumn
-                key={column.id}
-                columnId={column.id}
-                columnType={inferColumnType(column.name)}
-                title={column.name}
-                color={column.color}
-                cards={filteredCards}
-                isAdmin={isAdmin}
-                isClosed={isClosed}
-                canCreateCard={cardVM.canCreateCard}
-                currentUserHash={participantVM.currentUser?.cookie_hash ?? ''}
-                canReact={cardVM.canReact}
-                hasUserReacted={cardVM.hasUserReacted}
-                isDragging={dragDropVM.isDragging}
-                draggedCardId={dragDropVM.draggedItem?.id ?? null}
-                isValidDropTarget={(targetId, targetType) =>
-                  dragDropVM.canDropOn(targetId, targetType)
-                }
-                onCreateCard={cardVM.handleCreateCard}
-                onDeleteCard={cardVM.handleDeleteCard}
-                onAddReaction={cardVM.handleAddReaction}
-                onRemoveReaction={cardVM.handleRemoveReaction}
-                onUnlinkChild={isAdmin ? cardVM.handleUnlinkChild : undefined}
-                onEditColumnTitle={
-                  isAdmin ? (newName) => handleRenameColumn(column.id, newName) : undefined
-                }
-                onUpdateCard={cardVM.handleUpdateCard}
-                onReactToChild={cardVM.handleAddReaction}
-                onUnreactFromChild={cardVM.handleRemoveReaction}
-                hasUserReactedToChild={cardVM.hasUserReacted}
-              />
-            );
-          })}
+        {/* Participant Bar and Sort Bar */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-2">
+          <ParticipantBar
+            activeUsers={participantVM.activeUsers}
+            currentUserHash={participantVM.currentUser?.cookie_hash ?? ''}
+            currentUserAlias={participantVM.currentUser?.alias}
+            currentUserIsAdmin={isAdmin}
+            showAll={participantVM.showAll}
+            showAnonymous={participantVM.showAnonymous}
+            showOnlyAnonymous={participantVM.showOnlyAnonymous}
+            showOnlyMe={participantVM.showOnlyMe}
+            selectedUsers={participantVM.selectedUsers}
+            onlineAliases={participantVM.onlineAliases}
+            onToggleAllUsers={participantVM.handleToggleAllUsersFilter}
+            onToggleAnonymous={participantVM.handleToggleAnonymousFilter}
+            onToggleMe={participantVM.handleToggleMeFilter}
+            onToggleUser={participantVM.handleToggleUserFilter}
+            onPromoteToAdmin={participantVM.handlePromoteToAdmin}
+            onUpdateAlias={participantVM.handleUpdateAlias}
+          />
+          <SortBar
+            sortMode={cardVM.sortMode}
+            sortDirection={cardVM.sortDirection}
+            onSortModeChange={cardVM.setSortMode}
+            onToggleDirection={cardVM.toggleSortDirection}
+          />
         </div>
 
-        {/* Drag Overlay - shows dragged card preview */}
-        <DragOverlay>
-          {dragDropVM.draggedItem && (
-            <div className="rounded-lg border border-primary bg-card p-3 opacity-80 shadow-lg">
-              <p className="text-sm text-foreground">
-                {cardVM.cards.find((c) => c.id === dragDropVM.draggedItem?.id)?.content ?? ''}
-              </p>
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
+        {/* Columns with DnD Context */}
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex flex-1 gap-4 overflow-x-auto p-4">
+            {board.columns.map((column) => {
+              // Use memoized filtered cards
+              const filteredCards = filteredCardsByColumn.get(column.id) ?? [];
 
-      {/* Closed board overlay */}
-      {isClosed && (
-        <div
-          className={cn(
-            'pointer-events-none fixed inset-0 z-10',
-            'bg-background/50 backdrop-blur-[1px]'
-          )}
-          aria-hidden="true"
-        />
-      )}
-    </main>
+              return (
+                <RetroColumn
+                  key={column.id}
+                  columnId={column.id}
+                  columnType={inferColumnType(column.name)}
+                  title={column.name}
+                  color={column.color}
+                  cards={filteredCards}
+                  isAdmin={isAdmin}
+                  isClosed={isClosed}
+                  canCreateCard={cardVM.canCreateCard}
+                  currentUserHash={participantVM.currentUser?.cookie_hash ?? ''}
+                  canReact={cardVM.canReact}
+                  hasUserReacted={cardVM.hasUserReacted}
+                  isDragging={dragDropVM.isDragging}
+                  draggedCardId={dragDropVM.draggedItem?.id ?? null}
+                  isValidDropTarget={(targetId, targetType) =>
+                    dragDropVM.canDropOn(targetId, targetType)
+                  }
+                  onCreateCard={cardVM.handleCreateCard}
+                  onDeleteCard={cardVM.handleDeleteCard}
+                  onAddReaction={cardVM.handleAddReaction}
+                  onRemoveReaction={cardVM.handleRemoveReaction}
+                  onUnlinkChild={isAdmin ? cardVM.handleUnlinkChild : undefined}
+                  onEditColumnTitle={
+                    isAdmin ? (newName) => handleRenameColumn(column.id, newName) : undefined
+                  }
+                  onUpdateCard={cardVM.handleUpdateCard}
+                  onReactToChild={cardVM.handleAddReaction}
+                  onUnreactFromChild={cardVM.handleRemoveReaction}
+                  hasUserReactedToChild={cardVM.hasUserReacted}
+                />
+              );
+            })}
+          </div>
+
+          {/* Drag Overlay - shows dragged card preview */}
+          <DragOverlay>
+            {dragDropVM.draggedItem && (
+              <div className="rounded-lg border border-primary bg-card p-3 opacity-80 shadow-lg">
+                <p className="text-sm text-foreground">
+                  {cardVM.cards.find((c) => c.id === dragDropVM.draggedItem?.id)?.content ?? ''}
+                </p>
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
+
+        {/* Closed board overlay */}
+        {isClosed && (
+          <div
+            className={cn(
+              'pointer-events-none fixed inset-0 z-10',
+              'bg-background/50 backdrop-blur-[1px]'
+            )}
+            aria-hidden="true"
+          />
+        )}
+      </main>
+    </>
   );
 }
 

@@ -50,10 +50,14 @@ export interface UseParticipantViewModelResult {
 
   // Derived state
   isCurrentUserCreator: boolean;
+  /** True when the user needs to provide an alias to join the board */
+  needsAlias: boolean;
 
   // Actions
   handleUpdateAlias: (newAlias: string) => Promise<void>;
   handlePromoteToAdmin: (userHash: string) => Promise<void>;
+  /** Join the board with the given alias (for new users) */
+  handleJoinBoard: (alias: string) => Promise<void>;
 
   // Filter actions
   handleToggleAllUsersFilter: () => void;
@@ -102,6 +106,7 @@ export function useParticipantViewModel(
   const [showOnlyAnonymous, setShowOnlyAnonymous] = useState(false);
   const [showOnlyMe, setShowOnlyMe] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   // Heartbeat interval ref
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -117,6 +122,8 @@ export function useParticipantViewModel(
   // ============================================================================
 
   const isCurrentUserCreator = board?.admins[0] === currentUser?.cookie_hash;
+  // User needs an alias if session check is complete and no current user exists
+  const needsAlias = sessionChecked && !currentUser;
 
   // ============================================================================
   // Data Fetching
@@ -168,14 +175,15 @@ export function useParticipantViewModel(
         setUserOnline(session.alias);
       }
     } catch {
-      // Non-critical - session might not exist yet
+      // Session doesn't exist - user needs to provide an alias
+    } finally {
+      setSessionChecked(true);
     }
   }, [boardId, setCurrentUser, addActiveUser, setUserOnline]);
 
   // Load active users on mount (unless autoFetch is disabled)
   useEffect(() => {
     if (autoFetch) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
       void fetchActiveUsers();
       void fetchCurrentUserSession();
     }
@@ -281,6 +289,41 @@ export function useParticipantViewModel(
   // ============================================================================
   // Actions
   // ============================================================================
+
+  const handleJoinBoard = useCallback(
+    async (alias: string): Promise<void> => {
+      if (!boardId) return;
+
+      // Validate alias
+      const validation = validateAlias(alias);
+      if (!validation.isValid) {
+        setOperationError(validation.error || 'Invalid alias');
+        throw new Error(validation.error || 'Invalid alias');
+      }
+
+      setOperationError(null);
+
+      try {
+        // Join the board with the provided alias
+        const response = await BoardAPI.joinBoard(boardId, { alias });
+        const session = response.user_session;
+
+        setCurrentUser(session);
+        addActiveUser({
+          alias: session.alias,
+          is_admin: session.is_admin,
+          last_active_at: session.last_active_at,
+          created_at: session.created_at,
+        });
+        setUserOnline(session.alias);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to join board';
+        setOperationError(message);
+        throw err;
+      }
+    },
+    [boardId, setCurrentUser, addActiveUser, setUserOnline]
+  );
 
   const handleUpdateAlias = useCallback(
     async (newAlias: string): Promise<void> => {
@@ -451,10 +494,12 @@ export function useParticipantViewModel(
 
     // Derived state
     isCurrentUserCreator,
+    needsAlias,
 
     // Actions
     handleUpdateAlias,
     handlePromoteToAdmin,
+    handleJoinBoard,
 
     // Filter actions
     handleToggleAllUsersFilter,

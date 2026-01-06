@@ -60,6 +60,7 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             autoFocus
             maxLength={50}
+            data-testid="alias-input"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
@@ -69,6 +70,7 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
           disabled={alias.trim().length === 0}
           className="w-full"
           size="lg"
+          data-testid="join-board-button"
         >
           Join Board
         </Button>

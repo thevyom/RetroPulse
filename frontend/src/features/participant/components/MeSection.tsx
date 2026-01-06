@@ -5,8 +5,11 @@
  *
  * Design: Avatar only - no label, no pencil icon (per UTB-033)
  * Edit alias functionality moved to context menu (Task 2.1)
+ *
+ * Note: Uses forwardRef to support Radix ContextMenuTrigger with asChild
  */
 
+import { forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -24,33 +27,39 @@ export interface MeSectionProps {
 // Component
 // ============================================================================
 
-export function MeSection({ alias, isAdmin, isSelected, onFilter }: MeSectionProps) {
-  const initials = alias
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+export const MeSection = forwardRef<HTMLButtonElement, MeSectionProps>(
+  ({ alias, isAdmin, isSelected, onFilter, ...props }, ref) => {
+    const initials = alias
+      .split(' ')
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
 
-  return (
-    <button
-      onClick={onFilter}
-      className={cn(
-        'h-9 w-9 rounded-full flex items-center justify-center',
-        'text-sm font-semibold transition-all',
-        // Always online (it's the current user)
-        isAdmin ? 'bg-amber-400 text-gray-800' : 'bg-blue-500 text-white',
-        'ring-2 ring-green-500',
-        // Selection state
-        isSelected && 'ring-[3px] ring-primary scale-110',
-        'hover:scale-105'
-      )}
-      title={`${alias} (You) - Click to filter`}
-      data-testid="me-section"
-    >
-      {initials}
-    </button>
-  );
-}
+    return (
+      <button
+        {...props}
+        ref={ref}
+        onClick={onFilter}
+        className={cn(
+          'h-9 w-9 rounded-full flex items-center justify-center',
+          'text-sm font-semibold transition-all',
+          // Always online (it's the current user)
+          isAdmin ? 'bg-amber-400 text-gray-800' : 'bg-blue-500 text-white',
+          'ring-2 ring-green-500',
+          // Selection state
+          isSelected && 'ring-[3px] ring-primary scale-110',
+          'hover:scale-105'
+        )}
+        title={`${alias} (You) - Click to filter`}
+        data-testid="me-section"
+      >
+        {initials}
+      </button>
+    );
+  }
+);
+
+MeSection.displayName = 'MeSection';
 
 export default MeSection;

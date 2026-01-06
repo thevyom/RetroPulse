@@ -22,6 +22,10 @@ import {
   getBoardId,
 } from './helpers';
 
+const debugLog = (testName: string, msg: string) => {
+  console.log(`[E2E:${testName}] ${msg}`);
+};
+
 // ============================================================================
 // HIGH Priority Tests
 // ============================================================================
@@ -252,45 +256,64 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
     });
 
     test('Anonymous filter shows visual active state when clicked', async ({ page }) => {
+      const testName = 'UTB-013';
+      debugLog(testName, 'Starting anonymous filter visual indicator test');
+
       // Find the Anonymous filter button
       const anonymousFilter = page
         .getByRole('button', { name: /filter by anonymous/i })
         .or(page.locator('[aria-label="Filter by Anonymous Cards"]'));
 
       await expect(anonymousFilter.first()).toBeVisible();
+      debugLog(testName, 'Anonymous filter button is visible');
 
       // Initially should not be pressed
+      const initialPressed = await anonymousFilter.first().getAttribute('aria-pressed');
+      debugLog(testName, `Initial aria-pressed state: ${initialPressed}`);
       await expect(anonymousFilter.first()).toHaveAttribute('aria-pressed', 'false');
 
       // Click to activate
+      debugLog(testName, 'Clicking anonymous filter button');
       await anonymousFilter.first().click();
 
       // Should now show as pressed/selected with ring indicator
+      const afterClickPressed = await anonymousFilter.first().getAttribute('aria-pressed');
+      debugLog(testName, `After click aria-pressed state: ${afterClickPressed}`);
       await expect(anonymousFilter.first()).toHaveAttribute('aria-pressed', 'true');
 
       // Visual indicator: ring class should be applied (verify via computed style or class)
       // The component applies 'ring-2 ring-primary ring-offset-2' when selected
       const filterButton = anonymousFilter.first();
       const className = await filterButton.getAttribute('class');
+      debugLog(testName, `Filter button classes after click: ${className}`);
       expect(className).toContain('ring');
     });
 
     test('Anonymous filter ring disappears when deselected', async ({ page }) => {
+      const testName = 'UTB-013-deselect';
+      debugLog(testName, 'Starting anonymous filter deselect test');
+
       const anonymousFilter = page
         .getByRole('button', { name: /filter by anonymous/i })
         .or(page.locator('[aria-label="Filter by Anonymous Cards"]'));
 
       // Click to activate
+      debugLog(testName, 'Clicking anonymous filter to activate');
       await anonymousFilter.first().click();
+      const afterActivate = await anonymousFilter.first().getAttribute('aria-pressed');
+      debugLog(testName, `After activate aria-pressed: ${afterActivate}`);
       await expect(anonymousFilter.first()).toHaveAttribute('aria-pressed', 'true');
 
       // Click All Users to deselect anonymous
       const allUsersFilter = page
         .getByRole('button', { name: /filter by all users/i })
         .or(page.locator('[aria-label="Filter by All Users"]'));
+      debugLog(testName, 'Clicking All Users filter to deselect anonymous');
       await allUsersFilter.first().click();
 
       // Anonymous should no longer be pressed
+      const afterDeselect = await anonymousFilter.first().getAttribute('aria-pressed');
+      debugLog(testName, `After deselect aria-pressed: ${afterDeselect}`);
       await expect(anonymousFilter.first()).toHaveAttribute('aria-pressed', 'false');
     });
   });
@@ -613,6 +636,9 @@ test.describe('LOW Priority Bug Regression Tests', () => {
     });
 
     test('single name shows first two letters', async ({ page }) => {
+      const testName = 'UTB-021-single';
+      debugLog(testName, 'Starting single name initials test');
+
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
@@ -633,12 +659,17 @@ test.describe('LOW Priority Bug Regression Tests', () => {
         .or(page.locator('[role="group"][aria-label="Active participants"]'));
 
       const initialsText = await avatar.textContent();
+      debugLog(testName, `Found initials text: "${initialsText}"`);
+      debugLog(testName, `Expected initials: "JO" (first two letters of "John")`);
 
       // Should contain "JO" for single-word name "John"
       expect(initialsText).toContain('JO');
     });
 
     test('two-word name shows first and last initials', async ({ page }) => {
+      const testName = 'UTB-021-two-word';
+      debugLog(testName, 'Starting two-word name initials test');
+
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
@@ -657,6 +688,8 @@ test.describe('LOW Priority Bug Regression Tests', () => {
         .or(page.locator('[role="group"][aria-label="Active participants"]'));
 
       const initialsText = await avatar.textContent();
+      debugLog(testName, `Found initials text: "${initialsText}"`);
+      debugLog(testName, `Expected initials: "JS" (first letter of "John" + "Smith")`);
 
       // Should contain "JS" for two-word name "John Smith"
       expect(initialsText).toContain('JS');
@@ -669,10 +702,14 @@ test.describe('LOW Priority Bug Regression Tests', () => {
     });
 
     test('hovering avatar shows tooltip with full name', async ({ page }) => {
+      const testName = 'UTB-022';
+      debugLog(testName, 'Starting avatar tooltip test');
+
       await page.goto('/');
       await page.waitForLoadState('networkidle');
 
       const userName = 'Tooltip Test User';
+      debugLog(testName, `Creating board with user name: "${userName}"`);
 
       await page.getByTestId('create-board-button').click();
       await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('tooltip'));
@@ -689,13 +726,15 @@ test.describe('LOW Priority Bug Regression Tests', () => {
         .locator('[data-avatar-type="user"]')
         .or(page.getByTestId(`participant-avatar-${userName.toLowerCase().replace(/\s+/g, '-')}`));
 
-      if (
-        await userAvatar
-          .first()
-          .isVisible()
-          .catch(() => false)
-      ) {
+      const avatarVisible = await userAvatar
+        .first()
+        .isVisible()
+        .catch(() => false);
+      debugLog(testName, `User avatar visible: ${avatarVisible}`);
+
+      if (avatarVisible) {
         // Hover over the avatar
+        debugLog(testName, 'Hovering over user avatar');
         await userAvatar.first().hover();
 
         // Wait for tooltip delay (300ms per component)
@@ -704,10 +743,17 @@ test.describe('LOW Priority Bug Regression Tests', () => {
         // Tooltip with full name should appear
         const tooltip = page.getByRole('tooltip');
         const tooltipVisible = await tooltip.isVisible().catch(() => false);
+        debugLog(testName, `Tooltip visible after hover: ${tooltipVisible}`);
 
         if (tooltipVisible) {
+          const tooltipText = await tooltip.textContent();
+          debugLog(testName, `Tooltip text content: "${tooltipText}"`);
           await expect(tooltip).toContainText(new RegExp(userName.split(' ')[0], 'i'));
+        } else {
+          debugLog(testName, 'Tooltip did not appear after hover');
         }
+      } else {
+        debugLog(testName, 'User avatar not found, skipping hover test');
       }
     });
   });

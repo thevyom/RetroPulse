@@ -5,7 +5,7 @@
  * These helpers interact with the real frontend and backend.
  */
 
-import type { Page, BrowserContext, Locator } from '@playwright/test';
+import { expect, type Page, type BrowserContext, type Locator } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -193,25 +193,97 @@ export async function joinBoard(
  * Handle alias prompt modal if it appears
  * Returns true if modal was handled, false otherwise
  */
-export async function handleAliasPromptModal(page: Page, alias?: string): Promise<boolean> {
-  // Check if alias prompt modal is visible
+export async function handleAliasPromptModal(
+  page: Page,
+  alias?: string,
+  debug = true
+): Promise<boolean> {
+  const log = (msg: string) => {
+    if (debug) {
+      console.log(`[handleAliasPromptModal] ${msg}`);
+    }
+  };
+
+  // Check if alias prompt modal is visible - wait up to 4 seconds for it to appear
+  // The modal appears after session check completes (needsAlias becomes true)
   const aliasInput = page.getByPlaceholder(/enter your name/i).or(page.getByTestId('alias-input'));
 
-  if (await aliasInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    const userAlias = alias || `E2EUser${Date.now().toString().slice(-4)}`;
-    await aliasInput.fill(userAlias);
-
-    const joinButton = page
-      .getByRole('button', { name: /join board/i })
-      .or(page.getByTestId('join-button'));
-
-    await joinButton.click();
-
-    // Wait for modal to close
-    await page.waitForTimeout(500);
-    return true;
+  log('Checking for alias input (waiting up to 4s)...');
+  try {
+    await aliasInput.waitFor({ state: 'visible', timeout: 4000 });
+    log('Alias input found');
+  } catch {
+    log('No alias modal found within 4s');
+    return false;
   }
-  return false;
+
+  const userAlias = alias || `E2EUser${Date.now().toString().slice(-4)}`;
+  log(`Typing alias: ${userAlias}`);
+  // Clear any existing text first
+  await aliasInput.clear();
+  // Type character by character to ensure React state updates properly
+  await aliasInput.pressSequentially(userAlias, { delay: 10 });
+
+  // Wait for React state to update
+  await page.waitForTimeout(300);
+
+  // Find Join Board button within the dialog
+  const dialog = page.locator('[role="dialog"]');
+
+  // Scroll the dialog content to ensure button is visible
+  await dialog.evaluate((el) => (el.scrollTop = el.scrollHeight));
+  await page.waitForTimeout(100);
+
+  // Try different locator strategies
+  let joinButton = dialog.getByTestId('join-board-button');
+  let buttonFound = await joinButton.isVisible().catch(() => false);
+
+  if (!buttonFound) {
+    log('Trying role button locator...');
+    joinButton = dialog.getByRole('button', { name: 'Join Board' });
+    buttonFound = await joinButton.isVisible().catch(() => false);
+  }
+
+  if (!buttonFound) {
+    log('Trying text locator...');
+    joinButton = dialog.locator('button:has-text("Join Board")');
+    buttonFound = await joinButton.isVisible().catch(() => false);
+  }
+
+  log(`Button found with locator: ${buttonFound}`);
+
+  // Check if button is disabled
+  const isDisabled = await joinButton.isDisabled().catch(() => true);
+  log(`Button disabled: ${isDisabled}`);
+
+  if (isDisabled) {
+    log('Button is disabled - attempting to scroll and retry');
+    // Maybe the button is there but disabled state didn't update
+    await page.waitForTimeout(500);
+  }
+
+  // Debug: Get all buttons in dialog
+  const dialogButtons = await dialog.locator('button').allTextContents();
+  log(`All buttons in dialog: ${JSON.stringify(dialogButtons)}`);
+
+  log('Clicking Join Board button via JavaScript...');
+  // Use dispatchEvent to click since element visibility is problematic
+  await joinButton.dispatchEvent('click');
+  log('Click dispatched');
+
+  // Wait for modal to close and session to be established
+  log('Waiting for modal to close...');
+  await page.waitForTimeout(500);
+
+  // Verify modal is closed
+  const modalStillVisible = await aliasInput.isVisible().catch(() => false);
+  if (modalStillVisible) {
+    log('WARNING: Modal still visible after clicking Join');
+  } else {
+    log('Modal closed successfully');
+  }
+
+  return true;
 }
 
 /**
@@ -220,24 +292,80 @@ export async function handleAliasPromptModal(page: Page, alias?: string): Promis
  */
 export async function waitForBoardLoad(
   page: Page,
-  options: { timeout?: number; alias?: string } = {}
+  options: { timeout?: number; alias?: string; debug?: boolean } = {}
 ): Promise<void> {
-  const { timeout = 5000, alias } = options;
+  const { timeout = 4000, alias, debug = true } = options;
+  const startTime = Date.now();
+
+  const log = (msg: string) => {
+    if (debug) {
+      console.log(`[waitForBoardLoad +${Date.now() - startTime}ms] ${msg}`);
+    }
+  };
+
+  log(`Starting - URL: ${page.url()}`);
 
   // Wait for page to be stable first
   await page.waitForLoadState('domcontentloaded');
+  log('DOM content loaded');
+
+  // Check for error states first
+  const errorText = await page
+    .locator('text=/error|failed|not found/i')
+    .first()
+    .isVisible()
+    .catch(() => false);
+  if (errorText) {
+    const errorContent = await page
+      .locator('text=/error|failed|not found/i')
+      .first()
+      .textContent()
+      .catch(() => '');
+    log(`ERROR STATE DETECTED: ${errorContent}`);
+  }
 
   // Handle alias prompt modal if it appears (Phase 8.7 AliasPromptModal)
-  await handleAliasPromptModal(page, alias);
+  const modalHandled = await handleAliasPromptModal(page, alias);
+  log(`Alias modal handled: ${modalHandled}`);
 
   // Wait for any column header to appear (indicates board is loaded)
   // Note: Column headers are h2 elements, but they may have role="button" for admins
   // so we use text matching instead of heading role for reliability
-  await page
-    .locator('h2')
-    .filter({ hasText: /What Went Well|To Improve|Action Items/i })
-    .first()
-    .waitFor({ state: 'visible', timeout });
+  try {
+    await page
+      .locator('h2')
+      .filter({ hasText: /What Went Well|To Improve|Action Items/i })
+      .first()
+      .waitFor({ state: 'visible', timeout });
+    log('Column headers visible - board loaded successfully');
+  } catch (error) {
+    // Debug: Log what's actually on the page
+    const pageTitle = await page.title().catch(() => 'unknown');
+    const bodyText = await page
+      .locator('body')
+      .textContent()
+      .catch(() => '');
+    const truncatedBody = bodyText?.substring(0, 500) || '';
+    log(`TIMEOUT waiting for columns. Page title: ${pageTitle}`);
+    log(`Body content (first 500 chars): ${truncatedBody}`);
+
+    // Check for specific elements
+    const hasDialog = await page
+      .locator('[role="dialog"]')
+      .isVisible()
+      .catch(() => false);
+    const hasError = await page
+      .locator('[role="alert"]')
+      .isVisible()
+      .catch(() => false);
+    const hasLoading = await page
+      .locator('text=/loading/i')
+      .isVisible()
+      .catch(() => false);
+    log(`Has dialog: ${hasDialog}, Has error: ${hasError}, Has loading: ${hasLoading}`);
+
+    throw error;
+  }
 }
 
 // ============================================================================
@@ -251,9 +379,23 @@ export async function createCard(
   page: Page,
   columnSelector: string,
   content: string,
-  options: { cardType?: 'feedback' | 'action'; isAnonymous?: boolean; timeout?: number } = {}
+  options: {
+    cardType?: 'feedback' | 'action';
+    isAnonymous?: boolean;
+    timeout?: number;
+    debug?: boolean;
+  } = {}
 ): Promise<TestCard> {
-  const { cardType = 'feedback', isAnonymous = false, timeout = 15000 } = options;
+  const { cardType = 'feedback', isAnonymous = false, timeout = 15000, debug = true } = options;
+
+  const log = (msg: string) => {
+    if (debug) {
+      console.log(`[createCard] ${msg}`);
+    }
+  };
+
+  log(`Creating ${cardType} card in ${columnSelector}: "${content.substring(0, 30)}..."`);
+  log(`isAnonymous: ${isAnonymous}`);
 
   // Click add card button for the column - find by column heading then sibling button
   // columnSelector can be a column ID like "col-1" or a column name like "What Went Well"
@@ -266,17 +408,34 @@ export async function createCard(
     action_item: 'Action Items',
   };
   const columnName = columnNameMap[columnSelector] || columnSelector;
+  log(`Looking for column: "${columnName}"`);
 
   // Find the column by heading and click its Add card button
   const columnHeading = page.getByRole('heading', { name: columnName, exact: true });
   const addButton = columnHeading.locator('..').getByRole('button', { name: 'Add card' });
 
   // Wait for add button to be clickable
-  await addButton.waitFor({ state: 'visible', timeout: 10000 });
+  log('Waiting for Add card button...');
+  try {
+    await addButton.waitFor({ state: 'visible', timeout: 10000 });
+    log('Add card button found, clicking...');
+  } catch (error) {
+    log(`ERROR: Add card button not found. Checking page state...`);
+    const headings = await page.locator('h2').allTextContents();
+    log(`Available h2 headings: ${JSON.stringify(headings)}`);
+    throw error;
+  }
   await addButton.click();
 
   // Wait for dialog to open with longer timeout
-  await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
+  log('Waiting for dialog to open...');
+  try {
+    await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
+    log('Dialog opened');
+  } catch (error) {
+    log(`ERROR: Dialog did not open`);
+    throw error;
+  }
 
   // Fill content - try multiple selectors
   const contentInput = page
@@ -660,22 +819,43 @@ export async function dragCardOntoCard(
   page: Page,
   sourceContent: string,
   targetContent: string,
-  options: { timeout?: number } = {}
+  options: { timeout?: number; debug?: boolean } = {}
 ): Promise<void> {
-  const { timeout = 15000 } = options;
+  const { timeout = 15000, debug = true } = options;
+
+  const log = (msg: string) => {
+    if (debug) {
+      console.log(`[dragCardOntoCard] ${msg}`);
+    }
+  };
+
+  log(
+    `Dragging "${sourceContent.substring(0, 20)}..." onto "${targetContent.substring(0, 20)}..."`
+  );
 
   const sourceCard = await findCardByContent(page, sourceContent, { timeout });
   const targetCard = await findCardByContent(page, targetContent, { timeout });
 
+  log('Found both cards');
+
   // Ensure both cards are visible
   await sourceCard.waitFor({ state: 'visible', timeout: 5000 });
   await targetCard.waitFor({ state: 'visible', timeout: 5000 });
+  log('Both cards visible');
+
+  // Get bounding boxes for debug
+  const sourceBox = await sourceCard.boundingBox();
+  const targetBox = await targetCard.boundingBox();
+  log(`Source box: ${JSON.stringify(sourceBox)}`);
+  log(`Target box: ${JSON.stringify(targetBox)}`);
 
   // Use keyboard-based drag for @dnd-kit compatibility
+  log('Performing keyboard-based drag...');
   await dndKitDragKeyboard(page, sourceCard, targetCard);
 
   // Additional wait for UI to settle after drag
   await page.waitForTimeout(300);
+  log('Drag complete');
 }
 
 /**
@@ -892,9 +1072,19 @@ export async function isCardLinked(page: Page, cardContent: string): Promise<boo
 export async function waitForCardLinked(
   page: Page,
   cardContent: string,
-  options: { timeout?: number } = {}
+  options: { timeout?: number; debug?: boolean } = {}
 ): Promise<void> {
-  const { timeout = 10000 } = options;
+  const { timeout = 10000, debug = true } = options;
+
+  const log = (msg: string) => {
+    if (debug) {
+      console.log(`[waitForCardLinked] ${msg}`);
+    }
+  };
+
+  log(
+    `Waiting for card "${cardContent.substring(0, 30)}..." to become linked (timeout: ${timeout}ms)`
+  );
 
   // Wait for any of the linking patterns to appear
   await Promise.race([
@@ -934,9 +1124,33 @@ export async function waitForCardLinked(
       })
       .first()
       .waitFor({ state: 'visible', timeout }),
-  ]).catch(() => {
+  ]).catch(async () => {
+    // Debug: check what patterns are on the page
+    log(`TIMEOUT - Card not linked. Checking page state...`);
+
+    // Check if the card even exists
+    const cardExists = await page
+      .getByText(cardContent, { exact: false })
+      .isVisible()
+      .catch(() => false);
+    log(`Card content visible on page: ${cardExists}`);
+
+    // Check for any nested child structures
+    const nestedChildren = await page
+      .locator('[id^="card-"]')
+      .filter({
+        has: page.getByRole('button', { name: /reaction to child card/i }),
+      })
+      .count();
+    log(`Cards with nested children: ${nestedChildren}`);
+
+    // Check for Links to sections
+    const linksToSections = await page.locator('text="Links to"').count();
+    log(`"Links to" sections found: ${linksToSections}`);
+
     throw new Error(`Card "${cardContent}" did not become linked within ${timeout}ms`);
   });
+  log('Card is now linked');
 }
 
 /**
