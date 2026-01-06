@@ -5,13 +5,20 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard, findCardByContent, deleteCard, getBoardId, isBackendReady } from './helpers';
+import {
+  waitForBoardLoad,
+  createCard,
+  findCardByContent,
+  deleteCard,
+  getBoardId,
+  isBackendReady,
+} from './helpers';
 
 test.describe('Card Quota Enforcement', () => {
   // Use dedicated quota board with card limit = 2
   const quotaBoardId = getBoardId('quota');
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
   });
 
@@ -37,7 +44,10 @@ test.describe('Card Quota Enforcement', () => {
     const quotaIndicator = page.getByText(/\d+\s*\/\s*\d+\s*cards?/i);
 
     // If quota indicator exists and has content, it should show the count
-    const isVisible = await quotaIndicator.first().isVisible().catch(() => false);
+    const isVisible = await quotaIndicator
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (isVisible) {
       const text = await quotaIndicator.first().textContent();
       if (text && text.trim().length > 0) {
@@ -63,9 +73,7 @@ test.describe('Card Quota Enforcement', () => {
       await addButton.click();
 
       // Look for error message using accessible patterns
-      const errorMessage = page
-        .getByRole('alert')
-        .or(page.getByText(/limit|quota|maximum/i));
+      const errorMessage = page.getByRole('alert').or(page.getByText(/limit|quota|maximum/i));
 
       // If we've hit the limit, an error should appear
       const errorVisible = await errorMessage.isVisible().catch(() => false);
@@ -145,7 +153,7 @@ test.describe('Anonymous Cards', () => {
   // Use dedicated anon board for testing
   const testBoardId = getBoardId('anon');
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
   });
 

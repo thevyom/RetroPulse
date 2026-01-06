@@ -50,6 +50,7 @@ const mockCardWithChildren: Card = {
 describe('RetroCard', () => {
   const defaultProps = {
     card: mockCard,
+    columnType: 'went_well' as const,
     isOwner: true,
     isClosed: false,
     canReact: true,
@@ -353,7 +354,9 @@ describe('RetroCard', () => {
         ],
       };
 
-      render(<RetroCard {...defaultProps} card={parentCardNoDirectReactions} columnType="went_well" />);
+      render(
+        <RetroCard {...defaultProps} card={parentCardNoDirectReactions} columnType="went_well" />
+      );
 
       // Use getAllByText since child card also shows count
       const allCounts = screen.getAllByText('7');
@@ -408,13 +411,7 @@ describe('RetroCard', () => {
     });
 
     it('should render reaction button for child cards', () => {
-      render(
-        <RetroCard
-          {...defaultProps}
-          card={mockCardWithChildren}
-          {...childReactionProps}
-        />
-      );
+      render(<RetroCard {...defaultProps} card={mockCardWithChildren} {...childReactionProps} />);
 
       expect(screen.getByLabelText(/add reaction to child card/i)).toBeInTheDocument();
     });
@@ -435,13 +432,7 @@ describe('RetroCard', () => {
 
     it('should call onReactToChild when child reaction button is clicked', async () => {
       const user = userEvent.setup();
-      render(
-        <RetroCard
-          {...defaultProps}
-          card={mockCardWithChildren}
-          {...childReactionProps}
-        />
-      );
+      render(<RetroCard {...defaultProps} card={mockCardWithChildren} {...childReactionProps} />);
 
       await user.click(screen.getByLabelText(/add reaction to child card/i));
 
@@ -511,13 +502,7 @@ describe('RetroCard', () => {
     });
 
     it('should show reaction count on child card button', () => {
-      render(
-        <RetroCard
-          {...defaultProps}
-          card={mockCardWithChildren}
-          {...childReactionProps}
-        />
-      );
+      render(<RetroCard {...defaultProps} card={mockCardWithChildren} {...childReactionProps} />);
 
       // Child has direct_reaction_count: 2
       const childReactionButton = screen.getByLabelText(/add reaction to child card/i);
@@ -557,11 +542,7 @@ describe('RetroCard', () => {
       };
 
       render(
-        <RetroCard
-          {...defaultProps}
-          card={cardWithZeroReactionChild}
-          {...childReactionProps}
-        />
+        <RetroCard {...defaultProps} card={cardWithZeroReactionChild} {...childReactionProps} />
       );
 
       expect(screen.getByLabelText(/add reaction to child card/i)).toBeInTheDocument();
@@ -575,8 +556,18 @@ describe('RetroCard', () => {
     ];
 
     const mockLinkedFeedbackCards = [
-      { id: 'feedback-1', content: 'Great team collaboration this sprint' },
-      { id: 'feedback-2', content: 'Need better communication channels' },
+      {
+        id: 'feedback-1',
+        content: 'Great team collaboration this sprint',
+        created_by_alias: 'Alice',
+        created_at: '2025-01-01T00:00:00Z',
+      },
+      {
+        id: 'feedback-2',
+        content: 'Need better communication channels',
+        created_by_alias: 'Bob',
+        created_at: '2025-01-01T01:00:00Z',
+      },
     ];
 
     describe('Linked Actions Section', () => {
@@ -601,10 +592,9 @@ describe('RetroCard', () => {
       });
 
       it('should truncate long action card content', () => {
-        const longContent = 'This is a very long action item that should be truncated because it exceeds the maximum length allowed for display';
-        const longActionCard: LinkedActionCard[] = [
-          { id: 'action-long', content: longContent },
-        ];
+        const longContent =
+          'This is a very long action item that should be truncated because it exceeds the maximum length allowed for display';
+        const longActionCard: LinkedActionCard[] = [{ id: 'action-long', content: longContent }];
         render(<RetroCard {...defaultProps} linkedActionCards={longActionCard} />);
 
         // truncateText truncates at 50 characters by default
@@ -613,7 +603,11 @@ describe('RetroCard', () => {
 
         // Truncated version with ellipsis should be present (using function matcher for split text)
         const truncatedText = screen.getByText((content, element) => {
-          return element?.tagName === 'SPAN' && content.includes('This is a very long action item') && content.includes('...');
+          return (
+            element?.tagName === 'SPAN' &&
+            content.includes('This is a very long action item') &&
+            content.includes('...')
+          );
         });
         expect(truncatedText).toBeInTheDocument();
       });
@@ -680,7 +674,12 @@ describe('RetroCard', () => {
         const cardWithEmbeddedLinks: Card = {
           ...mockCard,
           linked_feedback_cards: [
-            { id: 'embedded-1', content: 'Embedded feedback content' },
+            {
+              id: 'embedded-1',
+              content: 'Embedded feedback content',
+              created_by_alias: 'Charlie',
+              created_at: '2025-01-01T02:00:00Z',
+            },
           ],
         };
 
@@ -719,7 +718,9 @@ describe('RetroCard', () => {
       it('should have proper accessibility attributes on feedback buttons', () => {
         render(<RetroCard {...defaultProps} linkedFeedbackCards={mockLinkedFeedbackCards} />);
 
-        const feedbackButtons = screen.getAllByRole('button', { name: /Navigate to linked feedback/ });
+        const feedbackButtons = screen.getAllByRole('button', {
+          name: /Navigate to linked feedback/,
+        });
         expect(feedbackButtons).toHaveLength(2);
         feedbackButtons.forEach((button) => {
           expect(button).toHaveAttribute('type', 'button');

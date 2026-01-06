@@ -190,17 +190,52 @@ export async function joinBoard(
 }
 
 /**
- * Wait for board to be fully loaded
+ * Handle alias prompt modal if it appears
+ * Returns true if modal was handled, false otherwise
  */
-export async function waitForBoardLoad(page: Page, options: { timeout?: number } = {}): Promise<void> {
-  const { timeout = 10000 } = options;
+export async function handleAliasPromptModal(page: Page, alias?: string): Promise<boolean> {
+  // Check if alias prompt modal is visible
+  const aliasInput = page.getByPlaceholder(/enter your name/i).or(page.getByTestId('alias-input'));
+
+  if (await aliasInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const userAlias = alias || `E2EUser${Date.now().toString().slice(-4)}`;
+    await aliasInput.fill(userAlias);
+
+    const joinButton = page
+      .getByRole('button', { name: /join board/i })
+      .or(page.getByTestId('join-button'));
+
+    await joinButton.click();
+
+    // Wait for modal to close
+    await page.waitForTimeout(500);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Wait for board to be fully loaded
+ * Handles alias prompt modal if it appears
+ */
+export async function waitForBoardLoad(
+  page: Page,
+  options: { timeout?: number; alias?: string } = {}
+): Promise<void> {
+  const { timeout = 5000, alias } = options;
 
   // Wait for page to be stable first
   await page.waitForLoadState('domcontentloaded');
 
+  // Handle alias prompt modal if it appears (Phase 8.7 AliasPromptModal)
+  await handleAliasPromptModal(page, alias);
+
   // Wait for any column header to appear (indicates board is loaded)
+  // Note: Column headers are h2 elements, but they may have role="button" for admins
+  // so we use text matching instead of heading role for reliability
   await page
-    .getByRole('heading', { name: /What Went Well|To Improve|Action Items/i })
+    .locator('h2')
+    .filter({ hasText: /What Went Well|To Improve|Action Items/i })
     .first()
     .waitFor({ state: 'visible', timeout });
 }
@@ -226,9 +261,9 @@ export async function createCard(
     'col-1': 'What Went Well',
     'col-2': 'To Improve',
     'col-3': 'Action Items',
-    'went_well': 'What Went Well',
-    'to_improve': 'To Improve',
-    'action_item': 'Action Items',
+    went_well: 'What Went Well',
+    to_improve: 'To Improve',
+    action_item: 'Action Items',
   };
   const columnName = columnNameMap[columnSelector] || columnSelector;
 
@@ -296,7 +331,11 @@ export async function createCard(
  * Returns the card container element (id="card-{id}"), not just the text element.
  * This is important for finding child elements like the drag handle.
  */
-export async function findCardByContent(page: Page, content: string, options: { timeout?: number } = {}) {
+export async function findCardByContent(
+  page: Page,
+  content: string,
+  options: { timeout?: number } = {}
+) {
   const { timeout = 10000 } = options;
 
   // Find the card container by looking for div[id^="card-"] that contains the text
@@ -800,30 +839,48 @@ export async function isCardInColumn(
 export async function isCardLinked(page: Page, cardContent: string): Promise<boolean> {
   // Pattern 1: Card appears as nested child inside another card
   // Look for a parent card containing both the content and a child reaction button
-  const parentWithChild = page.locator('[id^="card-"]').filter({
-    has: page.getByText(cardContent, { exact: false }),
-  }).filter({
-    has: page.getByRole('button', { name: /reaction to child card/i }),
-  });
-  const isNestedChild = await parentWithChild.first().isVisible().catch(() => false);
+  const parentWithChild = page
+    .locator('[id^="card-"]')
+    .filter({
+      has: page.getByText(cardContent, { exact: false }),
+    })
+    .filter({
+      has: page.getByRole('button', { name: /reaction to child card/i }),
+    });
+  const isNestedChild = await parentWithChild
+    .first()
+    .isVisible()
+    .catch(() => false);
   if (isNestedChild) return true;
 
   // Pattern 2: Action card has "Links to" section (action linked to feedback)
-  const cardWithLinksTo = page.locator('[id^="card-"]').filter({
-    has: page.getByText(cardContent, { exact: false }),
-  }).filter({
-    has: page.getByText('Links to'),
-  });
-  const hasLinksTo = await cardWithLinksTo.first().isVisible().catch(() => false);
+  const cardWithLinksTo = page
+    .locator('[id^="card-"]')
+    .filter({
+      has: page.getByText(cardContent, { exact: false }),
+    })
+    .filter({
+      has: page.getByText('Links to'),
+    });
+  const hasLinksTo = await cardWithLinksTo
+    .first()
+    .isVisible()
+    .catch(() => false);
   if (hasLinksTo) return true;
 
   // Pattern 3: Card has "Linked Actions" section (feedback with linked action cards)
-  const cardWithLinkedActions = page.locator('[id^="card-"]').filter({
-    has: page.getByText(cardContent, { exact: false }),
-  }).filter({
-    has: page.getByText('Linked Actions'),
-  });
-  const hasLinkedActions = await cardWithLinkedActions.first().isVisible().catch(() => false);
+  const cardWithLinkedActions = page
+    .locator('[id^="card-"]')
+    .filter({
+      has: page.getByText(cardContent, { exact: false }),
+    })
+    .filter({
+      has: page.getByText('Linked Actions'),
+    });
+  const hasLinkedActions = await cardWithLinkedActions
+    .first()
+    .isVisible()
+    .catch(() => false);
   if (hasLinkedActions) return true;
 
   return false;
@@ -843,25 +900,40 @@ export async function waitForCardLinked(
   await Promise.race([
     // Pattern 1: Card appears as nested child - look for the child reaction button
     // The parent card will have both the child content and a button with aria-label containing "child card"
-    page.locator('[id^="card-"]').filter({
-      has: page.getByText(cardContent, { exact: false }),
-    }).filter({
-      has: page.getByRole('button', { name: /reaction to child card/i }),
-    }).first().waitFor({ state: 'visible', timeout }),
+    page
+      .locator('[id^="card-"]')
+      .filter({
+        has: page.getByText(cardContent, { exact: false }),
+      })
+      .filter({
+        has: page.getByRole('button', { name: /reaction to child card/i }),
+      })
+      .first()
+      .waitFor({ state: 'visible', timeout }),
 
     // Pattern 2: Card has "Links to" text (visible, not aria-label) for action-feedback links
-    page.locator('[id^="card-"]').filter({
-      has: page.getByText(cardContent, { exact: false }),
-    }).filter({
-      has: page.getByText('Links to'),
-    }).first().waitFor({ state: 'visible', timeout }),
+    page
+      .locator('[id^="card-"]')
+      .filter({
+        has: page.getByText(cardContent, { exact: false }),
+      })
+      .filter({
+        has: page.getByText('Links to'),
+      })
+      .first()
+      .waitFor({ state: 'visible', timeout }),
 
     // Pattern 3: Card has "Linked Actions" text for feedback with linked actions
-    page.locator('[id^="card-"]').filter({
-      has: page.getByText(cardContent, { exact: false }),
-    }).filter({
-      has: page.getByText('Linked Actions'),
-    }).first().waitFor({ state: 'visible', timeout }),
+    page
+      .locator('[id^="card-"]')
+      .filter({
+        has: page.getByText(cardContent, { exact: false }),
+      })
+      .filter({
+        has: page.getByText('Linked Actions'),
+      })
+      .first()
+      .waitFor({ state: 'visible', timeout }),
   ]).catch(() => {
     throw new Error(`Card "${cardContent}" did not become linked within ${timeout}ms`);
   });
@@ -878,9 +950,13 @@ export async function waitForCardUnlinked(
   const { timeout = 10000 } = options;
 
   // Wait for the card to appear as a standalone card (its own [id^="card-"] element with drag handle)
-  const standaloneCard = page.locator('[id^="card-"]').filter({
-    has: page.getByText(cardContent, { exact: false }),
-  }).locator('[data-testid="card-header"]').locator('[aria-label="Drag handle icon"]');
+  const standaloneCard = page
+    .locator('[id^="card-"]')
+    .filter({
+      has: page.getByText(cardContent, { exact: false }),
+    })
+    .locator('[data-testid="card-header"]')
+    .locator('[aria-label="Drag handle icon"]');
 
   await standaloneCard.first().waitFor({ state: 'visible', timeout });
 }
@@ -909,9 +985,12 @@ export async function clickUnlinkForNestedChild(
 
   // Find the child container that has both the unlink button and the child content
   // The container is a div with class containing "rounded-md" that has the child content
-  const childContainer = page.locator('div.rounded-md').filter({
-    has: page.getByText(childContent, { exact: false }),
-  }).first();
+  const childContainer = page
+    .locator('div.rounded-md')
+    .filter({
+      has: page.getByText(childContent, { exact: false }),
+    })
+    .first();
 
   await childContainer.waitFor({ state: 'visible', timeout });
 
@@ -941,17 +1020,12 @@ export async function waitForReactionCount(
 ): Promise<void> {
   const { timeout = 10000 } = options;
 
-  // Find the card container that has the content
-  const card = page.locator('[id^="card-"]').filter({
-    has: page.getByText(cardContent, { exact: false }),
-  }).first();
-
   // Wait for the card to have a reaction button with the expected count
   // The reaction count is displayed in a span inside the reaction button
   await page.waitForFunction(
     ({ cardText, expected }) => {
       // Find all card elements
-      const cards = document.querySelectorAll('[id^="card-"]');
+      const cards = Array.from(document.querySelectorAll('[id^="card-"]'));
       for (const card of cards) {
         // Check if this card contains our content
         if (!card.textContent?.includes(cardText)) continue;
@@ -1019,12 +1093,14 @@ export async function waitForAdminStatus(
 
   // First, wait for the "No participants yet" message to disappear
   // This indicates the WebSocket session is registering the user
-  await page.waitForSelector('text="No participants yet"', {
-    state: 'hidden',
-    timeout,
-  }).catch(() => {
-    // May already be hidden if participants exist
-  });
+  await page
+    .waitForSelector('text="No participants yet"', {
+      state: 'hidden',
+      timeout,
+    })
+    .catch(() => {
+      // May already be hidden if participants exist
+    });
 
   // Then wait for any admin indicator to appear:
   // - Admin crown icon (Crown SVG with aria-label="Admin")
@@ -1052,12 +1128,14 @@ export async function waitForParticipantRegistration(
   const { timeout = 10000 } = options;
 
   // Wait for the "No participants yet" message to disappear
-  await page.waitForSelector('text="No participants yet"', {
-    state: 'hidden',
-    timeout,
-  }).catch(() => {
-    // May already be hidden if participants exist
-  });
+  await page
+    .waitForSelector('text="No participants yet"', {
+      state: 'hidden',
+      timeout,
+    })
+    .catch(() => {
+      // May already be hidden if participants exist
+    });
 
   // Also wait a bit for the participant avatar to render
   await page.waitForTimeout(500);

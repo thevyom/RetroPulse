@@ -10,7 +10,6 @@
 
 import { test, expect } from '@playwright/test';
 import {
-  joinBoard,
   waitForBoardLoad,
   createCard,
   findCardByContent,
@@ -25,7 +24,7 @@ import {
   getBoardId,
   isBackendReady,
 } from './helpers';
-import { closeBoardViaApi, extractBoardIdFromUrl } from './utils/admin-helpers';
+import { closeBoardViaApi } from './utils/admin-helpers';
 
 test.describe('Complete Retro Session', () => {
   // Get board ID from global setup (reads from file)

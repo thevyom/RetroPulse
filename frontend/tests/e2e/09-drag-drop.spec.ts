@@ -25,7 +25,6 @@ import {
   dragCardOntoCard,
   dragCardToColumn,
   dndKitDragWithKeyboard,
-  dndKitLinkCardsWithKeyboard,
   isCardLinked,
   isCardInColumn,
   waitForCardLinked,
@@ -144,9 +143,9 @@ test.describe('Drag-and-Drop Interactions', () => {
       .getByRole('button', { name: /drag/i })
       .or(childCard.locator('[aria-label*="drag"]'));
 
-    // Verify drag handle is visible before linking
-    const hadDragHandle = await dragHandle.isVisible().catch(() => false);
-    // Note: hadDragHandle may be false in jsdom/mocked environments
+    // Verify drag handle is visible before linking (result not used - just verify call succeeds)
+    await dragHandle.isVisible().catch(() => false);
+    // Note: drag handle may not be visible in jsdom/mocked environments
 
     // Link the cards
     await dragCardOntoCard(page, childContent, parentContent);
@@ -221,10 +220,11 @@ test.describe('Drag-and-Drop Interactions', () => {
     await page.waitForLoadState('networkidle');
 
     // Look for error message - use accessible selector
-    const errorMessage = page
-      .getByRole('alert')
-      .or(page.getByText(/circular|invalid/i));
-    const hasError = await errorMessage.first().isVisible().catch(() => false);
+    const errorMessage = page.getByRole('alert').or(page.getByText(/circular|invalid/i));
+    await errorMessage
+      .first()
+      .isVisible()
+      .catch(() => false);
 
     // Either there's an error message, or the operation was silently blocked
     // Parent should NOT be linked (remain a parent, not a child)
@@ -232,7 +232,10 @@ test.describe('Drag-and-Drop Interactions', () => {
     const parentLinkIcon = parentCard
       .getByRole('button', { name: /link|unlink/i })
       .or(parentCard.locator('[aria-label*="linked"]'));
-    const parentIsLinked = await parentLinkIcon.first().isVisible().catch(() => false);
+    const parentIsLinked = await parentLinkIcon
+      .first()
+      .isVisible()
+      .catch(() => false);
 
     expect(parentIsLinked).toBe(false);
   });
@@ -262,7 +265,10 @@ test.describe('Drag-and-Drop Interactions', () => {
     const parentLinkIcon = parentCard
       .getByRole('button', { name: /link|unlink/i })
       .or(parentCard.locator('[aria-label*="linked"]'));
-    const parentIsLinked = await parentLinkIcon.first().isVisible().catch(() => false);
+    const parentIsLinked = await parentLinkIcon
+      .first()
+      .isVisible()
+      .catch(() => false);
 
     // Parent should not have a link icon (it's a parent, not a child)
     expect(parentIsLinked).toBe(false);
@@ -289,8 +295,8 @@ test.describe('Drag-and-Drop Interactions', () => {
       await page.mouse.down();
       await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
 
-      // Check for visual feedback (ring class)
-      const hasRing = await targetCard.evaluate((el) => {
+      // Check for visual feedback (ring class) - result not asserted, just verifying code path
+      await targetCard.evaluate((el) => {
         return (
           el.classList.contains('ring-primary') ||
           el.classList.contains('ring-2') ||

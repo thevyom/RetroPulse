@@ -9,7 +9,7 @@ import { isBackendReady, uniqueBoardName, waitForBoardLoad } from './helpers';
 import { getBoardViaApi, extractBoardIdFromUrl } from './utils/admin-helpers';
 
 test.describe('Home Page', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
   });
 
@@ -59,7 +59,7 @@ test.describe('Home Page', () => {
 });
 
 test.describe('Board Creation', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
   });
 
@@ -244,12 +244,14 @@ test.describe('Board Creation', () => {
     await expect(allUsersButton).toBeEnabled();
 
     // 3. Wait for WebSocket to register the participant (no more "No participants yet")
-    await page.waitForSelector('text="No participants yet"', {
-      state: 'hidden',
-      timeout: 10000,
-    }).catch(() => {
-      // May already be hidden
-    });
+    await page
+      .waitForSelector('text="No participants yet"', {
+        state: 'hidden',
+        timeout: 10000,
+      })
+      .catch(() => {
+        // May already be hidden
+      });
 
     // 4. Verify user avatar appears with correct initials
     // "ParticipantTestUser" is one word, so initials should be "PA" (first two letters)

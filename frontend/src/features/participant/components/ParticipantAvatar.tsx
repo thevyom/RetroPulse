@@ -3,6 +3,7 @@
  * Individual avatar for a participant with filter toggle functionality.
  */
 
+/* eslint-disable react-refresh/only-export-components */
 import { memo } from 'react';
 import { Ghost, User, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -76,7 +77,11 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         return <User className="h-4 w-4" />;
       case 'user':
       default:
-        return <span className="text-sm font-semibold leading-none tracking-tight">{alias ? getInitials(alias) : '??'}</span>;
+        return (
+          <span className="text-sm font-semibold leading-none tracking-tight">
+            {alias ? getInitials(alias) : '??'}
+          </span>
+        );
     }
   };
 
@@ -103,7 +108,11 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
           className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           aria-label={`Filter by ${getTooltipText()}`}
           aria-pressed={isSelected}
-          data-testid={type === 'user' ? `participant-avatar-${alias?.replace(/\s+/g, '-').toLowerCase()}` : `${type}-avatar`}
+          data-testid={
+            type === 'user'
+              ? `participant-avatar-${alias?.replace(/\s+/g, '-').toLowerCase()}`
+              : `${type}-avatar`
+          }
           data-avatar-type={type}
         >
           <Avatar
@@ -113,12 +122,14 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
               type === 'all' && 'bg-primary text-primary-foreground',
               type === 'anonymous' && 'bg-muted text-muted-foreground',
               type === 'me' && 'bg-blue-500 text-white',
-              // User avatar styles - admin status determines fill color
-              type === 'user' && isAdmin && 'bg-amber-400 text-gray-800',
-              type === 'user' && !isAdmin && 'bg-accent text-accent-foreground',
-              // Online status - green ring (only for user type)
+              // User avatar styles - background based on admin + online status
+              type === 'user' && isAdmin && isOnline && 'bg-amber-400 text-gray-800',
+              type === 'user' && isAdmin && !isOnline && 'bg-amber-200 text-gray-700',
+              type === 'user' && !isAdmin && isOnline && 'bg-blue-500 text-white',
+              type === 'user' && !isAdmin && !isOnline && 'bg-gray-300 text-gray-600',
+              // Ring for online status (only for user type)
               type === 'user' && isOnline && 'ring-2 ring-green-500',
-              // Selection state - thicker ring + scale
+              // Selection state - thicker ring + scale (overrides online ring)
               isSelected && 'ring-[3px] ring-primary scale-110'
             )}
           >

@@ -5,13 +5,20 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, createCard, closeBoard, isBoardClosed, getBoardId, isBackendReady } from './helpers';
+import {
+  waitForBoardLoad,
+  createCard,
+  closeBoard,
+  isBoardClosed,
+  getBoardId,
+  isBackendReady,
+} from './helpers';
 
 test.describe('Board Lifecycle', () => {
   // Use dedicated lifecycle board
   const testBoardId = getBoardId('lifecycle');
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
   });
 

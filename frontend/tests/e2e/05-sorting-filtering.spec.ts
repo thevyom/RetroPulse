@@ -41,7 +41,12 @@ test.describe('Sorting and Filtering', () => {
       .or(page.getByRole('button', { name: /sort/i }))
       .or(page.locator('[aria-label*="sort"]'));
 
-    if (await sortDropdown.first().isVisible().catch(() => false)) {
+    if (
+      await sortDropdown
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
       await sortDropdown.first().click();
 
       // Select popularity option using accessible selector
@@ -49,7 +54,12 @@ test.describe('Sorting and Filtering', () => {
         .getByRole('option', { name: /popular/i })
         .or(page.getByText(/popular/i));
 
-      if (await popularityOption.first().isVisible().catch(() => false)) {
+      if (
+        await popularityOption
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await popularityOption.first().click();
 
         // Verify dropdown shows new mode
@@ -103,7 +113,12 @@ test.describe('Sorting and Filtering', () => {
         .or(alice.getByRole('img', { name: /Bob/i }))
         .or(alice.locator('[aria-label*="Bob"]'));
 
-      if (await bobAvatar.first().isVisible().catch(() => false)) {
+      if (
+        await bobAvatar
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await bobAvatar.first().click();
 
         // Only Bob's card should be visible
@@ -116,10 +131,13 @@ test.describe('Sorting and Filtering', () => {
     }
   });
 
-  test('filter by Anonymous shows only anonymous cards', async ({ page }) => {
+  test('filter by Anonymous shows only anonymous cards', async ({ page: _page }) => {
     // SKIP: Known bug UTB-012 - Anonymous filter logic is inverted
     // See: docs/frontend/USER_TESTING_BUGS.md#utb-012-anonymous-filter-logic-inverted
-    test.skip(true, 'Known bug UTB-012: Anonymous filter hides anonymous cards instead of showing only anonymous');
+    test.skip(
+      true,
+      'Known bug UTB-012: Anonymous filter hides anonymous cards instead of showing only anonymous'
+    );
   });
 
   test('All Users filter shows all cards', async ({ page }) => {
@@ -136,7 +154,12 @@ test.describe('Sorting and Filtering', () => {
       .or(page.getByText(/all users/i))
       .or(page.locator('[aria-label*="all users"]'));
 
-    if (await allUsersFilter.first().isVisible().catch(() => false)) {
+    if (
+      await allUsersFilter
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
       await allUsersFilter.first().click();
 
       // Both cards visible
@@ -152,14 +175,24 @@ test.describe('Sorting and Filtering', () => {
       .or(page.getByRole('button', { name: /sort/i }))
       .or(page.locator('[aria-label*="sort"]'));
 
-    if (await sortDropdown.first().isVisible().catch(() => false)) {
+    if (
+      await sortDropdown
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
       await sortDropdown.first().click();
 
       const popularityOption = page
         .getByRole('option', { name: /popular/i })
         .or(page.getByText(/popular/i));
 
-      if (await popularityOption.first().isVisible().catch(() => false)) {
+      if (
+        await popularityOption
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await popularityOption.first().click();
 
         // Refresh page
@@ -177,7 +210,10 @@ test.describe('Sorting and Filtering', () => {
     // This is an optional feature - test passes if not implemented
     const filterCount = page.getByText(/\d+\s*cards?/i);
 
-    const isVisible = await filterCount.first().isVisible().catch(() => false);
+    const isVisible = await filterCount
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (isVisible) {
       const countText = await filterCount.first().textContent();
       // Only check if we found meaningful content (not empty string)

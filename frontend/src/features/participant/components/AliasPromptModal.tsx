@@ -1,9 +1,3 @@
-/**
- * AliasPromptModal Component
- * Mandatory alias prompt modal that appears when a new user (without cookie) tries to join a board.
- * Cannot be dismissed without entering a valid alias.
- */
-
 import { useState } from 'react';
 import {
   Dialog,
@@ -14,39 +8,31 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { validateAlias, MAX_ALIAS_LENGTH } from '@/shared/validation';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface AliasPromptModalProps {
+interface AliasPromptModalProps {
   isOpen: boolean;
   onJoin: (alias: string) => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
   const [alias, setAlias] = useState('');
   const [error, setError] = useState('');
 
+  const validate = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (trimmed.length < 1) return 'Please enter a name';
+    if (trimmed.length > 50) return 'Name must be 50 characters or less';
+    if (!/^[a-zA-Z0-9\s]+$/.test(trimmed)) return 'Only letters, numbers, and spaces allowed';
+    return null;
+  };
+
   const handleSubmit = () => {
-    const validation = validateAlias(alias);
-    if (!validation.isValid) {
-      setError(validation.error || 'Invalid alias');
+    const validationError = validate(alias);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     onJoin(alias.trim());
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit();
-    }
   };
 
   return (
@@ -55,12 +41,12 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
         className="sm:max-w-md [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-        data-testid="alias-prompt-modal"
       >
         <DialogHeader>
-          <DialogTitle>Join the Retro</DialogTitle>
-          <DialogDescription>What should we call you?</DialogDescription>
+          <DialogTitle>Join the Retrospective</DialogTitle>
+          <DialogDescription>
+            What should we call you? This name will be visible to other participants.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -71,34 +57,18 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
               setError('');
             }}
             placeholder="Enter your name"
-            onKeyDown={handleKeyDown}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             autoFocus
-            maxLength={MAX_ALIAS_LENGTH}
-            aria-label="Your name"
-            aria-invalid={!!error}
-            aria-describedby={error ? 'alias-error' : 'alias-hint'}
-            data-testid="alias-input"
+            maxLength={50}
           />
-          {error && (
-            <p
-              id="alias-error"
-              className="text-sm text-destructive"
-              role="alert"
-              data-testid="alias-error"
-            >
-              {error}
-            </p>
-          )}
-          <p id="alias-hint" className="text-sm text-muted-foreground">
-            This name will be visible to other participants.
-          </p>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <Button
           onClick={handleSubmit}
           disabled={alias.trim().length === 0}
           className="w-full"
-          data-testid="join-board-button"
+          size="lg"
         >
           Join Board
         </Button>
@@ -106,5 +76,3 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
     </Dialog>
   );
 }
-
-export default AliasPromptModal;

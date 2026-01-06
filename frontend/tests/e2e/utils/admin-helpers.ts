@@ -8,7 +8,7 @@
  * on the WebSocket session establishing admin status first.
  */
 
-import { APIRequestContext, APIResponse } from '@playwright/test';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 // Admin secret from environment or default dev secret
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'dev-admin-secret-16chars';
@@ -60,10 +60,7 @@ export async function adminRequest(
  * @param request - Playwright's APIRequestContext
  * @param boardId - Board ID to close
  */
-export async function closeBoardViaApi(
-  request: APIRequestContext,
-  boardId: string
-): Promise<void> {
+export async function closeBoardViaApi(request: APIRequestContext, boardId: string): Promise<void> {
   const response = await adminRequest(request, 'PATCH', `/boards/${boardId}/close`, {});
   if (!response.ok()) {
     const body = await response.text();

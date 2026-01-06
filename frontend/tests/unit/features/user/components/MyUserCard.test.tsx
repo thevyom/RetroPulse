@@ -25,23 +25,27 @@ describe('MyUserCard', () => {
       expect(screen.getByText('TestUser')).toBeInTheDocument();
     });
 
-    it('should display truncated UUID', () => {
+    it('should NOT display UUID in main view (Phase 8.7: moved to dialog)', () => {
       render(<MyUserCard {...defaultProps} />);
 
-      // UUID is truncated to 8 chars
-      expect(screen.getByText('(abc123de...)')).toBeInTheDocument();
+      // UUID was moved to Edit Alias dialog per Task 1.5
+      // Main view should NOT show any UUID
+      expect(screen.queryByText(/abc123/i)).not.toBeInTheDocument();
     });
 
-    // Note: Tooltip tests are flaky in JSDOM due to Radix UI tooltip timing
-    // The tooltip functionality works correctly in real browsers
-    it.skip('should show full UUID in tooltip', async () => {
+    it('should show UUID only in the Edit Alias dialog', async () => {
       const user = userEvent.setup();
       render(<MyUserCard {...defaultProps} />);
 
-      const truncatedUuid = screen.getByText('(abc123de...)');
-      await user.hover(truncatedUuid);
+      // UUID not visible before opening dialog
+      expect(screen.queryByText(/abc123def456/i)).not.toBeInTheDocument();
 
-      expect(await screen.findByText('abc123def456ghi789')).toBeInTheDocument();
+      // Open edit dialog
+      await user.click(screen.getByLabelText(/edit alias/i));
+
+      // UUID now visible in dialog (truncated to 12 chars + ...)
+      expect(screen.getByText('abc123def456...')).toBeInTheDocument();
+      expect(screen.getByText('Your ID:')).toBeInTheDocument();
     });
   });
 

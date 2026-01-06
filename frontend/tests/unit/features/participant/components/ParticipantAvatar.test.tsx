@@ -209,21 +209,46 @@ describe('ParticipantAvatar', () => {
   });
 
   describe('admin indicator (v2: gold fill instead of crown)', () => {
-    it('should show gold fill for admin users', () => {
-      renderWithProvider(<ParticipantAvatar type="user" alias="Alice" isAdmin={true} />);
+    it('should show gold fill for online admin users', () => {
+      renderWithProvider(
+        <ParticipantAvatar type="user" alias="Alice" isAdmin={true} isOnline={true} />
+      );
 
-      // Avatar System v2: Admin is indicated by gold/amber background, not crown icon
+      // Avatar System v2: Online admin is indicated by gold/amber background
       const avatar = screen.getByRole('button').querySelector('span');
       expect(avatar).toHaveClass('bg-amber-400');
     });
 
-    it('should not show gold fill for non-admin users', () => {
-      renderWithProvider(<ParticipantAvatar type="user" alias="Alice" isAdmin={false} />);
+    it('should show muted gold fill for offline admin users', () => {
+      renderWithProvider(
+        <ParticipantAvatar type="user" alias="Alice" isAdmin={true} isOnline={false} />
+      );
 
-      // Non-admin users have accent background, not amber
+      // Avatar System v2: Offline admin has muted amber background
+      const avatar = screen.getByRole('button').querySelector('span');
+      expect(avatar).toHaveClass('bg-amber-200');
+    });
+
+    it('should show blue fill for online non-admin users', () => {
+      renderWithProvider(
+        <ParticipantAvatar type="user" alias="Alice" isAdmin={false} isOnline={true} />
+      );
+
+      // Avatar System v2: Online non-admin has blue background
       const avatar = screen.getByRole('button').querySelector('span');
       expect(avatar).not.toHaveClass('bg-amber-400');
-      expect(avatar).toHaveClass('bg-accent');
+      expect(avatar).toHaveClass('bg-blue-500');
+    });
+
+    it('should show gray fill for offline non-admin users', () => {
+      renderWithProvider(
+        <ParticipantAvatar type="user" alias="Alice" isAdmin={false} isOnline={false} />
+      );
+
+      // Avatar System v2: Offline non-admin has gray background
+      const avatar = screen.getByRole('button').querySelector('span');
+      expect(avatar).not.toHaveClass('bg-amber-400');
+      expect(avatar).toHaveClass('bg-gray-300');
     });
   });
 });

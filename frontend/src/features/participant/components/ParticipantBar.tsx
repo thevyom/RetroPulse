@@ -1,7 +1,7 @@
 /**
  * ParticipantBar Component
  * Displays active users as avatars with filter functionality.
- * Layout: [All, Anon, Me] | [Participants]
+ * Layout: [All, Anon] | [Participants (scrollable)] | [Me]
  */
 
 import type { ChangeEvent, KeyboardEvent } from 'react';
@@ -120,7 +120,7 @@ export const ParticipantBar = memo(function ParticipantBar({
   return (
     <TooltipProvider>
       <nav className="flex items-center w-full" role="toolbar" aria-label="Participant filters">
-        {/* Filter Controls Section - fixed left: All, Anon, Me */}
+        {/* Filter Controls Section - fixed left: All, Anon */}
         <div className="flex items-center gap-2 shrink-0" role="group" aria-label="Filter options">
           {/* All Users */}
           <ParticipantAvatar
@@ -135,21 +135,10 @@ export const ParticipantBar = memo(function ParticipantBar({
             isSelected={showOnlyAnonymous}
             onClick={onToggleAnonymous}
           />
-
-          {/* Me - part of filter group */}
-          {currentUserAlias && (
-            <MeSection
-              alias={currentUserAlias}
-              isAdmin={currentUserIsAdmin}
-              isSelected={showOnlyMe}
-              onFilter={onToggleMe}
-              onEditAlias={handleOpenEditDialog}
-            />
-          )}
         </div>
 
         {/* Divider */}
-        <div className="h-6 w-px bg-border mx-3" aria-hidden="true" />
+        <div className="h-6 w-px bg-border mx-3 shrink-0" aria-hidden="true" />
 
         {/* Other Participants - scrollable middle */}
         {/* Admin promotion moved to AvatarContextMenu (right-click) per Task 3.4 */}
@@ -163,6 +152,7 @@ export const ParticipantBar = memo(function ParticipantBar({
             <AvatarContextMenu
               key={user.alias}
               user={user}
+              isCurrentUser={false}
               isCurrentUserAdmin={currentUserIsAdmin}
               onMakeAdmin={onPromoteToAdmin}
               onFilterByUser={onToggleUser}
@@ -179,9 +169,34 @@ export const ParticipantBar = memo(function ParticipantBar({
           ))}
 
           {otherUsers.length === 0 && (
-            <span className="text-sm text-muted-foreground whitespace-nowrap">No other participants</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              No other participants
+            </span>
           )}
         </div>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-border mx-3 shrink-0" aria-hidden="true" />
+
+        {/* Me Section - fixed right, wrapped with context menu for edit alias */}
+        {currentUserAlias && (
+          <div className="shrink-0" role="group" aria-label="Current user">
+            <AvatarContextMenu
+              user={{ alias: currentUserAlias, is_admin: currentUserIsAdmin }}
+              isCurrentUser={true}
+              isCurrentUserAdmin={currentUserIsAdmin}
+              onFilterByUser={onToggleMe}
+              onEditAlias={handleOpenEditDialog}
+            >
+              <MeSection
+                alias={currentUserAlias}
+                isAdmin={currentUserIsAdmin}
+                isSelected={showOnlyMe}
+                onFilter={onToggleMe}
+              />
+            </AvatarContextMenu>
+          </div>
+        )}
       </nav>
 
       {/* Edit Alias Dialog */}

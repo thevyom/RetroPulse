@@ -148,22 +148,29 @@ describe('ParticipantBar', () => {
       render(<ParticipantBar {...defaultProps} />);
 
       expect(screen.getByTestId('me-section')).toBeInTheDocument();
-      expect(screen.getByTestId('me-alias')).toHaveTextContent('CurrentUser');
+      // MeSection now shows only initials, accessible via title attribute
+      expect(screen.getByTestId('me-section')).toHaveAttribute(
+        'title',
+        'CurrentUser (You) - Click to filter'
+      );
     });
 
     it('should call onToggleMe when MeSection avatar is clicked', async () => {
       const user = userEvent.setup();
       render(<ParticipantBar {...defaultProps} />);
 
-      await user.click(screen.getByTestId('me-avatar'));
+      // MeSection is now a single button element
+      await user.click(screen.getByTestId('me-section'));
 
       expect(defaultProps.onToggleMe).toHaveBeenCalled();
     });
 
-    it('should show edit button in MeSection', () => {
+    it('should show edit option via context menu (UTB-033)', () => {
       render(<ParticipantBar {...defaultProps} />);
 
-      expect(screen.getByTestId('edit-alias-button')).toBeInTheDocument();
+      // Edit alias button removed per UTB-033, moved to context menu
+      // Verify MeSection is rendered and accessible
+      expect(screen.getByTestId('me-section')).toBeInTheDocument();
     });
   });
 
@@ -211,8 +218,14 @@ describe('ParticipantBar', () => {
       // Only Bob should be selected
       expect(screen.getByLabelText(/filter by bob/i)).toHaveAttribute('aria-pressed', 'true');
       expect(screen.getByLabelText(/filter by alice/i)).toHaveAttribute('aria-pressed', 'false');
-      expect(screen.getByLabelText(/filter by all users/i)).toHaveAttribute('aria-pressed', 'false');
-      expect(screen.getByLabelText(/filter by anonymous/i)).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByLabelText(/filter by all users/i)).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+      expect(screen.getByLabelText(/filter by anonymous/i)).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
     });
 
     it('should show mutually exclusive filter states - anonymous selected', () => {
@@ -227,7 +240,10 @@ describe('ParticipantBar', () => {
 
       // Only Anonymous should be selected
       expect(screen.getByLabelText(/filter by anonymous/i)).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByLabelText(/filter by all users/i)).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByLabelText(/filter by all users/i)).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
       expect(screen.getByLabelText(/filter by alice/i)).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -243,7 +259,10 @@ describe('ParticipantBar', () => {
 
       // Only All should be selected
       expect(screen.getByLabelText(/filter by all users/i)).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByLabelText(/filter by anonymous/i)).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByLabelText(/filter by anonymous/i)).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
       expect(screen.getByLabelText(/filter by alice/i)).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -286,7 +305,15 @@ describe('ParticipantBar', () => {
     });
 
     it('should render all participants when there are many (10+)', () => {
-      const manyUsers = [...generateManyUsers(15), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
+      const manyUsers = [
+        ...generateManyUsers(15),
+        {
+          alias: 'CurrentUser',
+          is_admin: false,
+          last_active_at: '2025-01-01T00:00:00Z',
+          created_at: '2025-01-01T00:00:00Z',
+        },
+      ];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
       // All 15 other users should be rendered (CurrentUser is in MeSection)
@@ -295,7 +322,15 @@ describe('ParticipantBar', () => {
     });
 
     it('should keep filter controls accessible with many participants', () => {
-      const manyUsers = [...generateManyUsers(20), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
+      const manyUsers = [
+        ...generateManyUsers(20),
+        {
+          alias: 'CurrentUser',
+          is_admin: false,
+          last_active_at: '2025-01-01T00:00:00Z',
+          created_at: '2025-01-01T00:00:00Z',
+        },
+      ];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
       // Filter controls should still be visible and accessible
@@ -304,7 +339,15 @@ describe('ParticipantBar', () => {
     });
 
     it('should keep MeSection accessible with many participants', () => {
-      const manyUsers = [...generateManyUsers(20), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
+      const manyUsers = [
+        ...generateManyUsers(20),
+        {
+          alias: 'CurrentUser',
+          is_admin: false,
+          last_active_at: '2025-01-01T00:00:00Z',
+          created_at: '2025-01-01T00:00:00Z',
+        },
+      ];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
       // MeSection should still be visible
@@ -322,7 +365,15 @@ describe('ParticipantBar', () => {
 
     it('should allow clicking on participants in scrollable area', async () => {
       const user = userEvent.setup();
-      const manyUsers = [...generateManyUsers(15), { alias: 'CurrentUser', is_admin: false, last_active_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z' }];
+      const manyUsers = [
+        ...generateManyUsers(15),
+        {
+          alias: 'CurrentUser',
+          is_admin: false,
+          last_active_at: '2025-01-01T00:00:00Z',
+          created_at: '2025-01-01T00:00:00Z',
+        },
+      ];
       render(<ParticipantBar {...defaultProps} activeUsers={manyUsers} />);
 
       // Click on a user that would be in the scrollable area

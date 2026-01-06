@@ -3,7 +3,7 @@
  * Cleans up test data created during E2E tests
  */
 
-import { FullConfig } from '@playwright/test';
+import type { FullConfig } from '@playwright/test';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
@@ -15,7 +15,7 @@ if (!envAdminSecret && process.env.CI) {
 // Use fallback only for local development
 const ADMIN_SECRET = envAdminSecret || 'dev-admin-secret-16chars';
 
-async function globalTeardown(config: FullConfig): Promise<void> {
+async function globalTeardown(_config: FullConfig): Promise<void> {
   const sessionId = process.env.E2E_TEST_SESSION_ID;
   const backendReady = process.env.E2E_BACKEND_READY === 'true';
 

@@ -5,14 +5,21 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForBoardLoad, closeBoard, isBoardClosed, waitForAdminBadge, waitForAdminStatus, waitForParticipantRegistration, getBoardId, isBackendReady, uniqueBoardName, createCard } from './helpers';
-import { closeBoardViaApi, renameBoardViaApi, promoteAdminViaApi, extractBoardIdFromUrl, getBoardViaApi } from './utils/admin-helpers';
+import {
+  waitForBoardLoad,
+  closeBoard,
+  isBoardClosed,
+  waitForAdminBadge,
+  getBoardId,
+  isBackendReady,
+} from './helpers';
+import { closeBoardViaApi, renameBoardViaApi, getBoardViaApi } from './utils/admin-helpers';
 
 test.describe('Admin Operations', () => {
   // Use default board for admin operations testing
   const testBoardId = getBoardId('default');
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     test.skip(!isBackendReady(), 'Backend not running');
   });
 
@@ -66,10 +73,8 @@ test.describe('Admin Operations', () => {
       await waitForBoardLoad(userPage);
 
       // Non-admin should NOT see admin controls - use accessible selectors
-      const closeButton = userPage
-        .getByRole('button', { name: /close board/i });
-      const adminDropdown = userPage
-        .getByRole('button', { name: /admin|settings/i });
+      const closeButton = userPage.getByRole('button', { name: /close board/i });
+      const adminDropdown = userPage.getByRole('button', { name: /admin|settings/i });
 
       const hasCloseButton = await closeButton.isVisible({ timeout: 2000 }).catch(() => false);
       const hasAdminDropdown = await adminDropdown.isVisible({ timeout: 2000 }).catch(() => false);
@@ -102,9 +107,13 @@ test.describe('Admin Operations', () => {
       await waitForBoardLoad(userPage);
 
       // Admin opens dropdown - use accessible selector
-      const adminDropdown = adminPage
-        .getByRole('button', { name: /admin|settings/i });
-      if (await adminDropdown.first().isVisible().catch(() => false)) {
+      const adminDropdown = adminPage.getByRole('button', { name: /admin|settings/i });
+      if (
+        await adminDropdown
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await adminDropdown.first().click();
 
         // Promote user - use accessible selector
@@ -151,13 +160,22 @@ test.describe('Admin Operations', () => {
       await waitForBoardLoad(coAdminPage);
 
       // Creator promotes user to co-admin first - use accessible selector
-      const adminDropdown = creatorPage
-        .getByRole('button', { name: /admin|settings/i });
-      if (await adminDropdown.first().isVisible().catch(() => false)) {
+      const adminDropdown = creatorPage.getByRole('button', { name: /admin|settings/i });
+      if (
+        await adminDropdown
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await adminDropdown.first().click();
 
         const promoteOption = creatorPage.getByRole('menuitem', { name: /promote/i });
-        if (await promoteOption.first().isVisible().catch(() => false)) {
+        if (
+          await promoteOption
+            .first()
+            .isVisible()
+            .catch(() => false)
+        ) {
           await promoteOption.first().click();
           await waitForAdminBadge(creatorPage);
         }
@@ -173,7 +191,7 @@ test.describe('Admin Operations', () => {
         await closeBoard(coAdminPage);
 
         // Both should see closed state
-        const creatorSeesClosed = await isBoardClosed(creatorPage);
+        await isBoardClosed(creatorPage);
         const coAdminSeesClosed = await isBoardClosed(coAdminPage);
 
         expect(coAdminSeesClosed).toBe(true);
@@ -190,7 +208,12 @@ test.describe('Admin Operations', () => {
 
     // Rename board - use accessible selector
     const editBoardButton = page.getByRole('button', { name: /edit/i });
-    if (await editBoardButton.first().isVisible().catch(() => false)) {
+    if (
+      await editBoardButton
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
       await editBoardButton.first().click();
 
       const boardInput = page
@@ -202,15 +225,18 @@ test.describe('Admin Operations', () => {
       const saveButton = page.getByRole('button', { name: /save/i });
       await saveButton.click();
 
-      await expect(page.getByRole('heading').first()).toContainText(
-        newBoardName.slice(0, 10)
-      );
+      await expect(page.getByRole('heading').first()).toContainText(newBoardName.slice(0, 10));
     }
 
     // Rename column - use accessible selector for column header
     const columnHeading = page.getByRole('heading', { name: 'What Went Well', exact: true });
     const editColumnButton = columnHeading.locator('..').getByRole('button', { name: /edit/i });
-    if (await editColumnButton.first().isVisible().catch(() => false)) {
+    if (
+      await editColumnButton
+        .first()
+        .isVisible()
+        .catch(() => false)
+    ) {
       await editColumnButton.first().click();
 
       const columnInput = page
@@ -222,9 +248,7 @@ test.describe('Admin Operations', () => {
       const saveButton = page.getByRole('button', { name: /save/i });
       await saveButton.click();
 
-      await expect(columnHeading).toContainText(
-        newColumnName.slice(0, 8)
-      );
+      await expect(columnHeading).toContainText(newColumnName.slice(0, 8));
     }
   });
 

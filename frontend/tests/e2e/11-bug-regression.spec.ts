@@ -28,7 +28,7 @@ import {
 
 test.describe('HIGH Priority Bug Regression Tests', () => {
   test.describe('UTB-003: Copy Link Button', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page: _page }) => {
       test.skip(!isBackendReady(), 'Backend not running');
     });
 
@@ -46,7 +46,8 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
       await waitForBoardLoad(page);
 
       // Verify Copy Link button exists with correct label
-      const copyLinkButton = page.getByRole('button', { name: /copy.*link/i })
+      const copyLinkButton = page
+        .getByRole('button', { name: /copy.*link/i })
         .or(page.locator('[aria-label="Copy board link"]'));
       await expect(copyLinkButton.first()).toBeVisible();
 
@@ -73,7 +74,8 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
       const expectedUrl = page.url();
 
       // Click Copy Link button
-      const copyLinkButton = page.getByRole('button', { name: /copy.*link/i })
+      const copyLinkButton = page
+        .getByRole('button', { name: /copy.*link/i })
         .or(page.locator('[aria-label="Copy board link"]'));
       await copyLinkButton.first().click();
 
@@ -112,7 +114,9 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
 
       // Find the child's reaction button within the parent card's children section
       // Child cards are displayed inline in the parent card
-      const childReactionButton = parentCard.getByRole('button', { name: /add reaction|remove reaction/i });
+      const childReactionButton = parentCard.getByRole('button', {
+        name: /add reaction|remove reaction/i,
+      });
 
       // There should be at least 2 reaction buttons (parent + child)
       const reactionButtons = await childReactionButton.count();
@@ -137,7 +141,9 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
       const parentCard = await findCardByContent(page, parentContent);
 
       // Get the child's reaction button (second one in the list)
-      const reactionButtons = parentCard.getByRole('button', { name: /add reaction|remove reaction/i });
+      const reactionButtons = parentCard.getByRole('button', {
+        name: /add reaction|remove reaction/i,
+      });
       const childReactionButton = reactionButtons.nth(1);
 
       // Click to add reaction
@@ -247,7 +253,8 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
 
     test('Anonymous filter shows visual active state when clicked', async ({ page }) => {
       // Find the Anonymous filter button
-      const anonymousFilter = page.getByRole('button', { name: /filter by anonymous/i })
+      const anonymousFilter = page
+        .getByRole('button', { name: /filter by anonymous/i })
         .or(page.locator('[aria-label="Filter by Anonymous Cards"]'));
 
       await expect(anonymousFilter.first()).toBeVisible();
@@ -269,7 +276,8 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
     });
 
     test('Anonymous filter ring disappears when deselected', async ({ page }) => {
-      const anonymousFilter = page.getByRole('button', { name: /filter by anonymous/i })
+      const anonymousFilter = page
+        .getByRole('button', { name: /filter by anonymous/i })
         .or(page.locator('[aria-label="Filter by Anonymous Cards"]'));
 
       // Click to activate
@@ -277,7 +285,8 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
       await expect(anonymousFilter.first()).toHaveAttribute('aria-pressed', 'true');
 
       // Click All Users to deselect anonymous
-      const allUsersFilter = page.getByRole('button', { name: /filter by all users/i })
+      const allUsersFilter = page
+        .getByRole('button', { name: /filter by all users/i })
         .or(page.locator('[aria-label="Filter by All Users"]'));
       await allUsersFilter.first().click();
 
@@ -287,7 +296,7 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
   });
 
   test.describe('UTB-020: Card Content Editing', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page: _page }) => {
       test.skip(!isBackendReady(), 'Backend not running');
     });
 
@@ -338,7 +347,9 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
       await createCard(page, 'col-1', originalContent);
 
       // Click to edit
-      const cardContentElement = page.getByTestId('card-content').filter({ hasText: originalContent });
+      const cardContentElement = page
+        .getByTestId('card-content')
+        .filter({ hasText: originalContent });
       await cardContentElement.first().click();
 
       // Modify content
@@ -374,7 +385,9 @@ test.describe('HIGH Priority Bug Regression Tests', () => {
       await createCard(page, 'col-1', originalContent);
 
       // Click to edit
-      const cardContentElement = page.getByTestId('card-content').filter({ hasText: originalContent });
+      const cardContentElement = page
+        .getByTestId('card-content')
+        .filter({ hasText: originalContent });
       await cardContentElement.first().click();
 
       // Modify content
@@ -414,17 +427,29 @@ test.describe('MEDIUM Priority Bug Regression Tests', () => {
       const initialHeaderBox = await header.boundingBox();
 
       // Find sort dropdown
-      const sortDropdown = page.getByRole('combobox', { name: /sort/i })
+      const sortDropdown = page
+        .getByRole('combobox', { name: /sort/i })
         .or(page.getByRole('button', { name: /sort/i }))
         .or(page.locator('[aria-label*="sort"]'));
 
-      if (await sortDropdown.first().isVisible().catch(() => false)) {
+      if (
+        await sortDropdown
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await sortDropdown.first().click();
 
-        const popularityOption = page.getByRole('option', { name: /popular/i })
+        const popularityOption = page
+          .getByRole('option', { name: /popular/i })
           .or(page.getByText(/popular/i));
 
-        if (await popularityOption.first().isVisible().catch(() => false)) {
+        if (
+          await popularityOption
+            .first()
+            .isVisible()
+            .catch(() => false)
+        ) {
           await popularityOption.first().click();
 
           // Small wait for any potential re-render
@@ -467,7 +492,8 @@ test.describe('MEDIUM Priority Bug Regression Tests', () => {
 
       // Parent card should show own reaction count indicator
       // The component displays "(X own)" when there are children
-      const ownCountIndicator = parentCard.getByTestId('reaction-own-count')
+      const ownCountIndicator = parentCard
+        .getByTestId('reaction-own-count')
         .or(parentCard.locator(':text("own")'));
 
       // This test may fail if bug is not fixed - the own count should be visible
@@ -495,9 +521,11 @@ test.describe('MEDIUM Priority Bug Regression Tests', () => {
 
     test('clicking new filter deselects previous filter', async ({ page }) => {
       // Get filter buttons
-      const allUsersFilter = page.getByRole('button', { name: /filter by all users/i })
+      const allUsersFilter = page
+        .getByRole('button', { name: /filter by all users/i })
         .or(page.locator('[aria-label="Filter by All Users"]'));
-      const anonymousFilter = page.getByRole('button', { name: /filter by anonymous/i })
+      const anonymousFilter = page
+        .getByRole('button', { name: /filter by anonymous/i })
         .or(page.locator('[aria-label="Filter by Anonymous Cards"]'));
 
       // All Users should be selected by default
@@ -527,7 +555,7 @@ test.describe('MEDIUM Priority Bug Regression Tests', () => {
 
 test.describe('LOW Priority Bug Regression Tests', () => {
   test.describe('UTB-018: Anonymous Cards Ghost Icon', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page: _page }) => {
       test.skip(!isBackendReady(), 'Backend not running');
     });
 
@@ -552,11 +580,15 @@ test.describe('LOW Priority Bug Regression Tests', () => {
       const card = await findCardByContent(page, cardContent);
 
       // Should have ghost icon (SVG with Ghost class or aria-label)
-      const ghostIcon = card.locator('svg')
+      const ghostIcon = card
+        .locator('svg')
         .filter({ has: page.locator('[aria-label="Anonymous card"]') })
         .or(card.locator('[aria-label="Anonymous card"]'));
 
-      const hasGhostIcon = await ghostIcon.first().isVisible().catch(() => false);
+      const hasGhostIcon = await ghostIcon
+        .first()
+        .isVisible()
+        .catch(() => false);
 
       if (hasGhostIcon) {
         await expect(ghostIcon.first()).toBeVisible();
@@ -564,7 +596,10 @@ test.describe('LOW Priority Bug Regression Tests', () => {
         await expect(card.getByText('Anonymous', { exact: true })).not.toBeVisible();
       } else {
         // Bug may still show text - check if text is present
-        const hasAnonText = await card.getByText('Anonymous', { exact: true }).isVisible().catch(() => false);
+        const hasAnonText = await card
+          .getByText('Anonymous', { exact: true })
+          .isVisible()
+          .catch(() => false);
         if (hasAnonText) {
           test.skip(true, 'UTB-018: Ghost icon not implemented, still showing text');
         }
@@ -573,7 +608,7 @@ test.describe('LOW Priority Bug Regression Tests', () => {
   });
 
   test.describe('UTB-021: Avatar Initials Format', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page: _page }) => {
       test.skip(!isBackendReady(), 'Backend not running');
     });
 
@@ -593,7 +628,8 @@ test.describe('LOW Priority Bug Regression Tests', () => {
       await page.waitForTimeout(1000);
 
       // Find avatar with initials "JO" (first two letters of single name)
-      const avatar = page.locator('[data-testid="participant-avatar-container"]')
+      const avatar = page
+        .locator('[data-testid="participant-avatar-container"]')
         .or(page.locator('[role="group"][aria-label="Active participants"]'));
 
       const initialsText = await avatar.textContent();
@@ -616,7 +652,8 @@ test.describe('LOW Priority Bug Regression Tests', () => {
 
       await page.waitForTimeout(1000);
 
-      const avatar = page.locator('[data-testid="participant-avatar-container"]')
+      const avatar = page
+        .locator('[data-testid="participant-avatar-container"]')
         .or(page.locator('[role="group"][aria-label="Active participants"]'));
 
       const initialsText = await avatar.textContent();
@@ -627,7 +664,7 @@ test.describe('LOW Priority Bug Regression Tests', () => {
   });
 
   test.describe('UTB-022: Avatar Tooltip', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page: _page }) => {
       test.skip(!isBackendReady(), 'Backend not running');
     });
 
@@ -648,10 +685,16 @@ test.describe('LOW Priority Bug Regression Tests', () => {
       await page.waitForTimeout(1000);
 
       // Find a user avatar (not All Users or Anonymous) - use data-avatar-type to filter
-      const userAvatar = page.locator('[data-avatar-type="user"]')
+      const userAvatar = page
+        .locator('[data-avatar-type="user"]')
         .or(page.getByTestId(`participant-avatar-${userName.toLowerCase().replace(/\s+/g, '-')}`));
 
-      if (await userAvatar.first().isVisible().catch(() => false)) {
+      if (
+        await userAvatar
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         // Hover over the avatar
         await userAvatar.first().hover();
 

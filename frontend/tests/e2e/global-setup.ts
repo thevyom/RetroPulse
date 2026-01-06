@@ -5,7 +5,7 @@
  * Creates demo boards for testing and writes IDs to a file
  */
 
-import { FullConfig } from '@playwright/test';
+import type { FullConfig } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -57,7 +57,7 @@ async function checkHealth(url: string, name: string): Promise<boolean> {
  * Create a demo board for testing
  * Returns the board ID if created, or null if it already exists/fails
  */
-async function createDemoBoard(name: string, sessionId: string): Promise<string | null> {
+async function createDemoBoard(name: string, _sessionId: string): Promise<string | null> {
   try {
     // Default columns for retrospective boards (id is required by API)
     const defaultColumns = [
@@ -90,12 +90,14 @@ async function createDemoBoard(name: string, sessionId: string): Promise<string 
       return null;
     }
   } catch (error) {
-    console.warn(`  ❌ Error creating board ${name}: ${error instanceof Error ? error.message : 'Unknown'}`);
+    console.warn(
+      `  ❌ Error creating board ${name}: ${error instanceof Error ? error.message : 'Unknown'}`
+    );
     return null;
   }
 }
 
-async function globalSetup(config: FullConfig): Promise<void> {
+async function globalSetup(_config: FullConfig): Promise<void> {
   console.log('\n🔍 Checking E2E test prerequisites...\n');
 
   // Generate unique session ID for this test run

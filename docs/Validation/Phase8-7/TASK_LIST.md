@@ -81,12 +81,12 @@ This phase implements a complete redesign of the participant avatar system, inco
 - Any black border/outline
 
 **Acceptance Criteria:**
-- [ ] Online non-admin: Blue fill + green ring
-- [ ] Online admin: Gold fill + green ring
-- [ ] Offline: Grey/muted fill + no ring
-- [ ] Selected: Thicker ring + scale
-- [ ] No black ring/border anywhere
-- [ ] Avatars feel "alive" when online
+- [x] Online non-admin: Blue fill + green ring
+- [x] Online admin: Gold fill + green ring
+- [x] Offline: Grey/muted fill + no ring
+- [x] Selected: Thicker ring + scale
+- [x] No black ring/border anywhere
+- [x] Avatars feel "alive" when online
 
 ---
 
@@ -143,12 +143,12 @@ export function MeSection({ alias, isAdmin, isSelected, onFilter }: MeSectionPro
 **Note:** Edit alias functionality moves to context menu (Task 2.1)
 
 **Acceptance Criteria:**
-- [ ] Avatar only - no text label
-- [ ] No pencil/edit icon visible
-- [ ] Gold fill if admin, blue if not
-- [ ] Always has green ring (user is always online to themselves)
-- [ ] Click filters to own cards
-- [ ] Tooltip shows full alias
+- [x] Avatar only - no text label
+- [x] No pencil/edit icon visible
+- [x] Gold fill if admin, blue if not
+- [x] Always has green ring (user is always online to themselves)
+- [x] Click filters to own cards
+- [x] Tooltip shows full alias
 
 ---
 
@@ -215,12 +215,12 @@ const otherParticipants = activeUsers.filter(
 ```
 
 **Acceptance Criteria:**
-- [ ] Current user in MeSection (right side only)
-- [ ] Current user NOT in scrollable participant list
-- [ ] Dividers visible between sections
-- [ ] Horizontal scroll only when overflow
-- [ ] All filter buttons functional
-- [ ] Selected state visible on avatars
+- [x] Current user in MeSection (right side only)
+- [x] Current user NOT in scrollable participant list
+- [x] Dividers visible between sections
+- [x] Horizontal scroll only when overflow
+- [x] All filter buttons functional
+- [x] Selected state visible on avatars
 
 ---
 
@@ -246,10 +246,10 @@ const otherParticipants = activeUsers.filter(
 ```
 
 **Acceptance Criteria:**
-- [ ] No user card in header top-right area
-- [ ] MeSection in ParticipantBar replaces functionality
-- [ ] No broken imports or references
-- [ ] Edit alias via context menu works
+- [x] No user card in header top-right area
+- [x] MeSection in ParticipantBar replaces functionality
+- [x] No broken imports or references
+- [x] Edit alias via context menu works
 
 ---
 
@@ -298,9 +298,9 @@ const otherParticipants = activeUsers.filter(
 ```
 
 **Acceptance Criteria:**
-- [ ] UUID shown only in Edit Alias dialog
-- [ ] UUID NOT shown in header or MeSection
-- [ ] Truncated display with explanation text
+- [x] UUID shown only in Edit Alias dialog
+- [x] UUID NOT shown in header or MeSection
+- [x] Truncated display with explanation text
 - [ ] Copy functionality optional (nice to have)
 
 ---
@@ -417,13 +417,13 @@ export function AvatarContextMenu({
 ```
 
 **Acceptance Criteria:**
-- [ ] Right-click opens context menu on all avatars
-- [ ] Menu header shows user name + admin star if applicable
-- [ ] "Filter by cards" always visible
-- [ ] "Edit my alias" visible only on own avatar
-- [ ] "Make Admin" visible only to admins viewing non-admin
-- [ ] Admin promotion works and shows toast
-- [ ] Avatar updates to gold after promotion
+- [x] Right-click opens context menu on all avatars
+- [x] Menu header shows user name + admin star if applicable
+- [x] "Filter by cards" always visible
+- [x] "Edit my alias" visible only on own avatar
+- [x] "Make Admin" visible only to admins viewing non-admin
+- [x] Admin promotion works and shows toast
+- [x] Avatar updates to gold after promotion
 
 ---
 
@@ -571,13 +571,13 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
 **Integration:** Show when user accesses board without existing session cookie.
 
 **Acceptance Criteria:**
-- [ ] Modal appears for new users (no session cookie)
-- [ ] Modal NOT shown for returning users with valid cookie
-- [ ] Cannot dismiss (no X button, no click outside, no Escape)
-- [ ] Validates: 1-50 chars, alphanumeric + spaces only
-- [ ] Submit button disabled when empty
-- [ ] Enter key submits form
-- [ ] After submit: creates session, joins board, sets cookie
+- [x] Modal appears for new users (no session cookie)
+- [x] Modal NOT shown for returning users with valid cookie
+- [x] Cannot dismiss (no X button, no click outside, no Escape)
+- [x] Validates: 1-50 chars, alphanumeric + spaces only
+- [x] Submit button disabled when empty
+- [x] Enter key submits form
+- [x] After submit: creates session, joins board, sets cookie
 
 ---
 
@@ -599,10 +599,10 @@ export function AliasPromptModal({ isOpen, onJoin }: AliasPromptModalProps) {
 - `frontend/src/features/participant/components/ParticipantBar.tsx`
 
 **Acceptance Criteria:**
-- [ ] No "Manage Admins" or similar dropdown visible
-- [ ] Admin promotion works via right-click context menu only
-- [ ] No broken imports or references
-- [ ] Component file can be deleted if no longer used
+- [x] No "Manage Admins" or similar dropdown visible
+- [x] Admin promotion works via right-click context menu only
+- [x] No broken imports or references
+- [x] Component file can be deleted if no longer used (but check exports first)
 
 ---
 
