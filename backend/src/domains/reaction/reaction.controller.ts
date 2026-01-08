@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { sendSuccess } from '@/shared/utils/index.js';
 import { ReactionService } from './reaction.service.js';
 import type { AddReactionInput } from './types.js';
+import { logger } from '@/shared/logger/index.js';
 
 export class ReactionController {
   constructor(private readonly reactionService: ReactionService) {}
@@ -16,6 +17,12 @@ export class ReactionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('POST /cards/:id/reactions', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const { id: cardId } = req.params;
       const input = req.body as AddReactionInput;
@@ -38,6 +45,11 @@ export class ReactionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('DELETE /cards/:id/reactions', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+    });
+
     try {
       const { id: cardId } = req.params;
       const userHash = req.hashedCookieId;
@@ -59,6 +71,11 @@ export class ReactionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/:id/reactions/quota', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+    });
+
     try {
       const { id: boardId } = req.params;
       // Allow checking quota for another user (admin use case)

@@ -11,7 +11,9 @@ import {
   requestLogger,
   standardRateLimiter,
   adminRateLimiter,
+  correlationIdMiddleware,
 } from '@/shared/middleware/index.js';
+import { metricsMiddleware } from '@/shared/metrics/metrics-middleware.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { healthRoutes } from './routes/health.js';
 import { BoardRepository, BoardService, BoardController, createBoardRoutes } from '@/domains/board/index.js';
@@ -58,6 +60,12 @@ export function createApp(dbOrOptions?: Db | AppOptions): Express {
 
   // Cookie parsing
   app.use(cookieParser(env.COOKIE_SECRET));
+
+  // Correlation ID for request tracing (must be early in the chain)
+  app.use(correlationIdMiddleware);
+
+  // HTTP metrics collection (before other middleware to capture all requests)
+  app.use(metricsMiddleware);
 
   // Admin override for E2E tests (checks X-Admin-Secret header)
   app.use(adminOverrideMiddleware);

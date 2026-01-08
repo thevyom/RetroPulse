@@ -60,6 +60,11 @@ export function getMongoClient(): MongoClient {
   return client;
 }
 
+export interface DatabaseHealthResult {
+  status: 'up' | 'down';
+  latency_ms: number | null;
+}
+
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
     if (!db) {
@@ -69,6 +74,20 @@ export async function checkDatabaseHealth(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function checkDatabaseHealthDetailed(): Promise<DatabaseHealthResult> {
+  try {
+    if (!db) {
+      return { status: 'down', latency_ms: null };
+    }
+    const startTime = Date.now();
+    await db.command({ ping: 1 });
+    const latency = Date.now() - startTime;
+    return { status: 'up', latency_ms: latency };
+  } catch {
+    return { status: 'down', latency_ms: null };
   }
 }
 

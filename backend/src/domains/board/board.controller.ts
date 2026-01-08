@@ -3,6 +3,7 @@ import { BoardService } from './board.service.js';
 import { UserSessionService } from '@/domains/user/user-session.service.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { sendSuccess, requireParam } from '@/shared/utils/index.js';
+import { logger } from '@/shared/logger/index.js';
 
 export class BoardController {
   constructor(
@@ -19,6 +20,11 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('POST /boards', {
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const board = await this.boardService.createBoard(req.body, req.hashedCookieId);
 
@@ -46,6 +52,11 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/:id', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const id = requireParam(req.params.id, 'Board ID');
       const board = await this.boardService.getBoardWithUsers(id);
@@ -70,6 +81,11 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/by-link/:linkCode', {
+      linkCode: req.params.linkCode,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const linkCode = requireParam(req.params.linkCode, 'Link code');
       const board = await this.boardService.getBoardByLink(linkCode);
@@ -87,6 +103,12 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('PATCH /boards/:id/name', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const id = requireParam(req.params.id, 'Board ID');
       const { name } = req.body;
@@ -105,6 +127,11 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('PATCH /boards/:id/close', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const id = requireParam(req.params.id, 'Board ID');
       const board = await this.boardService.closeBoard(id, req.hashedCookieId, req.isAdminOverride);
@@ -122,6 +149,12 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('POST /boards/:id/admins', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const id = requireParam(req.params.id, 'Board ID');
       const { user_cookie_hash } = req.body;
@@ -140,6 +173,13 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('PATCH /boards/:id/columns/:columnId', {
+      boardId: req.params.id,
+      columnId: req.params.columnId,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const id = requireParam(req.params.id, 'Board ID');
       const columnId = requireParam(req.params.columnId, 'Column ID');
@@ -159,6 +199,11 @@ export class BoardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('DELETE /boards/:id', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const id = requireParam(req.params.id, 'Board ID');
 

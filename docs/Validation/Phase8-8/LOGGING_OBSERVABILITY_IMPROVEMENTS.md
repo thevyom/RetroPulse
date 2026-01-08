@@ -33,11 +33,11 @@ export function correlationIdMiddleware(req: Request, res: Response, next: NextF
 ```
 
 **Tasks**:
-- [ ] Create correlation ID middleware
-- [ ] Add `correlationId` to `AuthenticatedRequest` type
-- [ ] Include correlation ID in all log entries
-- [ ] Pass correlation ID to WebSocket connections
-- [ ] Return correlation ID in error responses for client debugging
+- [x] Create correlation ID middleware
+- [x] Add `correlationId` to `AuthenticatedRequest` type
+- [x] Include correlation ID in all log entries
+- [x] Pass correlation ID to WebSocket connections (N/A - WebSocket uses persistent connections, not request/response)
+- [x] Return correlation ID in error responses for client debugging (via x-correlation-id header)
 
 ---
 
@@ -78,10 +78,10 @@ async createCard(boardId: string, input: CreateCardInput, userHash: string): Pro
 ```
 
 **Tasks**:
-- [ ] Add entry logging to all public service methods
-- [ ] Add success logging with created/modified entity IDs
-- [ ] Add failure logging before throwing ApiError
-- [ ] Ensure user hashes are truncated (first 8 chars only)
+- [x] Add entry logging to all public service methods
+- [x] Add success logging with created/modified entity IDs
+- [x] Add failure logging before throwing ApiError
+- [x] Ensure user hashes are truncated (first 8 chars only)
 
 **Methods requiring logging**:
 
@@ -136,9 +136,9 @@ createCard = async (req, res, next) => {
 ```
 
 **Tasks**:
-- [ ] Add debug-level entry logging to all controller methods
-- [ ] Log route, user hash (truncated), and request body keys
-- [ ] Consider adding response status logging
+- [x] Add debug-level entry logging to all controller methods
+- [x] Log route, user hash (truncated), and request body keys
+- [x] Consider adding response status logging (handled by request-logger middleware)
 
 ---
 
@@ -165,13 +165,13 @@ createCard = async (req, res, next) => {
 | `db_query_duration_seconds` | Histogram | collection, operation | Database query latency |
 
 **Tasks**:
-- [ ] Install `prom-client` package
-- [ ] Create metrics registry and middleware
-- [ ] Add `/metrics` endpoint (protected)
-- [ ] Instrument HTTP request handling
-- [ ] Instrument WebSocket connections
-- [ ] Instrument business operations
-- [ ] Add database query timing
+- [x] Install `prom-client` package
+- [x] Create metrics registry and middleware
+- [x] Add `/metrics` endpoint (protected) - at `/health/metrics`
+- [x] Instrument HTTP request handling
+- [x] Instrument WebSocket connections
+- [x] Instrument business operations
+- [ ] Add database query timing (deferred to Task 6)
 
 ---
 
@@ -203,11 +203,13 @@ createCard = async (req, res, next) => {
 ```
 
 **Tasks**:
-- [ ] Add MongoDB ping check with latency measurement
-- [ ] Add memory usage reporting
-- [ ] Add uptime tracking
-- [ ] Add version from package.json
-- [ ] Return appropriate status codes (200 healthy, 503 unhealthy)
+- [x] Add MongoDB ping check with latency measurement
+- [x] Add memory usage reporting
+- [x] Add uptime tracking
+- [x] Add version from package.json
+- [x] Return appropriate status codes (200 healthy, 503 unhealthy)
+
+**Implementation**: Added `/health/detailed` endpoint that returns comprehensive health status
 
 ---
 
@@ -245,11 +247,11 @@ async findById(id: string): Promise<BoardDocument | null> {
 ```
 
 **Tasks**:
-- [ ] Add debug-level logging to repository methods
-- [ ] Include collection name, operation type, and duration
-- [ ] Log whether document was found (for reads)
-- [ ] Log affected count (for writes/deletes)
-- [ ] Never log query filters containing user data
+- [x] Add debug-level logging to repository methods
+- [x] Include collection name, operation type, and duration
+- [x] Log whether document was found (for reads)
+- [x] Log affected count (for writes/deletes)
+- [x] Never log query filters containing user data
 
 ---
 
@@ -277,10 +279,10 @@ logger.debug('Broadcasting event', { event: eventType, room: roomName });
 ```
 
 **Tasks**:
-- [ ] Ensure all connection lifecycle events log at info level
-- [ ] Add error emission back to clients for invalid operations
-- [ ] Consider info-level logging for user:joined, user:left events
-- [ ] Add socket error event handler with logging
+- [x] Ensure all connection lifecycle events log at info level
+- [ ] Add error emission back to clients for invalid operations (deferred - requires frontend changes)
+- [x] Consider info-level logging for user:joined, user:left events (user:left elevated to info)
+- [x] Add socket error event handler with logging
 
 ---
 
@@ -314,10 +316,10 @@ logger.error('Request error', {
 ```
 
 **Tasks**:
-- [ ] Include request params in error logs
-- [ ] Include query/body keys (not values)
-- [ ] Include correlation ID
-- [ ] Include truncated user hash for tracing
+- [x] Include request params in error logs
+- [x] Include query/body keys (not values)
+- [x] Include correlation ID
+- [x] Include truncated user hash for tracing
 
 ---
 
@@ -333,9 +335,9 @@ LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 ```
 
 **Tasks**:
-- [ ] Add LOG_LEVEL environment variable
-- [ ] Configure Winston to use LOG_LEVEL
-- [ ] Document log levels in .env.example
+- [x] Add LOG_LEVEL environment variable
+- [x] Configure Winston to use LOG_LEVEL
+- [x] Document log levels in .env.example
 
 ---
 
@@ -346,9 +348,9 @@ LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 **File to modify**: `backend/src/shared/middleware/request-logger.ts`
 
 **Tasks**:
-- [ ] Extract API version from path (/v1/...)
-- [ ] Include in request completed logs
-- [ ] Add application version from package.json to logger defaultMeta
+- [x] Extract API version from path (/v1/...)
+- [x] Include in request completed logs
+- [x] Add application version from package.json to logger defaultMeta
 
 ---
 

@@ -3,6 +3,7 @@ import { UserSessionService } from './user-session.service.js';
 import { AuthenticatedRequest } from '@/shared/types/index.js';
 import { sendSuccess, requireParam } from '@/shared/utils/index.js';
 import { JoinBoardDTO, UpdateAliasDTO } from '@/shared/validation/index.js';
+import { logger } from '@/shared/logger/index.js';
 
 export class UserSessionController {
   constructor(private readonly userSessionService: UserSessionService) {}
@@ -15,6 +16,12 @@ export class UserSessionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('POST /boards/:id/join', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const boardId = requireParam(req.params.id, 'Board ID');
       const { alias } = req.body as JoinBoardDTO;
@@ -49,6 +56,11 @@ export class UserSessionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/:id/users', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const boardId = requireParam(req.params.id, 'Board ID');
 
@@ -71,6 +83,12 @@ export class UserSessionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    // Heartbeat is frequent - use trace level to avoid log noise
+    logger.debug('PATCH /boards/:id/users/heartbeat', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const boardId = requireParam(req.params.id, 'Board ID');
       const cookieHash = req.hashedCookieId;
@@ -94,6 +112,12 @@ export class UserSessionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('PATCH /boards/:id/users/alias', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const boardId = requireParam(req.params.id, 'Board ID');
       const { alias } = req.body as UpdateAliasDTO;
@@ -121,6 +145,11 @@ export class UserSessionController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/:id/users/me', {
+      boardId: req.params.id,
+      userHash: req.hashedCookieId.substring(0, 8) + '...',
+    });
+
     try {
       const boardId = requireParam(req.params.id, 'Board ID');
       const cookieHash = req.hashedCookieId;

@@ -2,6 +2,7 @@ import { Response, NextFunction, RequestHandler } from 'express';
 import { CardService } from './card.service.js';
 import type { AuthenticatedRequest } from '@/shared/types/index.js';
 import { sendSuccess } from '@/shared/utils/index.js';
+import { logger } from '@/shared/logger/index.js';
 
 // Type assertion helper for route handlers that require authentication
 type AuthenticatedHandler = (
@@ -26,6 +27,12 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/:boardId/cards', {
+      boardId: req.params.boardId,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      queryKeys: Object.keys(req.query),
+    });
+
     try {
       const { boardId } = req.params;
       const { column_id, created_by, include_relationships } = req.query;
@@ -51,6 +58,12 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('POST /boards/:boardId/cards', {
+      boardId: req.params.boardId,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const { boardId } = req.params;
       const { column_id, content, card_type, is_anonymous, correlation_id } = req.body;
@@ -77,6 +90,11 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /boards/:boardId/cards/quota', {
+      boardId: req.params.boardId,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+    });
+
     try {
       const { boardId } = req.params;
       const { created_by_hash } = req.query;
@@ -101,6 +119,11 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('GET /cards/:id', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+    });
+
     try {
       const { id } = req.params;
 
@@ -121,6 +144,12 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('PUT /cards/:id', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const { id } = req.params;
       const { content } = req.body;
@@ -146,6 +175,11 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('DELETE /cards/:id', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+    });
+
     try {
       const { id } = req.params;
 
@@ -166,6 +200,12 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('PATCH /cards/:id/column', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const { id } = req.params;
       const { column_id } = req.body;
@@ -191,6 +231,12 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('POST /cards/:id/link', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const { id } = req.params;
       const { target_card_id, link_type } = req.body;
@@ -220,6 +266,12 @@ export class CardController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    logger.debug('DELETE /cards/:id/link', {
+      cardId: req.params.id,
+      userHash: req.hashedCookieId?.substring(0, 8) + '...',
+      bodyKeys: Object.keys(req.body),
+    });
+
     try {
       const { id } = req.params;
       const { target_card_id, link_type } = req.body;

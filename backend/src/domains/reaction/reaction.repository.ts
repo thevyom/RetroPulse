@@ -74,13 +74,24 @@ export class ReactionRepository {
   async findByCardAndUser(cardId: string, userHash: string): Promise<ReactionDocument | null> {
     const cardObjectId = this.toObjectId(cardId);
     if (!cardObjectId) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'reactions', cardId });
       return null;
     }
 
-    return this.collection.findOne({
+    const startTime = Date.now();
+    const result = await this.collection.findOne({
       card_id: cardObjectId,
       user_cookie_hash: userHash,
     });
+
+    logger.debug('DB query completed', {
+      collection: 'reactions',
+      operation: 'findByCardAndUser',
+      duration_ms: Date.now() - startTime,
+      found: result !== null,
+    });
+
+    return result;
   }
 
   /**

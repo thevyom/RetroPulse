@@ -22,17 +22,34 @@ export class ApiError extends Error {
 }
 
 /**
- * Sanitize error for logging - removes sensitive data
+ * Sanitize error for logging - removes sensitive data but includes useful context
  */
 export function sanitizeErrorForLogging(error: Error, req: Request): Record<string, unknown> {
+  const authenticatedReq = req as Request & { correlationId?: string; hashedCookieId?: string };
+
+  // Safely get params, query, body keys (they might be undefined in tests or edge cases)
+  const params = req.params && Object.keys(req.params).length > 0 ? req.params : undefined;
+  const queryKeys = req.query && Object.keys(req.query).length > 0 ? Object.keys(req.query) : undefined;
+  const bodyKeys = req.body && Object.keys(req.body).length > 0 ? Object.keys(req.body) : undefined;
+
   return {
-    name: error.name,
-    message: error.message,
-    // Only include stack in development
-    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    path: req.path,
-    method: req.method,
-    // Never log: cookies, authorization headers, request body (may contain secrets)
+    error: {
+      name: error.name,
+      message: error.message,
+      code: error instanceof ApiError ? error.code : undefined,
+      // Only include stack in development
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    },
+    request: {
+      correlationId: authenticatedReq.correlationId,
+      method: req.method,
+      path: req.path,
+      params,
+      queryKeys,
+      bodyKeys,
+      userHash: authenticatedReq.hashedCookieId?.substring(0, 8),
+    },
+    // Never log: cookies, authorization headers, request body values (may contain secrets)
   };
 }
 

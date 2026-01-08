@@ -68,10 +68,21 @@ export class CardRepository {
   async findById(id: string): Promise<CardDocument | null> {
     const objectId = this.toObjectId(id);
     if (!objectId) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'cards', id });
       return null;
     }
 
-    return this.collection.findOne({ _id: objectId });
+    const startTime = Date.now();
+    const result = await this.collection.findOne({ _id: objectId });
+
+    logger.debug('DB query completed', {
+      collection: 'cards',
+      operation: 'findById',
+      duration_ms: Date.now() - startTime,
+      found: result !== null,
+    });
+
+    return result;
   }
 
   /**
@@ -83,6 +94,7 @@ export class CardRepository {
   ): Promise<CardDocument[]> {
     const boardObjectId = this.toObjectId(boardId);
     if (!boardObjectId) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'cards', boardId });
       return [];
     }
 
@@ -95,7 +107,17 @@ export class CardRepository {
       filter.created_by_hash = options.createdBy;
     }
 
-    return this.collection.find(filter).sort({ created_at: -1 }).toArray();
+    const startTime = Date.now();
+    const results = await this.collection.find(filter).sort({ created_at: -1 }).toArray();
+
+    logger.debug('DB query completed', {
+      collection: 'cards',
+      operation: 'findByBoard',
+      duration_ms: Date.now() - startTime,
+      count: results.length,
+    });
+
+    return results;
   }
 
   /**
@@ -532,10 +554,20 @@ export class CardRepository {
   async delete(id: string): Promise<boolean> {
     const objectId = this.toObjectId(id);
     if (!objectId) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'cards', operation: 'delete', id });
       return false;
     }
 
+    const startTime = Date.now();
     const result = await this.collection.deleteOne({ _id: objectId });
+
+    logger.debug('DB query completed', {
+      collection: 'cards',
+      operation: 'deleteOne',
+      duration_ms: Date.now() - startTime,
+      deletedCount: result.deletedCount,
+    });
+
     return result.deletedCount === 1;
   }
 

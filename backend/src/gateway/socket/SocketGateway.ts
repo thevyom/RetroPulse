@@ -9,6 +9,7 @@ import { Server, Socket } from 'socket.io';
 import { sha256 } from '@/shared/utils/index.js';
 import { env } from '@/shared/config/index.js';
 import { logger } from '@/shared/logger/index.js';
+import { websocketConnectionsActive, websocketEventsTotal } from '@/shared/metrics/index.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -79,6 +80,9 @@ export class SocketGateway {
     const roomName = this.getRoomName(boardId);
     this.io.to(roomName).emit(eventType as keyof ServerToClientEvents, payload as never);
 
+    // Track outbound events
+    websocketEventsTotal.inc({ event_type: eventType, direction: 'outbound' });
+
     logger.debug('Broadcasted event', {
       event: eventType,
       room: roomName,
@@ -104,6 +108,9 @@ export class SocketGateway {
       .to(roomName)
       .except(excludeSocketId)
       .emit(eventType as keyof ServerToClientEvents, payload as never);
+
+    // Track outbound events
+    websocketEventsTotal.inc({ event_type: eventType, direction: 'outbound' });
 
     logger.debug('Broadcasted event (excluding sender)', {
       event: eventType,
@@ -212,6 +219,9 @@ export class SocketGateway {
   }
 
   private handleConnection(socket: TypedSocket): void {
+    // Increment active connections
+    websocketConnectionsActive.inc();
+
     logger.info('Client connected', {
       socketId: socket.id,
       hasCookie: !!socket.data.cookieHash,
@@ -219,22 +229,34 @@ export class SocketGateway {
 
     // Handle join-board event (supports both legacy string and new object format)
     socket.on('join-board', (data: string | JoinBoardData) => {
+      websocketEventsTotal.inc({ event_type: 'join-board', direction: 'inbound' });
       this.handleJoinBoard(socket, data);
     });
 
     // Handle leave-board event
     socket.on('leave-board', (boardId: string) => {
+      websocketEventsTotal.inc({ event_type: 'leave-board', direction: 'inbound' });
       this.handleLeaveBoard(socket, boardId);
     });
 
     // Handle heartbeat event
     socket.on('heartbeat', () => {
+      websocketEventsTotal.inc({ event_type: 'heartbeat', direction: 'inbound' });
       this.handleHeartbeat(socket);
     });
 
     // Handle disconnection
     socket.on('disconnect', (reason) => {
       this.handleDisconnect(socket, reason);
+    });
+
+    // Handle socket errors
+    socket.on('error', (error) => {
+      logger.error('Socket error', {
+        socketId: socket.id,
+        boardId: socket.data.currentBoardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
   }
 
@@ -303,6 +325,9 @@ export class SocketGateway {
   }
 
   private handleDisconnect(socket: TypedSocket, reason: string): void {
+    // Decrement active connections
+    websocketConnectionsActive.dec();
+
     // Emit user:left for the current board if we have the alias
     this.emitUserLeftIfNeeded(socket);
 
@@ -329,7 +354,8 @@ export class SocketGateway {
 
       this.io.to(roomName).emit('user:left', payload);
 
-      logger.debug('Emitted user:left event', {
+      // Log at info level for audit trail (user departures are important events)
+      logger.info('User left board', {
         socketId: socket.id,
         boardId: currentBoardId,
         userAlias,

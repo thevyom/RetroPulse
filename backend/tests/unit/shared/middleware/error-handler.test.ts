@@ -74,10 +74,14 @@ describe('Error Handler Middleware', () => {
       const error = new Error('Test error');
       const result = sanitizeErrorForLogging(error, mockRequest as Request);
 
-      expect(result.name).toBe('Error');
-      expect(result.message).toBe('Test error');
-      expect(result.path).toBe('/test/path');
-      expect(result.method).toBe('POST');
+      expect(result.error).toMatchObject({
+        name: 'Error',
+        message: 'Test error',
+      });
+      expect(result.request).toMatchObject({
+        path: '/test/path',
+        method: 'POST',
+      });
     });
 
     it('should exclude stack in production', () => {
@@ -87,7 +91,7 @@ describe('Error Handler Middleware', () => {
       const error = new Error('Test error');
       const result = sanitizeErrorForLogging(error, mockRequest as Request);
 
-      expect(result.stack).toBeUndefined();
+      expect((result.error as Record<string, unknown>).stack).toBeUndefined();
       process.env.NODE_ENV = originalEnv;
     });
 
@@ -98,8 +102,75 @@ describe('Error Handler Middleware', () => {
       const error = new Error('Test error');
       const result = sanitizeErrorForLogging(error, mockRequest as Request);
 
-      expect(result.stack).toBeDefined();
+      expect((result.error as Record<string, unknown>).stack).toBeDefined();
       process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should include request params when present', () => {
+      const reqWithParams = {
+        ...mockRequest,
+        params: { id: '123', boardId: '456' },
+        query: {},
+        body: {},
+      };
+      const error = new Error('Test error');
+      const result = sanitizeErrorForLogging(error, reqWithParams as unknown as Request);
+
+      expect((result.request as Record<string, unknown>).params).toEqual({ id: '123', boardId: '456' });
+    });
+
+    it('should include query keys when present', () => {
+      const reqWithQuery = {
+        ...mockRequest,
+        params: {},
+        query: { filter: 'active', sort: 'asc' },
+        body: {},
+      };
+      const error = new Error('Test error');
+      const result = sanitizeErrorForLogging(error, reqWithQuery as unknown as Request);
+
+      expect((result.request as Record<string, unknown>).queryKeys).toEqual(['filter', 'sort']);
+    });
+
+    it('should include body keys when present', () => {
+      const reqWithBody = {
+        ...mockRequest,
+        params: {},
+        query: {},
+        body: { name: 'test', password: 'secret' },
+      };
+      const error = new Error('Test error');
+      const result = sanitizeErrorForLogging(error, reqWithBody as unknown as Request);
+
+      // Should include keys only, not values (for security)
+      expect((result.request as Record<string, unknown>).bodyKeys).toEqual(['name', 'password']);
+    });
+
+    it('should include truncated user hash when present', () => {
+      const reqWithUser = {
+        ...mockRequest,
+        params: {},
+        query: {},
+        body: {},
+        hashedCookieId: 'abcdef1234567890abcdef1234567890',
+      };
+      const error = new Error('Test error');
+      const result = sanitizeErrorForLogging(error, reqWithUser as unknown as Request);
+
+      expect((result.request as Record<string, unknown>).userHash).toBe('abcdef12');
+    });
+
+    it('should include ApiError code when present', () => {
+      const reqEmpty = {
+        ...mockRequest,
+        params: {},
+        query: {},
+        body: {},
+      };
+      const error = new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found');
+      const result = sanitizeErrorForLogging(error, reqEmpty as unknown as Request);
+
+      expect((result.error as Record<string, unknown>).code).toBe('BOARD_NOT_FOUND');
     });
   });
 

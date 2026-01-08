@@ -24,10 +24,21 @@ const sanitizeFormat = winston.format((info) => {
   return info;
 });
 
+// Determine log level: use LOG_LEVEL env var if set, otherwise default based on NODE_ENV
+const getLogLevel = (): string => {
+  if (env.LOG_LEVEL) {
+    return env.LOG_LEVEL;
+  }
+  return env.NODE_ENV === 'production' ? 'info' : 'debug';
+};
+
+// Application version from package.json (available via npm scripts or fallback)
+const APP_VERSION = process.env.npm_package_version || '1.0.0';
+
 const logger = winston.createLogger({
-  level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: getLogLevel(),
   format: combine(sanitizeFormat(), timestamp({ format: 'YYYY-MM-DD HH:mm:ss' })),
-  defaultMeta: { service: 'retropulse-backend' },
+  defaultMeta: { service: 'retropulse-backend', version: APP_VERSION },
   transports: [
     // Console transport
     new winston.transports.Console({

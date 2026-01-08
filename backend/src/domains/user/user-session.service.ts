@@ -9,6 +9,8 @@ import {
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
+import { logger } from '@/shared/logger/index.js';
+import { usersJoinedTotal } from '@/shared/metrics/index.js';
 
 export class UserSessionService {
   private broadcaster: IEventBroadcaster;
@@ -29,10 +31,17 @@ export class UserSessionService {
     cookieHash: string,
     alias: string
   ): Promise<UserSession> {
+    logger.info('User joining board', {
+      boardId,
+      userHash: cookieHash.substring(0, 8) + '...',
+      alias,
+    });
+
     // First verify the board exists
     const board = await this.boardRepository.findById(boardId);
 
     if (!board) {
+      logger.warn('Board not found for join', { boardId });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
@@ -52,14 +61,21 @@ export class UserSessionService {
     // Check if user is admin
     const isAdmin = board.admins.includes(cookieHash);
 
-    // Emit real-time event only for new joins
+    // Emit real-time event and increment metrics only for new joins
     if (!existingSession) {
       this.broadcaster.userJoined({
         boardId,
         userAlias: alias,
         isAdmin,
       });
+      usersJoinedTotal.inc();
     }
+
+    logger.info('User joined board', {
+      boardId,
+      isNewJoin: !existingSession,
+      isAdmin,
+    });
 
     return userSessionDocumentToUserSession(sessionDoc, isAdmin);
   }
@@ -130,15 +146,22 @@ export class UserSessionService {
     cookieHash: string,
     newAlias: string
   ): Promise<{ alias: string; last_active_at: string }> {
+    logger.info('Updating user alias', {
+      boardId,
+      userHash: cookieHash.substring(0, 8) + '...',
+    });
+
     // Verify board exists
     const board = await this.boardRepository.findById(boardId);
 
     if (!board) {
+      logger.warn('Board not found for alias update', { boardId });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
     // Closed boards are read-only - alias updates are write operations
     if (board.state === 'closed') {
+      logger.warn('Attempted to update alias on closed board', { boardId });
       throw new ApiError(
         ErrorCodes.BOARD_CLOSED,
         'Cannot update alias on closed board',
@@ -161,6 +184,7 @@ export class UserSessionService {
     );
 
     if (!session) {
+      logger.warn('User session not found for alias update', { boardId });
       throw new ApiError(
         ErrorCodes.USER_NOT_FOUND,
         'User session not found. Please join the board first.',
@@ -176,6 +200,8 @@ export class UserSessionService {
         newAlias,
       });
     }
+
+    logger.info('User alias updated', { boardId });
 
     return {
       alias: session.alias,

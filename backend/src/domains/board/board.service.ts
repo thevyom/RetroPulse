@@ -12,6 +12,7 @@ import { ErrorCodes } from '@/shared/types/index.js';
 import { env } from '@/shared/config/index.js';
 import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
 import { logger } from '@/shared/logger/index.js';
+import { boardsCreatedTotal } from '@/shared/metrics/index.js';
 
 /**
  * Interface for cascade delete dependencies
@@ -57,9 +58,20 @@ export class BoardService {
    * Create a new board
    */
   async createBoard(input: CreateBoardInput, creatorHash: string): Promise<Board> {
+    logger.info('Creating board', {
+      name: input.name,
+      columnCount: input.columns.length,
+      userHash: creatorHash.substring(0, 8) + '...',
+    });
+
     const doc = await this.boardRepository.create(input, creatorHash);
 
     const board = boardDocumentToBoard(doc);
+
+    // Increment metrics
+    boardsCreatedTotal.inc();
+
+    logger.info('Board created', { boardId: board.id });
 
     return {
       ...board,
@@ -121,14 +133,22 @@ export class BoardService {
    * Update board name (admin only) - uses atomic operation
    */
   async updateBoardName(id: string, name: string, userHash: string, isAdminOverride = false): Promise<Board> {
+    logger.info('Updating board name', {
+      boardId: id,
+      userHash: userHash.substring(0, 8) + '...',
+      isAdminOverride,
+    });
+
     // First check if board exists and get its state
     const existingBoard = await this.boardRepository.findById(id);
 
     if (!existingBoard) {
+      logger.warn('Board not found for name update', { boardId: id });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
     if (existingBoard.state === 'closed') {
+      logger.warn('Attempted to update closed board name', { boardId: id });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
@@ -140,6 +160,7 @@ export class BoardService {
 
     if (!doc) {
       // If update failed after board exists and is active, user is not admin
+      logger.warn('Board name update forbidden - not admin', { boardId: id });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Admin access required', 403);
     }
 
@@ -147,6 +168,8 @@ export class BoardService {
 
     // Emit real-time event
     this.broadcaster.boardRenamed(id, name);
+
+    logger.info('Board name updated', { boardId: id });
 
     return {
       ...board,
@@ -158,10 +181,17 @@ export class BoardService {
    * Close a board (admin only) - uses atomic operation
    */
   async closeBoard(id: string, userHash: string, isAdminOverride = false): Promise<Board> {
+    logger.info('Closing board', {
+      boardId: id,
+      userHash: userHash.substring(0, 8) + '...',
+      isAdminOverride,
+    });
+
     // First check if board exists
     const existingBoard = await this.boardRepository.findById(id);
 
     if (!existingBoard) {
+      logger.warn('Board not found for close', { boardId: id });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
@@ -171,6 +201,7 @@ export class BoardService {
     });
 
     if (!doc) {
+      logger.warn('Board close forbidden - not admin', { boardId: id });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Admin access required', 403);
     }
 
@@ -178,6 +209,8 @@ export class BoardService {
 
     // Emit real-time event
     this.broadcaster.boardClosed(id, board.closed_at!);
+
+    logger.info('Board closed', { boardId: id });
 
     return {
       ...board,
@@ -189,14 +222,23 @@ export class BoardService {
    * Add a co-admin (creator only) - uses atomic operation
    */
   async addAdmin(boardId: string, userHashToPromote: string, requesterHash: string, isAdminOverride = false): Promise<Board> {
+    logger.info('Adding admin to board', {
+      boardId,
+      userHashToPromote: userHashToPromote.substring(0, 8) + '...',
+      requesterHash: requesterHash.substring(0, 8) + '...',
+      isAdminOverride,
+    });
+
     // First check if board exists and get its state
     const existingBoard = await this.boardRepository.findById(boardId);
 
     if (!existingBoard) {
+      logger.warn('Board not found for add admin', { boardId });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
     if (existingBoard.state === 'closed') {
+      logger.warn('Attempted to add admin to closed board', { boardId });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
@@ -207,10 +249,13 @@ export class BoardService {
     });
 
     if (!doc) {
+      logger.warn('Add admin forbidden - not creator', { boardId });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the board creator can perform this action', 403);
     }
 
     const board = boardDocumentToBoard(doc);
+
+    logger.info('Admin added to board', { boardId });
 
     return {
       ...board,
@@ -228,20 +273,30 @@ export class BoardService {
     userHash: string,
     isAdminOverride = false
   ): Promise<Board> {
+    logger.info('Renaming column', {
+      boardId,
+      columnId,
+      userHash: userHash.substring(0, 8) + '...',
+      isAdminOverride,
+    });
+
     // First check if board exists and get its state
     const existingBoard = await this.boardRepository.findById(boardId);
 
     if (!existingBoard) {
+      logger.warn('Board not found for column rename', { boardId });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
     if (existingBoard.state === 'closed') {
+      logger.warn('Attempted to rename column on closed board', { boardId });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
     // Check if column exists
     const columnExists = existingBoard.columns.some((col) => col.id === columnId);
     if (!columnExists) {
+      logger.warn('Column not found for rename', { boardId, columnId });
       throw new ApiError(ErrorCodes.COLUMN_NOT_FOUND, 'Column not found', 400);
     }
 
@@ -252,10 +307,13 @@ export class BoardService {
     });
 
     if (!doc) {
+      logger.warn('Column rename forbidden - not admin', { boardId, columnId });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Admin access required', 403);
     }
 
     const board = boardDocumentToBoard(doc);
+
+    logger.info('Column renamed', { boardId, columnId });
 
     return {
       ...board,
@@ -268,15 +326,23 @@ export class BoardService {
    * Performs cascade delete of all related data (cards, reactions, sessions) within a transaction
    */
   async deleteBoard(id: string, userHash: string, isAdminSecret = false): Promise<void> {
+    logger.info('Deleting board', {
+      boardId: id,
+      userHash: userHash.substring(0, 8) + '...',
+      isAdminSecret,
+    });
+
     // Verify board exists before authorization check
     const board = await this.boardRepository.findById(id);
     if (!board) {
+      logger.warn('Board not found for delete', { boardId: id });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
     // Authorization check (unless admin secret bypass)
     if (!isAdminSecret) {
       if (board.created_by_hash !== userHash) {
+        logger.warn('Board delete forbidden - not creator', { boardId: id });
         throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the board creator can perform this action', 403);
       }
     }
@@ -294,6 +360,8 @@ export class BoardService {
 
     // Emit real-time event
     this.broadcaster.boardDeleted(id);
+
+    logger.info('Board deleted', { boardId: id });
   }
 
   /**

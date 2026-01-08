@@ -91,13 +91,24 @@ export class UserSessionRepository {
   ): Promise<UserSessionDocument | null> {
     const boardObjectId = this.tryParseBoardId(boardId);
     if (!boardObjectId) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'user_sessions', boardId });
       return null;
     }
 
-    return this.collection.findOne({
+    const startTime = Date.now();
+    const result = await this.collection.findOne({
       board_id: boardObjectId,
       cookie_hash: cookieHash,
     });
+
+    logger.debug('DB query completed', {
+      collection: 'user_sessions',
+      operation: 'findByBoardAndUser',
+      duration_ms: Date.now() - startTime,
+      found: result !== null,
+    });
+
+    return result;
   }
 
   /**
@@ -106,18 +117,29 @@ export class UserSessionRepository {
   async findActiveUsers(boardId: string): Promise<UserSessionDocument[]> {
     const boardObjectId = this.tryParseBoardId(boardId);
     if (!boardObjectId) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'user_sessions', boardId });
       return [];
     }
 
     const cutoffTime = new Date(Date.now() - ACTIVITY_WINDOW_MS);
 
-    return this.collection
+    const startTime = Date.now();
+    const results = await this.collection
       .find({
         board_id: boardObjectId,
         last_active_at: { $gte: cutoffTime },
       })
       .sort({ last_active_at: -1 })
       .toArray();
+
+    logger.debug('DB query completed', {
+      collection: 'user_sessions',
+      operation: 'findActiveUsers',
+      duration_ms: Date.now() - startTime,
+      count: results.length,
+    });
+
+    return results;
   }
 
   /**

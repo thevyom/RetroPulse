@@ -6,6 +6,8 @@ import { Reaction, ReactionQuota, AddReactionInput, reactionDocumentToReaction }
 import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
+import { logger } from '@/shared/logger/index.js';
+import { reactionsTotal } from '@/shared/metrics/index.js';
 
 export class ReactionService {
   private broadcaster: IEventBroadcaster;
@@ -24,9 +26,16 @@ export class ReactionService {
    * Add a reaction to a card
    */
   async addReaction(cardId: string, input: AddReactionInput, userHash: string): Promise<Reaction> {
+    logger.info('Adding reaction', {
+      cardId,
+      reactionType: input.reaction_type,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Get the card
     const card = await this.cardRepository.findById(cardId);
     if (!card) {
+      logger.warn('Card not found for reaction', { cardId });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
@@ -39,6 +48,7 @@ export class ReactionService {
     }
 
     if (board.state === 'closed') {
+      logger.warn('Attempted to add reaction on closed board', { cardId, boardId });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
@@ -49,6 +59,7 @@ export class ReactionService {
     if (!existingReaction && board.reaction_limit_per_user !== null) {
       const currentCount = await this.reactionRepository.countUserReactionsOnBoard(boardId, userHash);
       if (currentCount >= board.reaction_limit_per_user) {
+        logger.warn('Reaction limit reached', { boardId, limit: board.reaction_limit_per_user });
         throw new ApiError(
           ErrorCodes.REACTION_LIMIT_REACHED,
           `Reaction limit of ${board.reaction_limit_per_user} reached`,
@@ -93,6 +104,13 @@ export class ReactionService {
       }
     }
 
+    // Increment metrics (only for new reactions)
+    if (isNew) {
+      reactionsTotal.inc({ action: 'add' });
+    }
+
+    logger.info('Reaction added', { cardId, isNew });
+
     return reaction;
   }
 
@@ -100,9 +118,15 @@ export class ReactionService {
    * Remove a reaction from a card
    */
   async removeReaction(cardId: string, userHash: string): Promise<void> {
+    logger.info('Removing reaction', {
+      cardId,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Get the card
     const card = await this.cardRepository.findById(cardId);
     if (!card) {
+      logger.warn('Card not found for reaction removal', { cardId });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
@@ -115,12 +139,14 @@ export class ReactionService {
     }
 
     if (board.state === 'closed') {
+      logger.warn('Attempted to remove reaction on closed board', { cardId, boardId });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
     // Check if reaction exists
     const existingReaction = await this.reactionRepository.findByCardAndUser(cardId, userHash);
     if (!existingReaction) {
+      logger.warn('Reaction not found for removal', { cardId });
       throw new ApiError(ErrorCodes.REACTION_NOT_FOUND, 'Reaction not found', 404);
     }
 
@@ -131,6 +157,7 @@ export class ReactionService {
     // Delete the reaction
     const deleted = await this.reactionRepository.delete(cardId, userHash);
     if (!deleted) {
+      logger.error('Failed to delete reaction', { cardId });
       throw new ApiError(ErrorCodes.INTERNAL_ERROR, 'Failed to delete reaction', 500);
     }
 
@@ -149,6 +176,11 @@ export class ReactionService {
         parentCardId: updatedCard.parent_card_id?.toHexString() ?? null,
       });
     }
+
+    // Increment metrics
+    reactionsTotal.inc({ action: 'remove' });
+
+    logger.info('Reaction removed', { cardId });
   }
 
   /**

@@ -16,6 +16,8 @@ import { ApiError } from '@/shared/middleware/index.js';
 import { ErrorCodes } from '@/shared/types/index.js';
 import { eventBroadcaster, type IEventBroadcaster } from '@/gateway/socket/index.js';
 import type { CardRefreshPayload } from '@/gateway/socket/socket-types.js';
+import { logger } from '@/shared/logger/index.js';
+import { cardsCreatedTotal } from '@/shared/metrics/index.js';
 
 export class CardService {
   private broadcaster: IEventBroadcaster;
@@ -78,19 +80,29 @@ export class CardService {
     userHash: string,
     correlationId?: string
   ): Promise<Card> {
+    logger.info('Creating card', {
+      boardId,
+      columnId: input.column_id,
+      cardType: input.card_type,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Check board exists and is active
     const board = await this.boardRepository.findById(boardId);
     if (!board) {
+      logger.warn('Board not found for card creation', { boardId });
       throw new ApiError(ErrorCodes.BOARD_NOT_FOUND, 'Board not found', 404);
     }
 
     if (board.state === 'closed') {
+      logger.warn('Attempted to create card on closed board', { boardId });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
     // Validate column exists
     const columnExists = board.columns.some((col) => col.id === input.column_id);
     if (!columnExists) {
+      logger.warn('Column not found for card creation', { boardId, columnId: input.column_id });
       throw new ApiError(ErrorCodes.COLUMN_NOT_FOUND, 'Column not found', 400);
     }
 
@@ -98,6 +110,7 @@ export class CardService {
     if (input.card_type === 'feedback' && board.card_limit_per_user !== null) {
       const currentCount = await this.cardRepository.countUserCards(boardId, userHash, 'feedback');
       if (currentCount >= board.card_limit_per_user) {
+        logger.warn('Card limit reached', { boardId, limit: board.card_limit_per_user });
         throw new ApiError(
           ErrorCodes.CARD_LIMIT_REACHED,
           `Card limit of ${board.card_limit_per_user} reached`,
@@ -116,6 +129,9 @@ export class CardService {
     const doc = await this.cardRepository.create(boardId, input, userHash, creatorAlias);
     const card = cardDocumentToCard(doc);
 
+    // Increment metrics
+    cardsCreatedTotal.inc({ card_type: input.card_type });
+
     // Emit real-time event
     this.broadcaster.cardCreated({
       cardId: card.id,
@@ -132,6 +148,8 @@ export class CardService {
       linkedFeedbackIds: card.linked_feedback_ids,
       correlationId,
     });
+
+    logger.info('Card created', { cardId: card.id, boardId });
 
     return card;
   }
@@ -179,9 +197,15 @@ export class CardService {
    * Update card content (creator only)
    */
   async updateCard(id: string, input: UpdateCardInput, userHash: string): Promise<Card> {
+    logger.info('Updating card', {
+      cardId: id,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Get the card first
     const existingCard = await this.cardRepository.findById(id);
     if (!existingCard) {
+      logger.warn('Card not found for update', { cardId: id });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
@@ -192,6 +216,7 @@ export class CardService {
     }
 
     if (board.state === 'closed') {
+      logger.warn('Attempted to update card on closed board', { cardId: id });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
@@ -201,6 +226,7 @@ export class CardService {
     });
 
     if (!doc) {
+      logger.warn('Card update forbidden - not creator', { cardId: id });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can update this card', 403);
     }
 
@@ -214,6 +240,8 @@ export class CardService {
       updatedAt: card.updated_at!,
     });
 
+    logger.info('Card updated', { cardId: id, boardId: existingCard.board_id.toHexString() });
+
     return card;
   }
 
@@ -221,9 +249,16 @@ export class CardService {
    * Move card to a different column (creator only)
    */
   async moveCard(id: string, input: MoveCardInput, userHash: string): Promise<Card> {
+    logger.info('Moving card', {
+      cardId: id,
+      targetColumnId: input.column_id,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Get the card first
     const existingCard = await this.cardRepository.findById(id);
     if (!existingCard) {
+      logger.warn('Card not found for move', { cardId: id });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
@@ -234,12 +269,14 @@ export class CardService {
     }
 
     if (board.state === 'closed') {
+      logger.warn('Attempted to move card on closed board', { cardId: id });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
     // Validate new column exists
     const columnExists = board.columns.some((col) => col.id === input.column_id);
     if (!columnExists) {
+      logger.warn('Target column not found for card move', { cardId: id, columnId: input.column_id });
       throw new ApiError(ErrorCodes.COLUMN_NOT_FOUND, 'Column not found', 400);
     }
 
@@ -249,6 +286,7 @@ export class CardService {
     });
 
     if (!doc) {
+      logger.warn('Card move forbidden - not creator', { cardId: id });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can move this card', 403);
     }
 
@@ -261,6 +299,8 @@ export class CardService {
       columnId: input.column_id,
     });
 
+    logger.info('Card moved', { cardId: id, columnId: input.column_id });
+
     return card;
   }
 
@@ -268,20 +308,29 @@ export class CardService {
    * Delete a card (creator only, or admin override)
    */
   async deleteCard(id: string, userHash: string, isAdminOverride = false): Promise<void> {
+    logger.info('Deleting card', {
+      cardId: id,
+      userHash: userHash.substring(0, 8) + '...',
+      isAdminOverride,
+    });
+
     // Get the card first
     const existingCard = await this.cardRepository.findById(id);
     if (!existingCard) {
+      logger.warn('Card not found for delete', { cardId: id });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Card not found', 404);
     }
 
     // Check authorization (bypassed if admin override)
     if (!isAdminOverride && existingCard.created_by_hash !== userHash) {
+      logger.warn('Card delete forbidden - not creator', { cardId: id });
       throw new ApiError(ErrorCodes.FORBIDDEN, 'Only the card creator can delete this card', 403);
     }
 
     // Check board is active
     const board = await this.boardRepository.findById(existingCard.board_id.toHexString());
     if (board && board.state === 'closed') {
+      logger.warn('Attempted to delete card on closed board', { cardId: id });
       throw new ApiError(ErrorCodes.BOARD_CLOSED, 'Board is closed', 409);
     }
 
@@ -301,20 +350,31 @@ export class CardService {
 
     // Emit real-time event
     this.broadcaster.cardDeleted(existingCard.board_id.toHexString(), id);
+
+    logger.info('Card deleted', { cardId: id, boardId: existingCard.board_id.toHexString() });
   }
 
   /**
    * Link two cards (source card creator or board admin only)
    */
   async linkCards(sourceCardId: string, input: LinkCardsInput, userHash: string): Promise<void> {
+    logger.info('Linking cards', {
+      sourceCardId,
+      targetCardId: input.target_card_id,
+      linkType: input.link_type,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Get both cards
     const sourceCard = await this.cardRepository.findById(sourceCardId);
     const targetCard = await this.cardRepository.findById(input.target_card_id);
 
     if (!sourceCard) {
+      logger.warn('Source card not found for link', { cardId: sourceCardId });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Source card not found', 404);
     }
     if (!targetCard) {
+      logger.warn('Target card not found for link', { cardId: input.target_card_id });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Target card not found', 404);
     }
 
@@ -454,20 +514,35 @@ export class CardService {
         this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedAction));
       }
     }
+
+    logger.info('Cards linked', {
+      sourceCardId,
+      targetCardId: input.target_card_id,
+      linkType: input.link_type,
+    });
   }
 
   /**
    * Unlink two cards (source card creator or board admin only)
    */
   async unlinkCards(sourceCardId: string, input: LinkCardsInput, userHash: string): Promise<void> {
+    logger.info('Unlinking cards', {
+      sourceCardId,
+      targetCardId: input.target_card_id,
+      linkType: input.link_type,
+      userHash: userHash.substring(0, 8) + '...',
+    });
+
     // Get both cards
     const sourceCard = await this.cardRepository.findById(sourceCardId);
     const targetCard = await this.cardRepository.findById(input.target_card_id);
 
     if (!sourceCard) {
+      logger.warn('Source card not found for unlink', { cardId: sourceCardId });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Source card not found', 404);
     }
     if (!targetCard) {
+      logger.warn('Target card not found for unlink', { cardId: input.target_card_id });
       throw new ApiError(ErrorCodes.CARD_NOT_FOUND, 'Target card not found', 404);
     }
 
@@ -547,6 +622,12 @@ export class CardService {
         this.broadcaster.cardRefresh(this.toCardRefreshPayload(updatedAction));
       }
     }
+
+    logger.info('Cards unlinked', {
+      sourceCardId,
+      targetCardId: input.target_card_id,
+      linkType: input.link_type,
+    });
   }
 
   /**

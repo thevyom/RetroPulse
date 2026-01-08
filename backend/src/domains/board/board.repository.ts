@@ -64,17 +64,38 @@ export class BoardRepository {
    */
   async findById(id: string): Promise<BoardDocument | null> {
     if (!ObjectId.isValid(id)) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'boards', id });
       return null;
     }
 
-    return this.collection.findOne({ _id: new ObjectId(id) });
+    const startTime = Date.now();
+    const result = await this.collection.findOne({ _id: new ObjectId(id) });
+
+    logger.debug('DB query completed', {
+      collection: 'boards',
+      operation: 'findOne',
+      duration_ms: Date.now() - startTime,
+      found: result !== null,
+    });
+
+    return result;
   }
 
   /**
    * Find board by shareable link
    */
   async findByShareableLink(link: string): Promise<BoardDocument | null> {
-    return this.collection.findOne({ shareable_link: link });
+    const startTime = Date.now();
+    const result = await this.collection.findOne({ shareable_link: link });
+
+    logger.debug('DB query completed', {
+      collection: 'boards',
+      operation: 'findByShareableLink',
+      duration_ms: Date.now() - startTime,
+      found: result !== null,
+    });
+
+    return result;
   }
 
   /**
@@ -244,13 +265,23 @@ export class BoardRepository {
    */
   async delete(id: string, session?: import('mongodb').ClientSession): Promise<boolean> {
     if (!ObjectId.isValid(id)) {
+      logger.debug('DB query skipped - invalid ObjectId', { collection: 'boards', operation: 'delete', id });
       return false;
     }
 
+    const startTime = Date.now();
     const result = await this.collection.deleteOne(
       { _id: new ObjectId(id) },
       session ? { session } : undefined
     );
+
+    logger.debug('DB query completed', {
+      collection: 'boards',
+      operation: 'deleteOne',
+      duration_ms: Date.now() - startTime,
+      deletedCount: result.deletedCount,
+    });
+
     return result.deletedCount === 1;
   }
 

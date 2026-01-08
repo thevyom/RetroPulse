@@ -6,6 +6,8 @@ export interface AuthenticatedRequest extends ExpressRequest {
   sessionId?: string;
   /** Set by adminOverrideMiddleware when valid X-Admin-Secret header is provided */
   isAdminOverride?: boolean;
+  /** Unique ID for tracing requests across log entries */
+  correlationId: string;
 }
 
 // Standard API response format

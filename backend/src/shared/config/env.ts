@@ -13,6 +13,8 @@ const envSchema = z.object({
   ADMIN_SECRET_KEY: z.string().min(16).default('dev-admin-secret-16chars'),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   APP_URL: z.string().url().default('http://localhost:3000'),
+  // Log level configuration - defaults to 'info' in production, 'debug' in development/test
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
