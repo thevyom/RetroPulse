@@ -77,6 +77,8 @@ export interface CardCreatedEvent extends BaseEvent {
   aggregatedReactionCount: number;
   parentCardId: string | null;
   linkedFeedbackIds: string[];
+  /** Optional correlation ID for optimistic update deduplication */
+  correlationId?: string;
 }
 
 export interface CardUpdatedEvent extends BaseEvent {

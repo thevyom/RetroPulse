@@ -1,7 +1,7 @@
 /**
  * MeSection Component
  * Shows the current user's avatar in the ParticipantBar.
- * Part of the filter group on the right side of ParticipantBar.
+ * Part of the filter group on the left side (All, Anon, Me).
  *
  * Design: Avatar only - no label, no pencil icon (per UTB-033)
  * Edit alias functionality moved to context menu (Task 2.1)
@@ -11,6 +11,7 @@
 
 import { forwardRef } from 'react';
 import { cn } from '@/lib/utils';
+import { getInitials } from './ParticipantAvatar';
 
 // ============================================================================
 // Types
@@ -29,12 +30,7 @@ export interface MeSectionProps {
 
 export const MeSection = forwardRef<HTMLButtonElement, MeSectionProps>(
   ({ alias, isAdmin, isSelected, onFilter, ...props }, ref) => {
-    const initials = alias
-      .split(' ')
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+    const initials = getInitials(alias);
 
     return (
       <button

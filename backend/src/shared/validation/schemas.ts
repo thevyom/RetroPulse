@@ -79,6 +79,8 @@ export const createCardSchema = z.object({
   content: z.string().min(1, 'Content is required').max(5000, 'Content must be 5000 characters or less'),
   card_type: cardTypeSchema,
   is_anonymous: z.boolean().optional().default(false),
+  // Optional correlation ID for optimistic update deduplication
+  correlation_id: z.string().uuid().optional(),
 });
 
 // Update card schema

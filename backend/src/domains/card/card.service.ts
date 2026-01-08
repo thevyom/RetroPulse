@@ -70,11 +70,13 @@ export class CardService {
 
   /**
    * Create a new card
+   * @param correlationId Optional correlation ID for optimistic update deduplication
    */
   async createCard(
     boardId: string,
     input: CreateCardInput,
-    userHash: string
+    userHash: string,
+    correlationId?: string
   ): Promise<Card> {
     // Check board exists and is active
     const board = await this.boardRepository.findById(boardId);
@@ -128,6 +130,7 @@ export class CardService {
       aggregatedReactionCount: card.aggregated_reaction_count,
       parentCardId: card.parent_card_id,
       linkedFeedbackIds: card.linked_feedback_ids,
+      correlationId,
     });
 
     return card;

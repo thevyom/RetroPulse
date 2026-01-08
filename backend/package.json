@@ -29,8 +29,9 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
+  "packageManager": "pnpm@10.26.2",
   "dependencies": {
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

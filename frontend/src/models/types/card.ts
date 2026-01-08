@@ -57,6 +57,8 @@ export interface CreateCardDTO {
   content: string;
   card_type: CardType;
   is_anonymous?: boolean;
+  /** Optional correlation ID for optimistic update deduplication */
+  correlation_id?: string;
 }
 
 export interface UpdateCardDTO {

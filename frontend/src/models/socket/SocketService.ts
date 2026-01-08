@@ -28,6 +28,9 @@ const HEARTBEAT_INTERVAL = 30000;
 // Maximum queued events to prevent memory issues during extended disconnection
 const MAX_EVENT_QUEUE_SIZE = 100;
 
+// Maximum queued subscriptions to prevent memory issues
+const MAX_SUBSCRIPTION_QUEUE_SIZE = 50;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -41,6 +44,11 @@ interface QueuedEvent {
   data: unknown;
 }
 
+interface QueuedSubscription {
+  event: string;
+  handler: (...args: unknown[]) => void;
+}
+
 // ============================================================================
 // SocketService Class
 // ============================================================================
@@ -50,6 +58,7 @@ class SocketServiceImpl {
   private currentBoardId: string | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private eventQueue: QueuedEvent[] = [];
+  private subscriptionQueue: QueuedSubscription[] = [];
   private isConnected = false;
 
   /**
@@ -78,6 +87,9 @@ class SocketServiceImpl {
       reconnectionAttempts: RECONNECTION_ATTEMPTS,
       transports: ['websocket', 'polling'],
     });
+
+    // Flush any queued subscriptions now that socket exists
+    this.flushSubscriptionQueue();
 
     // Set up connection handlers
     this.socket.on('connect', () => {
@@ -114,6 +126,7 @@ class SocketServiceImpl {
     this.currentBoardId = null;
     this.isConnected = false;
     this.eventQueue = [];
+    this.subscriptionQueue = [];
   }
 
   /**
@@ -122,16 +135,22 @@ class SocketServiceImpl {
    * @param handler - Event handler function
    */
   on<T extends SocketEventType>(event: T, handler: EventHandler<T>): void {
+    const typedHandler = handler as unknown as (...args: unknown[]) => void;
+
     if (!this.socket) {
-      console.warn('Socket not connected. Cannot subscribe to event:', event);
+      // Queue subscription for when socket is created (with size limit)
+      if (this.subscriptionQueue.length < MAX_SUBSCRIPTION_QUEUE_SIZE) {
+        this.subscriptionQueue.push({ event, handler: typedHandler });
+      }
       return;
     }
+
     // Type assertion needed due to Socket.io typing limitations
     (
       this.socket as unknown as {
         on: (event: string, handler: (...args: unknown[]) => void) => void;
       }
-    ).on(event, handler as unknown as (...args: unknown[]) => void);
+    ).on(event, typedHandler);
   }
 
   /**
@@ -140,14 +159,25 @@ class SocketServiceImpl {
    * @param handler - Optional specific handler to remove
    */
   off<T extends SocketEventType>(event: T, handler?: EventHandler<T>): void {
+    const typedHandler = handler as unknown as ((...args: unknown[]) => void) | undefined;
+
+    // Also remove from subscription queue if not yet applied
+    if (typedHandler) {
+      this.subscriptionQueue = this.subscriptionQueue.filter(
+        (sub) => !(sub.event === event && sub.handler === typedHandler)
+      );
+    } else {
+      this.subscriptionQueue = this.subscriptionQueue.filter((sub) => sub.event !== event);
+    }
+
     if (!this.socket) return;
 
     const sock = this.socket as unknown as {
       off: (event: string, handler?: (...args: unknown[]) => void) => void;
     };
 
-    if (handler) {
-      sock.off(event, handler as unknown as (...args: unknown[]) => void);
+    if (typedHandler) {
+      sock.off(event, typedHandler);
     } else {
       sock.off(event);
     }
@@ -226,6 +256,21 @@ class SocketServiceImpl {
           queued.event,
           queued.data
         );
+      }
+    }
+  }
+
+  private flushSubscriptionQueue(): void {
+    if (!this.socket) return;
+
+    const sock = this.socket as unknown as {
+      on: (event: string, handler: (...args: unknown[]) => void) => void;
+    };
+
+    while (this.subscriptionQueue.length > 0) {
+      const queued = this.subscriptionQueue.shift();
+      if (queued) {
+        sock.on(queued.event, queued.handler);
       }
     }
   }

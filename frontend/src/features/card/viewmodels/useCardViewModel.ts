@@ -3,7 +3,7 @@
  * Manages card operations, sorting, filtering, and quotas following MVVM pattern
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCardStore } from '../../../models/stores/cardStore';
 import { useBoardStore } from '../../../models/stores/boardStore';
 import { useUserStore } from '../../../models/stores/userStore';
@@ -193,6 +193,10 @@ export function useCardViewModel(
   // Track user's reactions locally (persists for session only)
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
 
+  // Track pending card creations by correlationId to prevent duplicate additions
+  // from WebSocket events during optimistic updates
+  const pendingCorrelationIds = useRef<Set<string>>(new Set());
+
   // Combined error
   const error = operationError || storeError;
 
@@ -279,7 +283,6 @@ export function useCardViewModel(
   // Load cards on mount (unless autoFetch is disabled)
   useEffect(() => {
     if (autoFetch) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
       void fetchCards();
     }
   }, [autoFetch, fetchCards]);
@@ -287,7 +290,6 @@ export function useCardViewModel(
   // Load quotas on mount - failures are non-critical (unless autoFetch is disabled)
   useEffect(() => {
     if (boardId && autoFetch) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Data fetching on mount is intentional
       checkCardQuota().catch(() => {
         /* Silent fail - quotas are optional */
       });
@@ -318,8 +320,17 @@ export function useCardViewModel(
       aggregatedReactionCount: number;
       parentCardId: string | null;
       linkedFeedbackIds: string[];
+      correlationId?: string;
     }) => {
-      // Transform socket payload to Card structure
+      // If this event has a correlationId that we're tracking, it's our own
+      // optimistic update - skip to prevent duplicates (the API response handler
+      // will add the real card)
+      if (event.correlationId && pendingCorrelationIds.current.has(event.correlationId)) {
+        return;
+      }
+
+      // For cards created by others, the hash will be empty (that's OK - we don't need it for display)
+      // For cards we created, the API response will have the hash (handled in handleCreateCard)
       const card: Card = {
         id: event.cardId,
         board_id: event.boardId,
@@ -327,7 +338,7 @@ export function useCardViewModel(
         content: event.content,
         card_type: event.cardType,
         is_anonymous: event.isAnonymous,
-        created_by_hash: '', // Not sent via socket, not needed for display
+        created_by_hash: '', // Not sent via socket - ownership only matters for our own cards
         created_by_alias: event.createdByAlias,
         created_at: event.createdAt,
         direct_reaction_count: event.directReactionCount,
@@ -355,39 +366,17 @@ export function useCardViewModel(
     };
 
     const handleReactionAdded = (event: { cardId: string; parentCardId?: string | null }) => {
+      // incrementReactionCount already handles updating parent's aggregated count
+      // when the child has parent_card_id set in the store
       incrementReactionCount(event.cardId);
-      // If card has parent but store doesn't know it, update parent's aggregate directly
-      if (event.parentCardId) {
-        const card = cardsMap.get(event.cardId);
-        if (!card?.parent_card_id) {
-          // Card in store doesn't have parent linked - update parent aggregate directly
-          const parent = cardsMap.get(event.parentCardId);
-          if (parent) {
-            updateCard(event.parentCardId, {
-              aggregated_reaction_count: parent.aggregated_reaction_count + 1,
-            });
-          }
-        }
-      }
       // Refresh reaction quota
       checkReactionQuota().catch(() => {});
     };
 
     const handleReactionRemoved = (event: { cardId: string; parentCardId?: string | null }) => {
+      // decrementReactionCount already handles updating parent's aggregated count
+      // when the child has parent_card_id set in the store
       decrementReactionCount(event.cardId);
-      // If card has parent but store doesn't know it, update parent's aggregate directly
-      if (event.parentCardId) {
-        const card = cardsMap.get(event.cardId);
-        if (!card?.parent_card_id) {
-          // Card in store doesn't have parent linked - update parent aggregate directly
-          const parent = cardsMap.get(event.parentCardId);
-          if (parent) {
-            updateCard(event.parentCardId, {
-              aggregated_reaction_count: Math.max(0, parent.aggregated_reaction_count - 1),
-            });
-          }
-        }
-      }
       // Refresh reaction quota
       checkReactionQuota().catch(() => {});
     };
@@ -454,6 +443,11 @@ export function useCardViewModel(
         }>;
       };
     }) => {
+      // Preserve the existing created_by_hash from the store since it's not sent via socket
+      // This is critical for maintaining ownership (isOwner) after link/unlink operations
+      const existingCard = cardsMap.get(event.card.id);
+      const preservedHash = existingCard?.created_by_hash ?? '';
+
       // Transform socket payload (camelCase) to Card structure (snake_case)
       const card: Card = {
         id: event.card.id,
@@ -462,7 +456,7 @@ export function useCardViewModel(
         content: event.card.content,
         card_type: event.card.cardType,
         is_anonymous: event.card.isAnonymous,
-        created_by_hash: '', // Not sent via socket
+        created_by_hash: preservedHash, // Preserve existing hash for ownership
         created_by_alias: event.card.createdByAlias,
         created_at: event.card.createdAt,
         direct_reaction_count: event.card.directReactionCount,
@@ -560,6 +554,10 @@ export function useCardViewModel(
 
       setOperationError(null);
 
+      // Generate correlation ID to prevent duplicate additions from WebSocket
+      const correlationId = crypto.randomUUID();
+      pendingCorrelationIds.current.add(correlationId);
+
       // Optimistic add with temporary ID
       const tempId = `temp-${Date.now()}`;
       const tempCard: Card = {
@@ -581,7 +579,11 @@ export function useCardViewModel(
       addCard(tempCard);
 
       try {
-        const createdCard = await CardAPI.createCard(boardId, data);
+        // Pass correlation_id to the API so it's echoed back in the WebSocket event
+        const createdCard = await CardAPI.createCard(boardId, {
+          ...data,
+          correlation_id: correlationId,
+        });
         // Replace temp card with real card
         removeCard(tempId);
         addCard(createdCard);
@@ -594,6 +596,11 @@ export function useCardViewModel(
         const message = err instanceof Error ? err.message : 'Failed to create card';
         setOperationError(message);
         throw err;
+      } finally {
+        // Clean up correlation ID after a delay to handle any late-arriving WebSocket events
+        setTimeout(() => {
+          pendingCorrelationIds.current.delete(correlationId);
+        }, 5000);
       }
     },
     [boardId, board?.state, currentUser, addCard, removeCard, checkCardQuota]

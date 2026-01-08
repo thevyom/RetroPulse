@@ -18,7 +18,8 @@
     "test:e2e:summary": "node scripts/e2e-summary.js",
     "test:e2e:report": "playwright test && node scripts/e2e-summary.js",
     "typecheck": "tsc --noEmit",
-    "prepare": "cd .. && husky frontend/.husky"
+    "prepare": "cd .. && husky frontend/.husky",
+    "preinstall": "npx only-allow pnpm"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

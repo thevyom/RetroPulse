@@ -1,7 +1,7 @@
 /**
  * ParticipantBar Component
  * Displays active users as avatars with filter functionality.
- * Layout: [All, Anon] | [Participants (scrollable)] | [Me]
+ * Layout: [All, Anon, Me] | [Participants (scrollable)]
  */
 
 import type { ChangeEvent, KeyboardEvent } from 'react';

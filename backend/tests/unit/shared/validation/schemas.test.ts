@@ -212,4 +212,45 @@ describe('createCardSchema', () => {
     const result = createCardSchema.safeParse(data);
     expect(result.success).toBe(false);
   });
+
+  it('should accept valid correlation_id (UUID)', () => {
+    const data = {
+      column_id: 'col-1',
+      content: 'Content',
+      card_type: 'feedback',
+      correlation_id: '550e8400-e29b-41d4-a716-446655440000',
+    };
+
+    const result = createCardSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.correlation_id).toBe('550e8400-e29b-41d4-a716-446655440000');
+    }
+  });
+
+  it('should reject invalid correlation_id (not UUID)', () => {
+    const data = {
+      column_id: 'col-1',
+      content: 'Content',
+      card_type: 'feedback',
+      correlation_id: 'not-a-uuid',
+    };
+
+    const result = createCardSchema.safeParse(data);
+    expect(result.success).toBe(false);
+  });
+
+  it('should work without correlation_id (optional)', () => {
+    const data = {
+      column_id: 'col-1',
+      content: 'Content',
+      card_type: 'feedback',
+    };
+
+    const result = createCardSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.correlation_id).toBeUndefined();
+    }
+  });
 });

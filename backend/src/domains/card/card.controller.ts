@@ -53,12 +53,13 @@ export class CardController {
   ): Promise<void> => {
     try {
       const { boardId } = req.params;
-      const { column_id, content, card_type, is_anonymous } = req.body;
+      const { column_id, content, card_type, is_anonymous, correlation_id } = req.body;
 
       const card = await this.cardService.createCard(
         boardId!,
         { column_id, content, card_type, is_anonymous },
-        req.hashedCookieId!
+        req.hashedCookieId!,
+        correlation_id
       );
 
       sendSuccess(res, card, 201);
