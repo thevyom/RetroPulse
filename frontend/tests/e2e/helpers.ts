@@ -80,7 +80,9 @@ export function getDefaultBoardId(): string {
 /**
  * Get a specific board ID by type
  */
-export function getBoardId(type: 'default' | 'quota' | 'lifecycle' | 'a11y' | 'anon'): string {
+export function getBoardId(
+  type: 'default' | 'quota' | 'lifecycle' | 'a11y' | 'anon' | 'sorting'
+): string {
   const ids = getTestBoardIds();
   return ids[type] || `fallback-${type}-board`;
 }
@@ -112,6 +114,117 @@ export function uniqueBoardId(): string {
  */
 export function getTestSessionId(): string {
   return getTestBoardIds().sessionId;
+}
+
+// ============================================================================
+// E2E Logging Infrastructure
+// ============================================================================
+
+/**
+ * Log levels for E2E debugging
+ * Set E2E_LOG_LEVEL environment variable to control verbosity:
+ * - DEBUG: All messages (verbose)
+ * - INFO: Informational messages (default)
+ * - WARN: Warnings only
+ * - ERROR: Errors only
+ */
+type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
+const LOG_LEVELS: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+const E2E_LOG_LEVEL = (process.env.E2E_LOG_LEVEL as LogLevel) || 'INFO';
+
+function shouldLog(level: LogLevel): boolean {
+  return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(E2E_LOG_LEVEL);
+}
+
+/**
+ * Structured logging for E2E tests
+ * @param context - The function/module context (e.g., 'waitForBoardLoad')
+ * @param message - The message to log
+ * @param level - Log level (default: INFO)
+ */
+export function e2eLog(context: string, message: string, level: LogLevel = 'INFO'): void {
+  if (!shouldLog(level)) return;
+  const timestamp = new Date().toISOString().slice(11, 23);
+  const prefix = level === 'ERROR' ? '!' : level === 'WARN' ? '?' : level === 'DEBUG' ? '.' : '>';
+  console.log(`[${timestamp}][${prefix}${level}][${context}] ${message}`);
+}
+
+/**
+ * Log page state for debugging - useful when tests fail
+ */
+export async function logPageState(page: Page, context: string): Promise<void> {
+  try {
+    const url = page.url();
+    const title = await page.title().catch(() => 'unknown');
+
+    e2eLog(context, `URL: ${url}`, 'DEBUG');
+    e2eLog(context, `Title: ${title}`, 'DEBUG');
+
+    // Check for common error states
+    const bodyText =
+      (await page
+        .locator('body')
+        .textContent()
+        .catch(() => '')) || '';
+
+    if (bodyText.includes('Rate limited')) {
+      e2eLog(context, 'PAGE STATE: Rate limited error detected!', 'ERROR');
+      e2eLog(context, 'Fix: Start backend with DISABLE_RATE_LIMIT=true npm run dev', 'ERROR');
+    }
+    if (bodyText.includes('Error') || bodyText.includes('error')) {
+      e2eLog(context, `PAGE STATE: Error on page - ${bodyText.slice(0, 200)}`, 'WARN');
+    }
+
+    // Log visible dialogs
+    const dialogVisible = await page
+      .locator('[role="dialog"]')
+      .isVisible()
+      .catch(() => false);
+    if (dialogVisible) {
+      const dialogTitle = await page
+        .locator('[role="dialog"] h2')
+        .textContent()
+        .catch(() => 'unknown');
+      e2eLog(context, `Dialog visible: ${dialogTitle}`, 'DEBUG');
+    }
+  } catch (error) {
+    e2eLog(context, `Failed to log page state: ${error}`, 'ERROR');
+  }
+}
+
+// ============================================================================
+// Rate Limit Detection
+// ============================================================================
+
+/**
+ * Check if page is showing rate limit error
+ * Returns true if rate limited, false otherwise
+ */
+export async function checkForRateLimit(page: Page): Promise<boolean> {
+  const rateLimitAlert = page.getByText(/rate limit/i);
+  const isRateLimited = await rateLimitAlert.isVisible().catch(() => false);
+
+  if (isRateLimited) {
+    console.error('[E2E:RATE_LIMIT] ========================================');
+    console.error('[E2E:RATE_LIMIT] Page is rate limited!');
+    console.error('[E2E:RATE_LIMIT] Start backend with: DISABLE_RATE_LIMIT=true npm run dev');
+    console.error('[E2E:RATE_LIMIT] ========================================');
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Throw error if rate limited - use this to fail fast with clear message
+ */
+export async function failIfRateLimited(page: Page): Promise<void> {
+  if (await checkForRateLimit(page)) {
+    throw new Error(
+      'E2E Test Failed: Backend rate limiting is active. ' +
+        'Start backend with: DISABLE_RATE_LIMIT=true npm run dev'
+    );
+  }
 }
 
 // ============================================================================
@@ -192,6 +305,12 @@ export async function joinBoard(
 /**
  * Handle alias prompt modal if it appears
  * Returns true if modal was handled, false otherwise
+ *
+ * Phase 8.8: Refactored for reliability
+ * - Uses data-testid locators first (most reliable)
+ * - Uses real .click() instead of dispatchEvent
+ * - Verifies modal actually closes
+ * - Better error messaging
  */
 export async function handleAliasPromptModal(
   page: Page,
@@ -204,83 +323,71 @@ export async function handleAliasPromptModal(
     }
   };
 
-  // Check if alias prompt modal is visible - wait up to 4 seconds for it to appear
-  // The modal appears after session check completes (needsAlias becomes true)
-  const aliasInput = page.getByPlaceholder(/enter your name/i).or(page.getByTestId('alias-input'));
+  // Check for alias input using data-testid first (most reliable)
+  const aliasInput = page.getByTestId('alias-input');
+  const aliasInputAlt = page.getByPlaceholder(/enter your name/i);
 
-  log('Checking for alias input (waiting up to 4s)...');
+  log('Checking for alias modal (waiting up to 4s)...');
   try {
-    await aliasInput.waitFor({ state: 'visible', timeout: 4000 });
-    log('Alias input found');
+    // Try both selectors
+    await Promise.race([
+      aliasInput.waitFor({ state: 'visible', timeout: 4000 }),
+      aliasInputAlt.waitFor({ state: 'visible', timeout: 4000 }),
+    ]);
+    log('Alias modal found');
   } catch {
     log('No alias modal found within 4s');
     return false;
   }
 
+  // Determine which input is visible
+  const inputToUse = (await aliasInput.isVisible()) ? aliasInput : aliasInputAlt;
+
+  // Generate unique alias
   const userAlias = alias || `E2EUser${Date.now().toString().slice(-4)}`;
-  log(`Typing alias: ${userAlias}`);
-  // Clear any existing text first
-  await aliasInput.clear();
-  // Type character by character to ensure React state updates properly
-  await aliasInput.pressSequentially(userAlias, { delay: 10 });
+  log(`Entering alias: ${userAlias}`);
+
+  // Clear and fill (more reliable than pressSequentially)
+  await inputToUse.clear();
+  await inputToUse.fill(userAlias);
 
   // Wait for React state to update
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(200);
 
-  // Find Join Board button within the dialog
-  const dialog = page.locator('[role="dialog"]');
+  // Find Join Board button using data-testid (most reliable)
+  const joinButton = page.getByTestId('join-board-button');
+  const joinButtonAlt = page.getByRole('button', { name: /join board/i });
 
-  // Scroll the dialog content to ensure button is visible
-  await dialog.evaluate((el) => (el.scrollTop = el.scrollHeight));
-  await page.waitForTimeout(100);
+  // Wait for button to be enabled
+  log('Waiting for Join Board button to be enabled...');
+  try {
+    // Check which button is visible and wait for it to be enabled
+    const buttonToUse = (await joinButton.isVisible()) ? joinButton : joinButtonAlt;
+    await expect(buttonToUse).toBeEnabled({ timeout: 3000 });
 
-  // Try different locator strategies
-  let joinButton = dialog.getByTestId('join-board-button');
-  let buttonFound = await joinButton.isVisible().catch(() => false);
-
-  if (!buttonFound) {
-    log('Trying role button locator...');
-    joinButton = dialog.getByRole('button', { name: 'Join Board' });
-    buttonFound = await joinButton.isVisible().catch(() => false);
+    log('Clicking Join Board button...');
+    await buttonToUse.click();
+  } catch (error) {
+    // Fallback: try dispatchEvent if regular click fails
+    log('Regular click failed, trying dispatchEvent fallback...');
+    const fallbackButton = page.locator('button:has-text("Join Board")');
+    await fallbackButton.dispatchEvent('click');
   }
 
-  if (!buttonFound) {
-    log('Trying text locator...');
-    joinButton = dialog.locator('button:has-text("Join Board")');
-    buttonFound = await joinButton.isVisible().catch(() => false);
-  }
-
-  log(`Button found with locator: ${buttonFound}`);
-
-  // Check if button is disabled
-  const isDisabled = await joinButton.isDisabled().catch(() => true);
-  log(`Button disabled: ${isDisabled}`);
-
-  if (isDisabled) {
-    log('Button is disabled - attempting to scroll and retry');
-    // Maybe the button is there but disabled state didn't update
-    await page.waitForTimeout(500);
-  }
-
-  // Debug: Get all buttons in dialog
-  const dialogButtons = await dialog.locator('button').allTextContents();
-  log(`All buttons in dialog: ${JSON.stringify(dialogButtons)}`);
-
-  log('Clicking Join Board button via JavaScript...');
-  // Use dispatchEvent to click since element visibility is problematic
-  await joinButton.dispatchEvent('click');
-  log('Click dispatched');
-
-  // Wait for modal to close and session to be established
+  // Wait for modal to close
   log('Waiting for modal to close...');
-  await page.waitForTimeout(500);
-
-  // Verify modal is closed
-  const modalStillVisible = await aliasInput.isVisible().catch(() => false);
-  if (modalStillVisible) {
-    log('WARNING: Modal still visible after clicking Join');
-  } else {
+  const dialog = page.locator('[role="dialog"]');
+  try {
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
     log('Modal closed successfully');
+  } catch {
+    // Check if modal is still visible
+    const stillVisible = await dialog.isVisible().catch(() => false);
+    if (stillVisible) {
+      log('WARNING: Modal still visible after clicking Join - may need investigation');
+    } else {
+      log('Modal closed (verified via isVisible)');
+    }
   }
 
   return true;
@@ -308,6 +415,14 @@ export async function waitForBoardLoad(
   // Wait for page to be stable first
   await page.waitForLoadState('domcontentloaded');
   log('DOM content loaded');
+
+  // Check for rate limiting first - fail fast with clear message
+  if (await checkForRateLimit(page)) {
+    throw new Error(
+      'E2E Test Failed: Backend rate limiting is active. ' +
+        'Start backend with: DISABLE_RATE_LIMIT=true npm run dev'
+    );
+  }
 
   // Check for error states first
   const errorText = await page
@@ -541,37 +656,60 @@ export async function deleteCard(page: Page, content: string): Promise<void> {
 
 /**
  * Add reaction to a card
+ *
+ * Handles both standalone cards ("Add reaction") and nested child cards
+ * ("Add reaction to child card") which have different aria-labels.
+ *
+ * For nested children: When a child card is nested inside a parent,
+ * findCardByContent returns the parent (since it contains the child's text).
+ * We need to find the child-specific reaction button near the child's content.
  */
 export async function addReaction(page: Page, content: string): Promise<void> {
-  // Find the "Add reaction" button near the card content
-  // The card structure has the reaction button as a child of the card button container
-  const reactionButton = page.getByRole('button', { name: 'Add reaction' }).filter({
-    has: page.locator('..').getByText(content, { exact: false }),
-  });
+  // Strategy: Look for the paragraph containing the content, then find the
+  // nearest reaction button. For nested children, the button is in the same
+  // div container. For standalone cards, the button is in the card header.
 
-  // If the above doesn't work, find the card text and go to parent to find the button
-  if (!(await reactionButton.count())) {
-    const cardText = page.getByText(content, { exact: false }).first();
-    const cardContainer = cardText.locator('..');
-    await cardContainer.getByRole('button', { name: 'Add reaction' }).click();
-  } else {
-    await reactionButton.first().click();
+  // Find the paragraph with the content
+  const paragraph = page.locator('p').filter({ hasText: content }).first();
+  await paragraph.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Get the parent container of this paragraph
+  const container = paragraph.locator('..');
+
+  // Try to find a reaction button in this container first (for nested children)
+  const childReactionButton = container.getByRole('button', {
+    name: /Add reaction to child card|Remove reaction from child card/i,
+  });
+  if ((await childReactionButton.count()) > 0) {
+    await childReactionButton.first().click();
+    return;
   }
+
+  // Not a nested child - find the card containing this paragraph and click its reaction button
+  const card = page.locator('[id^="card-"]').filter({ has: paragraph }).first();
+  const reactionButton = card.getByRole('button', { name: /^Add reaction$|^Remove reaction$/i });
+  await reactionButton.first().click();
 }
 
 /**
  * Get reaction count for a card
+ *
+ * The reaction count is displayed inside the "Add reaction" button.
+ * DOM structure: button > div > span with the count number
  */
 export async function getReactionCount(page: Page, content: string): Promise<number> {
   const card = await findCardByContent(page, content);
 
-  const countElement = card
-    .getByTestId('reaction-count')
-    .or(card.locator('[aria-label*="reaction"] + span'))
-    .or(card.locator('.reaction-count'));
+  // The reaction button contains the count inside it
+  // Look for button with aria-label containing "reaction" and extract number from its text
+  const reactionButton = card
+    .getByRole('button', { name: /Add reaction|Remove reaction/i })
+    .first();
+  const buttonText = await reactionButton.textContent().catch(() => '');
 
-  const countText = await countElement.textContent();
-  return parseInt(countText || '0', 10);
+  // Extract the first number from the button text
+  const match = buttonText.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
 }
 
 // ============================================================================
@@ -942,14 +1080,19 @@ export async function closeBoard(page: Page): Promise<void> {
 
 /**
  * Check if board is closed
+ * The closed indicator in RetroBoardHeader has title="Board is closed" and shows "Closed" text
  */
 export async function isBoardClosed(page: Page): Promise<boolean> {
   const closedIndicator = page
     .getByTestId('board-closed-indicator')
-    .or(page.locator('[aria-label*="closed"]'))
-    .or(page.locator('.lock-icon'));
+    .or(page.locator('[title="Board is closed"]'))
+    .or(page.getByText('Closed', { exact: true }))
+    .or(page.locator('[aria-label*="closed"]'));
 
-  return closedIndicator.isVisible().catch(() => false);
+  return closedIndicator
+    .first()
+    .isVisible()
+    .catch(() => false);
 }
 
 // ============================================================================
@@ -1155,6 +1298,12 @@ export async function waitForCardLinked(
 
 /**
  * Wait for a card to become unlinked (no longer appears as child)
+ *
+ * Phase 8.8: Fixed selector to match actual DOM structure
+ * - Standalone cards have aria-label="Drag card: {content}" on the header
+ * - Linked cards have aria-label="Unlink from parent card" on the link icon
+ *
+ * So we wait for the unlink button to DISAPPEAR (card is no longer linked)
  */
 export async function waitForCardUnlinked(
   page: Page,
@@ -1163,32 +1312,41 @@ export async function waitForCardUnlinked(
 ): Promise<void> {
   const { timeout = 10000 } = options;
 
-  // Wait for the card to appear as a standalone card (its own [id^="card-"] element with drag handle)
-  const standaloneCard = page
-    .locator('[id^="card-"]')
-    .filter({
-      has: page.getByText(cardContent, { exact: false }),
-    })
-    .locator('[data-testid="card-header"]')
-    .locator('[aria-label="Drag handle icon"]');
+  // Find the card containing the content
+  const card = page.locator('[id^="card-"]').filter({ hasText: cardContent });
 
-  await standaloneCard.first().waitFor({ state: 'visible', timeout });
+  // Wait for the unlink button to disappear (card is no longer a child)
+  const unlinkButton = card.locator('[aria-label="Unlink from parent card"]');
+  await unlinkButton.waitFor({ state: 'hidden', timeout });
+
+  // Also verify the card has the drag handle (standalone card)
+  // Standalone cards have role="button" on the header with aria-label starting with "Drag card:"
+  const dragHandle = card.locator('[data-testid="card-header"][role="button"]');
+  await dragHandle.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {
+    // This is optional - card might be in a closed board or not draggable
+    e2eLog(
+      'waitForCardUnlinked',
+      `Note: Card "${cardContent}" unlinked but drag handle not visible`,
+      'DEBUG'
+    );
+  });
 }
 
 /**
  * Click the unlink button for a nested child card
  *
- * When a card is nested inside a parent, we need to find the specific
- * unlink button that is sibling to the child's content text.
+ * Phase 8.8: Updated to match actual DOM structure
+ * - Unlink button has aria-label="Unlink from parent card"
+ * - Button is in the card header, next to the card content
  *
  * DOM structure:
- * <div class="rounded-md border-l-2..."> <!-- child container -->
- *   <div class="flex items-center gap-1"> <!-- flex row with buttons -->
- *     <button aria-label="Unlink child card">...</button>
- *     ...reaction button...
+ * <article id="card-xxx">
+ *   <div data-testid="card-header">
+ *     <button aria-label="Unlink from parent card">Link2 icon</button>
+ *     ...
  *   </div>
- *   <p>child content</p>
- * </div>
+ *   <p>card content</p>
+ * </article>
  */
 export async function clickUnlinkForNestedChild(
   page: Page,
@@ -1197,26 +1355,21 @@ export async function clickUnlinkForNestedChild(
 ): Promise<void> {
   const { timeout = 10000 } = options;
 
-  // Find the child container that has both the unlink button and the child content
-  // The container is a div with class containing "rounded-md" that has the child content
-  const childContainer = page
-    .locator('div.rounded-md')
-    .filter({
-      has: page.getByText(childContent, { exact: false }),
-    })
-    .first();
+  // Find the card containing the child content
+  const card = page.locator('[id^="card-"]').filter({ hasText: childContent });
 
-  await childContainer.waitFor({ state: 'visible', timeout });
+  await card.waitFor({ state: 'visible', timeout });
 
-  // Find the unlink button within this container
-  const unlinkButton = childContainer.getByRole('button', { name: 'Unlink child card' });
+  // Find the unlink button within this card
+  // Uses the correct aria-label from RetroCard.tsx
+  const unlinkButton = card.locator('[aria-label="Unlink from parent card"]');
 
-  // Wait for button to be visible (should be visible for non-closed boards)
+  // Wait for button to be visible
   await unlinkButton.waitFor({ state: 'visible', timeout: 5000 });
 
   await unlinkButton.click();
 
-  // Wait a bit for the backend to process
+  // Wait for the backend to process and UI to update
   await page.waitForTimeout(500);
 }
 
@@ -1351,6 +1504,16 @@ export async function waitForParticipantRegistration(
       // May already be hidden if participants exist
     });
 
-  // Also wait a bit for the participant avatar to render
-  await page.waitForTimeout(500);
+  // Wait for "Current user" group to appear with an avatar button
+  // This ensures the WebSocket session has registered this user
+  // The group has role="group" with aria-label="Current user"
+  try {
+    await page.getByRole('group', { name: 'Current user' }).locator('button').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    });
+  } catch {
+    // Fall back to just waiting a bit
+    await page.waitForTimeout(500);
+  }
 }

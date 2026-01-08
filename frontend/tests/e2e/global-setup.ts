@@ -21,7 +21,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const BOARD_IDS_FILE = path.join(__dirname, '.test-boards.json');
 
 // Demo board types to create
-const DEMO_BOARD_TYPES = ['default', 'quota', 'lifecycle', 'a11y', 'anon'];
+const DEMO_BOARD_TYPES = ['default', 'quota', 'lifecycle', 'a11y', 'anon', 'sorting'];
 
 export interface TestBoardIds {
   default?: string;
@@ -29,6 +29,7 @@ export interface TestBoardIds {
   lifecycle?: string;
   a11y?: string;
   anon?: string;
+  sorting?: string;
   sessionId: string;
   backendReady: boolean;
 }
@@ -139,11 +140,14 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     }
 
     console.log(`\n📋 Demo boards ready for testing\n`);
+    // Remind about rate limiting
+    console.log('⚠️  IMPORTANT: Ensure backend has rate limiting disabled:');
+    console.log('   DISABLE_RATE_LIMIT=true npm run dev\n');
   } else {
     process.env.E2E_BACKEND_READY = '';
     console.log('\n⚠️ Backend not available - E2E tests will be skipped');
     console.log('   To run E2E tests:');
-    console.log('   1. Start the backend: cd backend && npm run dev');
+    console.log('   1. Start the backend: cd backend && DISABLE_RATE_LIMIT=true npm run dev');
     console.log('   2. Start the frontend: cd frontend && npm run dev');
     console.log('   3. Run tests: npm run test:e2e\n');
   }

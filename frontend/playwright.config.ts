@@ -16,7 +16,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0, // No retries for faster debugging
   workers: 1, // Single worker to ensure sequential execution
-  reporter: [['html'], ['list']],
+  reporter: [
+    // Console output - shows pass/fail for each test as it runs
+    ['list'],
+    // JUnit XML - structured report with separate sections per test file
+    ['junit', { outputFile: 'playwright-report/results.xml' }],
+    // JSON report - machine-readable, organized by test file
+    ['json', { outputFile: 'playwright-report/results.json' }],
+    // HTML report - only generated, not auto-opened (smaller without embedded traces)
+    ['html', { open: 'never', attachmentsBaseURL: './attachments/' }],
+  ],
   timeout: 30 * 1000, // 30 seconds per test
   expect: {
     timeout: 10 * 1000, // 10 seconds for expect assertions

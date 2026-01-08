@@ -125,16 +125,17 @@ export async function getBoardViaApi(
 ): Promise<{
   id: string;
   name: string;
-  is_closed: boolean;
   admins: string[];
-  creator_hash: string;
+  state: 'active' | 'closed';
 }> {
   const response = await adminRequest(request, 'GET', `/boards/${boardId}`);
   if (!response.ok()) {
     const body = await response.text();
     throw new Error(`Failed to get board: ${response.status()} - ${body}`);
   }
-  return response.json();
+  const json = await response.json();
+  // API wraps response in { success: true, data: {...} }
+  return json.data;
 }
 
 /**

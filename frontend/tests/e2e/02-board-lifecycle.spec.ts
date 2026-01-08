@@ -12,6 +12,7 @@ import {
   isBoardClosed,
   getBoardId,
   isBackendReady,
+  uniqueBoardName,
 } from './helpers';
 
 test.describe('Board Lifecycle', () => {
@@ -176,5 +177,112 @@ test.describe('Board Lifecycle', () => {
     // Board should load regardless of closed state
     const header = page.locator('[data-testid="board-header"]').or(page.locator('h1'));
     await expect(header).toBeVisible();
+  });
+
+  test.describe('Card Content Editing (UTB-020)', () => {
+    test('card owner can click content to enter edit mode', async ({ page }) => {
+      // Create a new board so we're definitely the owner
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('edit'));
+      await page.getByTestId('creator-alias-input').pressSequentially('CardEditor');
+      await page.getByTestId('submit-create-board').click();
+
+      await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
+      await waitForBoardLoad(page);
+
+      // Create a card
+      const cardContent = `Editable card ${Date.now()}`;
+      await createCard(page, 'col-1', cardContent);
+
+      // Find the card content element
+      const cardContentElement = page.getByTestId('card-content').filter({ hasText: cardContent });
+      await expect(cardContentElement.first()).toBeVisible();
+
+      // Card content should be clickable (has cursor-pointer class when owner)
+      // Click on the content to enter edit mode
+      await cardContentElement.first().click();
+
+      // Edit textarea should appear
+      const editTextarea = page.getByTestId('card-edit-textarea');
+      await expect(editTextarea).toBeVisible();
+      await expect(editTextarea).toHaveValue(cardContent);
+    });
+
+    test('edited content is saved on blur', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('save'));
+      await page.getByTestId('creator-alias-input').pressSequentially('SaveEditor');
+      await page.getByTestId('submit-create-board').click();
+
+      await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
+      await waitForBoardLoad(page);
+
+      const originalContent = `Original content ${Date.now()}`;
+      await createCard(page, 'col-1', originalContent);
+
+      // Click to edit
+      const cardContentElement = page
+        .getByTestId('card-content')
+        .filter({ hasText: originalContent });
+      await cardContentElement.first().click();
+
+      // Modify content
+      const editTextarea = page.getByTestId('card-edit-textarea');
+      const newContent = `Updated content ${Date.now()}`;
+      await editTextarea.clear();
+      await editTextarea.fill(newContent);
+
+      // Blur to save (click elsewhere)
+      await page.click('body', { position: { x: 10, y: 10 } });
+
+      // Wait for save and re-render
+      await page.waitForTimeout(500);
+
+      // Verify new content is displayed
+      await expect(page.getByText(newContent)).toBeVisible();
+      await expect(page.getByText(originalContent)).not.toBeVisible();
+    });
+
+    test('Escape key cancels edit without saving', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('cancel'));
+      await page.getByTestId('creator-alias-input').pressSequentially('CancelEditor');
+      await page.getByTestId('submit-create-board').click();
+
+      await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
+      await waitForBoardLoad(page);
+
+      const originalContent = `Original ${Date.now()}`;
+      await createCard(page, 'col-1', originalContent);
+
+      // Click to edit
+      const cardContentElement = page
+        .getByTestId('card-content')
+        .filter({ hasText: originalContent });
+      await cardContentElement.first().click();
+
+      // Modify content
+      const editTextarea = page.getByTestId('card-edit-textarea');
+      await editTextarea.clear();
+      await editTextarea.fill('This should not be saved');
+
+      // Press Escape to cancel
+      await editTextarea.press('Escape');
+
+      // Textarea should close
+      await expect(editTextarea).not.toBeVisible();
+
+      // Original content should still be displayed
+      await expect(page.getByText(originalContent)).toBeVisible();
+    });
   });
 });

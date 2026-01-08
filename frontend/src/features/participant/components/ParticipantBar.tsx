@@ -120,7 +120,7 @@ export const ParticipantBar = memo(function ParticipantBar({
   return (
     <TooltipProvider>
       <nav className="flex items-center w-full" role="toolbar" aria-label="Participant filters">
-        {/* Filter Controls Section - fixed left: All, Anon */}
+        {/* Filter Controls Section - fixed left: All, Anon, Me */}
         <div className="flex items-center gap-2 shrink-0" role="group" aria-label="Filter options">
           {/* All Users */}
           <ParticipantAvatar
@@ -135,12 +135,30 @@ export const ParticipantBar = memo(function ParticipantBar({
             isSelected={showOnlyAnonymous}
             onClick={onToggleAnonymous}
           />
+
+          {/* Me Section - now in filter group, wrapped with context menu for edit alias */}
+          {currentUserAlias && (
+            <AvatarContextMenu
+              user={{ alias: currentUserAlias, is_admin: currentUserIsAdmin }}
+              isCurrentUser={true}
+              isCurrentUserAdmin={currentUserIsAdmin}
+              onFilterByUser={onToggleMe}
+              onEditAlias={handleOpenEditDialog}
+            >
+              <MeSection
+                alias={currentUserAlias}
+                isAdmin={currentUserIsAdmin}
+                isSelected={showOnlyMe}
+                onFilter={onToggleMe}
+              />
+            </AvatarContextMenu>
+          )}
         </div>
 
         {/* Divider */}
         <div className="h-6 w-px bg-border mx-3 shrink-0" aria-hidden="true" />
 
-        {/* Other Participants - scrollable middle */}
+        {/* Other Participants - scrollable right section */}
         {/* Admin promotion moved to AvatarContextMenu (right-click) per Task 3.4 */}
         <div
           className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
@@ -174,29 +192,6 @@ export const ParticipantBar = memo(function ParticipantBar({
             </span>
           )}
         </div>
-
-        {/* Divider */}
-        <div className="h-6 w-px bg-border mx-3 shrink-0" aria-hidden="true" />
-
-        {/* Me Section - fixed right, wrapped with context menu for edit alias */}
-        {currentUserAlias && (
-          <div className="shrink-0" role="group" aria-label="Current user">
-            <AvatarContextMenu
-              user={{ alias: currentUserAlias, is_admin: currentUserIsAdmin }}
-              isCurrentUser={true}
-              isCurrentUserAdmin={currentUserIsAdmin}
-              onFilterByUser={onToggleMe}
-              onEditAlias={handleOpenEditDialog}
-            >
-              <MeSection
-                alias={currentUserAlias}
-                isAdmin={currentUserIsAdmin}
-                isSelected={showOnlyMe}
-                onFilter={onToggleMe}
-              />
-            </AvatarContextMenu>
-          </div>
-        )}
       </nav>
 
       {/* Edit Alias Dialog */}

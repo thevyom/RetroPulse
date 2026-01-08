@@ -19,13 +19,23 @@ function createRateLimitHandler(customMessage?: string) {
 }
 
 /**
+ * Check if rate limiting should be skipped
+ * Skipped in test environment or when DISABLE_RATE_LIMIT=true (for E2E tests)
+ */
+function shouldSkipRateLimit(): boolean {
+  return (
+    process.env.NODE_ENV === 'test' || process.env.DISABLE_RATE_LIMIT === 'true'
+  );
+}
+
+/**
  * Common rate limiter options
  * Enables both standard (RateLimit-*) and legacy (X-RateLimit-*) headers for client visibility
  */
 const commonOptions = {
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers (RFC 6585)
   legacyHeaders: true, // Enable `X-RateLimit-*` headers for broader client compatibility
-  skip: () => process.env.NODE_ENV === 'test',
+  skip: shouldSkipRateLimit,
   // Disable validation warnings - we handle IPv6 properly via trust proxy
   validate: { xForwardedForHeader: false },
 };

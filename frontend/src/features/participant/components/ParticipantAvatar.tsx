@@ -117,7 +117,8 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         >
           <Avatar
             className={cn(
-              'h-9 w-9 cursor-pointer transition-all hover:opacity-80',
+              // Override base Avatar's overflow-hidden to allow ring/scale to show
+              'h-9 w-9 cursor-pointer transition-all hover:opacity-80 overflow-visible',
               // Filter button styles (all, anonymous, me)
               type === 'all' && 'bg-primary text-primary-foreground',
               type === 'anonymous' && 'bg-muted text-muted-foreground',

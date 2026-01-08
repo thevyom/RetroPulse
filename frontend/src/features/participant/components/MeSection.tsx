@@ -42,7 +42,7 @@ export const MeSection = forwardRef<HTMLButtonElement, MeSectionProps>(
         ref={ref}
         onClick={onFilter}
         className={cn(
-          'h-9 w-9 rounded-full flex items-center justify-center',
+          'h-9 w-9 rounded-full flex items-center justify-center overflow-visible',
           'text-sm font-semibold transition-all',
           // Always online (it's the current user)
           isAdmin ? 'bg-amber-400 text-gray-800' : 'bg-blue-500 text-white',

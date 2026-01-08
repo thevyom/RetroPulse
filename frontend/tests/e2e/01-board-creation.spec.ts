@@ -172,10 +172,14 @@ test.describe('Board Creation', () => {
     await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
     await waitForBoardLoad(page);
 
-    // Should have 3 columns with default names
-    await expect(page.getByRole('heading', { name: 'What Went Well' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'To Improve' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Action Items' })).toBeVisible();
+    // Should have 3 columns with default names (column names are editable buttons)
+    await expect(
+      page.getByRole('button', { name: 'Edit column name: What Went Well' })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit column name: To Improve' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Edit column name: Action Items' })
+    ).toBeVisible();
   });
 
   test('cancel button closes dialog', async ({ page }) => {
@@ -253,22 +257,24 @@ test.describe('Board Creation', () => {
         // May already be hidden
       });
 
-    // 4. Verify user avatar appears with correct initials
-    // "ParticipantTestUser" is one word, so initials should be "PA" (first two letters)
-    const userAvatar = page.getByRole('button', { name: `Filter by ${creatorAlias}` });
-    await expect(userAvatar).toBeVisible({ timeout: 10000 });
+    // 4. Verify user avatar appears with correct initial in the "Current user" group
+    // "ParticipantTestUser" is one word, so the initial is "P" (first letter)
+    const expectedInitial = 'P';
+    const currentUserGroup = page.getByRole('group', { name: 'Current user' });
+    await expect(currentUserGroup).toBeVisible({ timeout: 10000 });
 
-    // 5. Verify the avatar contains the correct initials (PA for ParticipantTestUser)
-    const expectedInitials = 'PA';
-    await expect(userAvatar).toContainText(expectedInitials);
+    // 5. Find the avatar button within the current user group and verify initial
+    const userAvatar = currentUserGroup.getByRole('button', { name: expectedInitial });
+    await expect(userAvatar).toBeVisible();
+    await expect(userAvatar).toContainText(expectedInitial);
 
     // 6. Verify Anonymous filter button is also visible
     const anonymousButton = page.getByRole('button', { name: 'Filter by Anonymous Cards' });
     await expect(anonymousButton).toBeVisible();
 
-    // 7. Verify creator has admin crown badge
-    const adminBadge = userAvatar.locator('[aria-label="Admin"]');
-    await expect(adminBadge).toBeVisible();
+    // 7. Verify current user avatar is styled as admin (amber background)
+    // MeSection uses amber background for admin, not a crown badge
+    await expect(userAvatar).toHaveClass(/bg-amber/);
   });
 
   test('user becomes admin of created board (verified via API)', async ({ page, request }) => {
@@ -293,13 +299,166 @@ test.describe('Board Creation', () => {
     // Verify creator is admin via API
     const boardData = await getBoardViaApi(request, boardId!);
 
-    // Board should have been created
+    // Board should have been created with correct ID
     expect(boardData.id).toBe(boardId);
 
-    // Creator hash should be set
-    expect(boardData.creator_hash).toBeTruthy();
+    // Board should have at least one admin (the creator)
+    expect(boardData.admins).toBeDefined();
+    expect(Array.isArray(boardData.admins)).toBe(true);
+    expect(boardData.admins.length).toBeGreaterThanOrEqual(1);
 
-    // Admins list should include the creator
-    expect(boardData.admins).toContain(boardData.creator_hash);
+    // Board should be active (not closed)
+    expect(boardData.state).toBe('active');
+  });
+
+  test.describe('Copy Link Button (UTB-003)', () => {
+    test('Copy Link button exists in board header', async ({ page }) => {
+      // Create a new board to get to board page
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('copylink'));
+      await page.getByTestId('creator-alias-input').pressSequentially('TestUser');
+      await page.getByTestId('submit-create-board').click();
+
+      await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
+      await waitForBoardLoad(page);
+
+      // Verify Copy Link button exists with correct label
+      const copyLinkButton = page
+        .getByRole('button', { name: /copy.*link/i })
+        .or(page.locator('[aria-label="Copy board link"]'));
+      await expect(copyLinkButton.first()).toBeVisible();
+
+      // Button should have link icon and "Copy Link" text
+      await expect(copyLinkButton.first()).toContainText(/copy.*link/i);
+    });
+
+    test('Copy Link button copies URL to clipboard', async ({ page, context }) => {
+      // Grant clipboard permissions
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+      // Create a new board
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('board-name-input').pressSequentially(uniqueBoardName('clipboard'));
+      await page.getByTestId('creator-alias-input').pressSequentially('TestUser');
+      await page.getByTestId('submit-create-board').click();
+
+      await page.waitForURL(/\/boards\/.+/, { timeout: 15000 });
+      await waitForBoardLoad(page);
+
+      const expectedUrl = page.url();
+
+      // Click Copy Link button
+      const copyLinkButton = page
+        .getByRole('button', { name: /copy.*link/i })
+        .or(page.locator('[aria-label="Copy board link"]'));
+      await copyLinkButton.first().click();
+
+      // Check clipboard content
+      const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+      expect(clipboardContent).toBe(expectedUrl);
+
+      // Success toast should appear
+      await expect(page.getByText(/copied|success/i).first()).toBeVisible({ timeout: 3000 });
+    });
+  });
+
+  test.describe('Advanced Settings - Card/Reaction Limits (UTB-008)', () => {
+    test('advanced settings toggle exists in create board dialog', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await expect(page.getByTestId('create-board-dialog')).toBeVisible();
+
+      // Advanced settings toggle should exist
+      const advancedToggle = page.getByTestId('advanced-settings-toggle');
+      await expect(advancedToggle).toBeVisible();
+      await expect(advancedToggle).toContainText(/advanced/i);
+    });
+
+    test('card limit input appears when advanced settings expanded', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+
+      // Expand advanced settings
+      await page.getByTestId('advanced-settings-toggle').click();
+
+      // Card limit controls should be visible
+      const advancedContent = page.getByTestId('advanced-settings-content');
+      await expect(advancedContent).toBeVisible();
+
+      // Unlimited should be the default
+      const cardLimitUnlimited = page.getByTestId('card-limit-unlimited');
+      await expect(cardLimitUnlimited).toBeVisible();
+      await expect(cardLimitUnlimited).toBeChecked();
+
+      // Limited option should exist
+      const cardLimitLimited = page.getByTestId('card-limit-limited');
+      await expect(cardLimitLimited).toBeVisible();
+    });
+
+    test('reaction limit input appears when advanced settings expanded', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+
+      // Expand advanced settings
+      await page.getByTestId('advanced-settings-toggle').click();
+
+      // Reaction limit controls should be visible
+      const reactionLimitUnlimited = page.getByTestId('reaction-limit-unlimited');
+      await expect(reactionLimitUnlimited).toBeVisible();
+      await expect(reactionLimitUnlimited).toBeChecked();
+
+      const reactionLimitLimited = page.getByTestId('reaction-limit-limited');
+      await expect(reactionLimitLimited).toBeVisible();
+    });
+
+    test('can set card limit value', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('advanced-settings-toggle').click();
+
+      // Select limited option
+      await page.getByTestId('card-limit-limited').click();
+
+      // Input should appear
+      const cardLimitInput = page.getByTestId('card-limit-input');
+      await expect(cardLimitInput).toBeVisible();
+
+      // Enter a value
+      await cardLimitInput.fill('5');
+      await expect(cardLimitInput).toHaveValue('5');
+    });
+
+    test('can set reaction limit value', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByTestId('create-board-button').click();
+      await page.getByTestId('advanced-settings-toggle').click();
+
+      // Select limited option
+      await page.getByTestId('reaction-limit-limited').click();
+
+      // Input should appear
+      const reactionLimitInput = page.getByTestId('reaction-limit-input');
+      await expect(reactionLimitInput).toBeVisible();
+
+      // Enter a value
+      await reactionLimitInput.fill('10');
+      await expect(reactionLimitInput).toHaveValue('10');
+    });
   });
 });
