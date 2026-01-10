@@ -19,10 +19,8 @@ export default defineConfig({
   reporter: [
     // Console output - shows pass/fail for each test as it runs
     ['list'],
-    // JUnit XML - structured report with separate sections per test file
-    ['junit', { outputFile: 'playwright-report/results.xml' }],
-    // JSON report - machine-readable, organized by test file
-    ['json', { outputFile: 'playwright-report/results.json' }],
+    // Per-file JSON reports - creates one JSON file per spec file + summary
+    ['./tests/e2e/reporters/per-file-reporter.ts', { outputDir: 'playwright-report/per-file' }],
     // HTML report - only generated, not auto-opened (smaller without embedded traces)
     ['html', { open: 'never', attachmentsBaseURL: './attachments/' }],
   ],

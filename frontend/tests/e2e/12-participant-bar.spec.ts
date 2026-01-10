@@ -972,19 +972,41 @@ test.describe('AliasPromptModal (ALIAS)', () => {
     await context.close();
   });
 
-  test('ALIAS-002: Modal NOT shown for returning users', async ({ page }) => {
-    // Use the default page which has an existing session from beforeEach
-    // A returning user with an existing session should bypass the modal
+  test('ALIAS-002: Modal NOT shown for returning users on same board', async ({ browser }) => {
+    // Use a single context to persist cookies between visits
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    // First visit: join the board with an alias
     await page.goto(`/boards/${testBoardId}`);
 
-    // Wait for board to load - modal should NOT appear for returning users
+    // First time - modal should appear
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    // Fill in alias and join
+    const input = page.getByPlaceholder(/enter your name/i);
+    await input.fill('Returning User Test');
+
+    const joinButton = page.getByTestId('join-board-button');
+    await joinButton.click();
+
+    // Wait for board to load
+    await expect(modal).not.toBeVisible({ timeout: 5000 });
+    await expect(page.locator('h2').filter({ hasText: /What Went Well/i })).toBeVisible();
+
+    // Second visit to SAME board in SAME context (cookies persisted)
+    await page.goto(`/boards/${testBoardId}`);
+
+    // Board should load directly without modal (cookie remembers user)
     await expect(page.locator('h2').filter({ hasText: /What Went Well/i })).toBeVisible({
       timeout: 5000,
     });
 
-    // Modal should not be visible
-    const modal = page.getByRole('dialog');
+    // Modal should NOT be visible for returning user on same board
     await expect(modal).not.toBeVisible();
+
+    await context.close();
   });
 
   test('ALIAS-003: No close button (X) visible', async ({ browser }) => {

@@ -512,7 +512,7 @@ export async function createCard(
   log(`Creating ${cardType} card in ${columnSelector}: "${content.substring(0, 30)}..."`);
   log(`isAnonymous: ${isAnonymous}`);
 
-  // Click add card button for the column - find by column heading then sibling button
+  // Click add card button for the column
   // columnSelector can be a column ID like "col-1" or a column name like "What Went Well"
   const columnNameMap: Record<string, string> = {
     'col-1': 'What Went Well',
@@ -525,19 +525,38 @@ export async function createCard(
   const columnName = columnNameMap[columnSelector] || columnSelector;
   log(`Looking for column: "${columnName}"`);
 
-  // Find the column by heading and click its Add card button
-  const columnHeading = page.getByRole('heading', { name: columnName, exact: true });
-  const addButton = columnHeading.locator('..').getByRole('button', { name: 'Add card' });
+  // Find the Add card button for the column
+  // Column headers can be either:
+  // 1. h2 heading elements (non-admin view)
+  // 2. button elements with "Edit column name: {name}" (admin view)
+  // We look for the Add card button that's a sibling of either
+  const h2Heading = page.locator('h2').filter({ hasText: columnName });
+  const editButton = page.getByRole('button', { name: `Edit column name: ${columnName}` });
+
+  // Try h2 first, then button
+  let addButton = h2Heading.locator('..').getByRole('button', { name: 'Add card' });
 
   // Wait for add button to be clickable
   log('Waiting for Add card button...');
   try {
+    // First try with h2 heading
+    const h2Visible = await h2Heading.isVisible().catch(() => false);
+    if (!h2Visible) {
+      // Fall back to edit button (admin view)
+      log('h2 not found, trying edit button selector...');
+      addButton = editButton.locator('..').getByRole('button', { name: 'Add card' });
+    }
     await addButton.waitFor({ state: 'visible', timeout: 10000 });
     log('Add card button found, clicking...');
   } catch (error) {
     log(`ERROR: Add card button not found. Checking page state...`);
     const headings = await page.locator('h2').allTextContents();
+    const buttons = await page
+      .locator('button')
+      .filter({ hasText: /Edit column name/ })
+      .allTextContents();
     log(`Available h2 headings: ${JSON.stringify(headings)}`);
+    log(`Available edit buttons: ${JSON.stringify(buttons)}`);
     throw error;
   }
   await addButton.click();

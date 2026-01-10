@@ -224,6 +224,7 @@ test.describe('Board Creation', () => {
 
   test('creator appears in participant bar after board creation (UTB-014)', async ({ page }) => {
     // UTB-014: Verify user appears in participant bar after board creation
+    // The creator is shown in MeSection with admin styling (amber background)
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
@@ -257,24 +258,20 @@ test.describe('Board Creation', () => {
         // May already be hidden
       });
 
-    // 4. Verify user avatar appears with correct initial in the "Current user" group
-    // "ParticipantTestUser" is one word, so the initial is "P" (first letter)
-    const expectedInitial = 'P';
-    const currentUserGroup = page.getByRole('group', { name: 'Current user' });
-    await expect(currentUserGroup).toBeVisible({ timeout: 10000 });
+    // 4. Verify MeSection avatar appears with correct initial
+    // MeSection has data-testid="me-section" and shows the user's initial
+    // "ParticipantTestUser" -> initial is "P"
+    const meSection = page.getByTestId('me-section');
+    await expect(meSection).toBeVisible({ timeout: 10000 });
+    await expect(meSection).toContainText('P');
 
-    // 5. Find the avatar button within the current user group and verify initial
-    const userAvatar = currentUserGroup.getByRole('button', { name: expectedInitial });
-    await expect(userAvatar).toBeVisible();
-    await expect(userAvatar).toContainText(expectedInitial);
-
-    // 6. Verify Anonymous filter button is also visible
+    // 5. Verify Anonymous filter button is also visible
     const anonymousButton = page.getByRole('button', { name: 'Filter by Anonymous Cards' });
     await expect(anonymousButton).toBeVisible();
 
-    // 7. Verify current user avatar is styled as admin (amber background)
-    // MeSection uses amber background for admin, not a crown badge
-    await expect(userAvatar).toHaveClass(/bg-amber/);
+    // 6. Verify current user avatar is styled as admin (amber background)
+    // MeSection uses bg-amber-400 for admin users (amber background, dark text)
+    await expect(meSection).toHaveClass(/bg-amber-400/);
   });
 
   test('user becomes admin of created board (verified via API)', async ({ page, request }) => {
