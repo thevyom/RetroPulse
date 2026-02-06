@@ -185,17 +185,14 @@ describe('SocketService', () => {
       expect(mockSocket.on).toHaveBeenCalledWith('card:created', handler);
     });
 
-    it('should warn when socket not connected', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('should queue subscription when socket not connected', () => {
       const handler = vi.fn();
 
       service.on('card:created', handler);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Socket not connected. Cannot subscribe to event:',
-        'card:created'
-      );
-      consoleSpy.mockRestore();
+      // After connecting, the queued subscription should be applied
+      service.connect('board-123');
+      expect(mockSocket.on).toHaveBeenCalledWith('card:created', handler);
     });
   });
 

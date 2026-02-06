@@ -52,12 +52,12 @@ describe('MeSection', () => {
 
     it('should show first two letters for single-word name', () => {
       render(<MeSection {...defaultProps} alias="Alice" />);
-      expect(screen.getByText('A')).toBeInTheDocument();
+      expect(screen.getByText('AL')).toBeInTheDocument();
     });
 
     it('should show first and last initials for multi-word name', () => {
       render(<MeSection {...defaultProps} alias="Mary Jane Watson" />);
-      expect(screen.getByText('MJ')).toBeInTheDocument();
+      expect(screen.getByText('MW')).toBeInTheDocument();
     });
 
     it('should handle single character name', () => {
