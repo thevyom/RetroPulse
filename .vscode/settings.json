@@ -1,0 +1,6 @@
+{
+  "docker.dockerPath": "podman",
+  "terminal.integrated.env.windows": {
+    "PATH": "C:\\Program Files\\RedHat\\Podman;${env:PATH}"
+  }
+}
